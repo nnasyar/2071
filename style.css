@@ -1,0 +1,863 @@
+        :root {
+            --bg-dark: #02040a;
+            --card-bg: #070b13;
+            --card-border: #111b2d;
+            --neon-blue: #00b4d8;
+            --neon-red: #d90429;
+            --neon-yellow: #ffb703;
+            --neon-green: #38b000;
+            --neon-purple: #9d4edd;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --title-gradient-start: #6b1111;
+            --title-gradient-end: #300a0a;
+        }
+
+        .theme-cyberpunk {
+            --neon-blue: #ff007f;
+            --neon-red: #39ff14;
+            --neon-yellow: #f5ed12;
+            --title-gradient-start: #11001c;
+            --title-gradient-end: #2d004d;
+        }
+
+        .theme-emerald {
+            --neon-blue: #06d6a0;
+            --neon-red: #118ab2;
+            --neon-yellow: #ffd166;
+            --title-gradient-start: #064e3b;
+            --title-gradient-end: #022c22;
+        }
+
+        .theme-purple {
+            --neon-blue: #a855f7;
+            --neon-red: #ec4899;
+            --neon-yellow: #eab308;
+            --title-gradient-start: #3b0764;
+            --title-gradient-end: #1e1b4b;
+        }
+
+        /* ===== AÇIK / KOYU MOD (dark & light mode, orthogonal to renk temaları) ===== */
+        .mode-light {
+            --bg-dark: #eef1f6;
+            --card-bg: #ffffff;
+            --card-border: #d7dee8;
+            --text-main: #182430;
+            --text-muted: #5b6b80;
+        }
+
+        .mode-light .dashboard-container {
+            background: radial-gradient(circle at top, #ffffff 0%, #eef1f6 100%);
+        }
+
+        .mode-light .school-brand {
+            background: linear-gradient(135deg, #ffffff 0%, #eef1f6 100%);
+        }
+
+        .mode-light .brand-name {
+            color: #182430;
+            text-shadow: none;
+        }
+
+        .mode-light .card-header {
+            color: #fff;
+        }
+
+        .mode-light .b-name {
+            text-shadow: none;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 10px;
+            transition: all 0.5s ease;
+        }
+
+        .dashboard-container {
+            width: 100%;
+            height: 100%;
+            max-width: 1920px;
+            max-height: 1080px;
+            background: radial-gradient(circle at top, #091122 0%, #02040a 100%);
+            border: 2px solid var(--card-border);
+            border-radius: 12px;
+            display: grid;
+            grid-template-columns: repeat(96, 1fr);
+            grid-template-rows: repeat(64, 1fr);
+            gap: var(--pano-gap, 8px);
+            padding: var(--pano-padding, 8px);
+            position: relative;
+        }
+
+        /* Modüller artık serbest ızgara (24x16) üzerinde konumlanır; konum/ebat
+           bilgisi panoInitLayout() tarafından her modüle satır içi stil olarak uygulanır. */
+        .pano-module {
+            min-width: 0;
+            min-height: 0;
+            position: relative;
+        }
+
+        /* ===== YERLEŞİM DÜZENLEYİCİ (SÜRÜKLE / BOYUTLANDIR) ===== */
+        .pano-edit-mode .dashboard-container {
+            background-image:
+                repeating-linear-gradient(to right, rgba(0, 180, 216, 0.10) 0, rgba(0, 180, 216, 0.10) 1px, transparent 1px, transparent calc(100% / 96)),
+                repeating-linear-gradient(to bottom, rgba(0, 180, 216, 0.10) 0, rgba(0, 180, 216, 0.10) 1px, transparent 1px, transparent calc(100% / 64));
+        }
+
+        .pano-edit-mode .pano-module {
+            outline: 2px dashed rgba(0, 180, 216, 0.55);
+            outline-offset: -2px;
+            cursor: grab;
+            user-select: none;
+        }
+
+        .pano-edit-mode .pano-module * {
+            pointer-events: none;
+        }
+
+        .pano-edit-mode .pano-module .pano-resize-handle {
+            pointer-events: auto;
+        }
+
+        .pano-edit-mode .pano-module.pano-dragging {
+            cursor: grabbing;
+            outline-color: var(--neon-yellow, #ffb703);
+            z-index: 500;
+            opacity: 0.9;
+        }
+
+        .pano-edit-mode .pano-module.pano-selected {
+            outline: 2px solid var(--neon-yellow, #ffb703);
+            outline-offset: -2px;
+            z-index: 400;
+        }
+
+        .pano-module-label {
+            display: none;
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            background: rgba(0, 180, 216, 0.9);
+            color: #02040a;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 4px;
+            z-index: 600;
+            pointer-events: none;
+            font-family: 'Rajdhani', sans-serif;
+            letter-spacing: 0.5px;
+        }
+
+        .pano-edit-mode .pano-module-label {
+            display: block;
+        }
+
+        .pano-resize-handle {
+            display: none;
+            position: absolute;
+            right: 2px;
+            bottom: 2px;
+            width: 16px;
+            height: 16px;
+            background: var(--neon-yellow, #ffb703);
+            border: 2px solid #02040a;
+            border-radius: 4px;
+            cursor: nwse-resize;
+            z-index: 600;
+            pointer-events: auto;
+        }
+
+        .pano-edit-mode .pano-resize-handle {
+            display: block;
+        }
+
+        .pano-edit-toolbar {
+            position: fixed;
+            left: 50%;
+            bottom: 18px;
+            transform: translateX(-50%);
+            z-index: 99999;
+            display: none;
+            align-items: center;
+            gap: 10px;
+            background: #0b1220;
+            border: 1px solid #1d3557;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+            border-radius: 14px;
+            padding: 10px 16px;
+            font-family: 'Rajdhani', sans-serif;
+        }
+
+        .pano-edit-toolbar.active {
+            display: flex;
+        }
+
+        .pano-edit-toolbar .pet-title {
+            color: #94a3b8;
+            font-size: 12px;
+            font-weight: 600;
+            padding-right: 6px;
+            border-right: 1px solid #1d3557;
+            margin-right: 4px;
+        }
+
+        .pano-edit-toolbar button {
+            font-family: 'Rajdhani', sans-serif;
+            font-weight: 700;
+            font-size: 13px;
+            letter-spacing: 0.3px;
+            padding: 8px 14px;
+            border-radius: 9px;
+            border: none;
+            cursor: pointer;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .pano-edit-toolbar .pet-btn-primary { background: #00b4d8; }
+        .pano-edit-toolbar .pet-btn-primary:hover { background: #0096b8; }
+        .pano-edit-toolbar .pet-btn-secondary { background: #1d3557; color: #cbd5e1; }
+        .pano-edit-toolbar .pet-btn-secondary:hover { background: #274873; }
+        .pano-edit-toolbar .pet-btn-danger { background: #d90429; }
+        .pano-edit-toolbar .pet-btn-danger:hover { background: #b8021f; }
+
+        .pano-edit-panel {
+            position: fixed;
+            top: 16px;
+            right: 16px;
+            z-index: 99999;
+            display: none;
+            width: 230px;
+            background: #0b1220;
+            border: 1px solid #1d3557;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+            border-radius: 14px;
+            padding: 14px;
+            font-family: 'Rajdhani', sans-serif;
+            color: #e2e8f0;
+        }
+
+        .pano-edit-panel.active {
+            display: block;
+        }
+
+        .pano-edit-panel h4 {
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            color: #ffb703;
+            cursor: move;
+            user-select: none;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding-bottom: 8px;
+            border-bottom: 1px dashed #1d3557;
+        }
+
+        .pano-edit-panel.pano-panel-dragging {
+            opacity: 0.85;
+        }
+
+        .pano-edit-panel label {
+            display: block;
+            font-size: 11px;
+            color: #94a3b8;
+            margin-top: 8px;
+            margin-bottom: 3px;
+            text-transform: uppercase;
+        }
+
+        .pano-edit-panel input[type="number"], .pano-edit-panel input[type="range"] {
+            width: 100%;
+            background: #02040a;
+            border: 1px solid #1d3557;
+            border-radius: 6px;
+            color: #fff;
+            padding: 5px 8px;
+            font-family: 'Roboto', sans-serif;
+            font-size: 13px;
+        }
+
+        .pano-edit-panel .pep-value {
+            font-size: 11px;
+            color: #00b4d8;
+            font-weight: 700;
+        }
+
+        .header-bar {
+            display: flex;
+            align-items: stretch;
+            width: 100%;
+            height: 100%;
+            min-height: 0;
+        }
+
+        .school-brand {
+            width: 100%;
+            background: linear-gradient(135deg, #09101f 0%, #0d1b35 100%);
+            border: 2px solid var(--neon-blue);
+            box-shadow: 0 0 15px rgba(0, 180, 216, 0.2);
+            border-radius: 10px;
+            display: flex;
+            align-items: stretch;
+            padding: 8px 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .school-brand:hover {
+            box-shadow: 0 0 25px rgba(0, 180, 216, 0.4);
+        }
+
+        .brand-zone {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 0;
+        }
+
+        .brand-zone-left {
+            flex: 0 1 auto;
+            justify-content: flex-start;
+        }
+
+        .brand-zone-center {
+            flex: 1 1 auto;
+            justify-content: center;
+        }
+
+        .brand-zone-right {
+            flex: 0 1 auto;
+            justify-content: flex-end;
+        }
+
+        #brand-name-block {
+            min-width: 0;
+        }
+
+        #brand-name-block .brand-name {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .brand-logo {
+            width: 54px;
+            height: 54px;
+            flex-shrink: 0;
+            background: gold;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 26px;
+            font-weight: bold;
+            color: #02040a;
+            border: 2px solid #fff;
+            font-family: 'Rajdhani', sans-serif;
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+            overflow: hidden;
+        }
+
+        /* Gerçek bir logo görseli yüklendiğinde altın renkli arka planı kaldırıyoruz.
+           Aksi halde şeffaf (transparent) PNG logoların boşlukları altın renge boyanmış
+           gibi görünüyordu ("logonun rengi bozuldu" sorunu buradan kaynaklanıyordu). */
+        .brand-logo.has-image {
+            background: #0d1424;
+            box-shadow: none;
+        }
+
+        .brand-logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            border-radius: 50%;
+        }
+
+        .brand-name {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 24px;
+            font-weight: 700;
+            color: #fff;
+            letter-spacing: 1px;
+            text-shadow: 0 0 8px rgba(255, 255, 255, 0.2);
+            transition: font-size 0.2s ease;
+        }
+
+        .brand-sub {
+            font-size: 10px;
+            color: var(--text-muted);
+        }
+
+        .dashboard-card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 10px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .card-header {
+            background: linear-gradient(to right, var(--title-gradient-start), var(--title-gradient-end));
+            border-bottom: 2px solid var(--neon-red);
+            color: #fff;
+            padding: 6px 10px;
+            text-align: center;
+            font-family: 'Rajdhani', sans-serif;
+            font-weight: 700;
+            font-size: 15px;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+
+        .card-body {
+            padding: 10px;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            min-height: 0;
+        }
+
+        .birthday-slider {
+            text-align: center;
+            animation: slideUp 0.6s ease;
+        }
+
+        .b-class {
+            font-size: 16px;
+            color: var(--neon-blue);
+            font-weight: 700;
+            margin-bottom: 3px;
+        }
+
+        .b-name {
+            font-size: 19px;
+            color: var(--neon-yellow);
+            font-weight: bold;
+            text-shadow: 0 0 8px rgba(255, 183, 3, 0.4);
+        }
+
+        .b-count {
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-top: 5px;
+        }
+
+        .schedule-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 6px;
+            flex-grow: 1;
+        }
+
+        .class-schedule-box {
+            background: rgba(17, 27, 45, 0.4);
+            border: 1px solid var(--card-border);
+            border-radius: 6px;
+            padding: 6px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .class-schedule-box.active {
+            border-color: var(--neon-blue);
+            background: rgba(0, 180, 216, 0.05);
+            box-shadow: 0 0 10px rgba(0, 180, 216, 0.1);
+        }
+
+        .class-name-badge {
+            background: #09101f;
+            color: #7dd3fc;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 12px;
+            border: 1px solid rgba(0, 180, 216, 0.3);
+            width: 100%;
+        }
+
+        .class-lesson-name {
+            font-size: 12px;
+            font-weight: bold;
+            color: #fff;
+            margin-top: 4px;
+        }
+
+        .class-lesson-name.recess {
+            color: var(--neon-green);
+        }
+
+        .media-slider {
+            flex-grow: 1;
+            position: relative;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 1px solid var(--card-border);
+        }
+
+        .media-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: opacity 0.5s ease;
+        }
+
+        .media-caption {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(2, 4, 10, 0.85);
+            padding: 8px 12px;
+            text-align: center;
+            font-size: 12px;
+            color: #cbd5e1;
+            border-top: 1.5px solid var(--neon-blue);
+        }
+
+        .duty-container {
+            /* Konum/ebat artık panoInitLayout() tarafından dinamik olarak uygulanır. */
+        }
+
+        .duty-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 10px;
+        }
+
+        .duty-card-box {
+            background: rgba(9, 16, 31, 0.5);
+            border: 1px solid var(--card-border);
+            border-radius: 6px;
+            padding: 6px 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .duty-avatar-box {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            border: 2px solid var(--neon-blue);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #111b2d;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
+        .duty-info-box {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .duty-title {
+            font-size: 10px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .duty-name-pill {
+            background: #e2e8f0;
+            color: #02040a;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: bold;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        /* =========================================
+           DİNAMİK NÖBET MODÜLÜ — ŞEKİL / ŞABLON / VURGU
+           renderActiveDuties() appConfig.dutyStyle'a göre
+           bu sınıfları duty-card-box / duty-avatar-box /
+           duty-name-pill öğelerine ekler.
+        ========================================= */
+        .duty-card-box.duty-shape-square { border-radius: 3px; }
+        .duty-card-box.duty-shape-rounded { border-radius: 10px; }
+        .duty-card-box.duty-shape-oval { border-radius: 999px; padding-left: 16px; padding-right: 16px; }
+        .duty-card-box.duty-shape-card {
+            border-radius: 12px;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            padding: 12px 8px;
+            gap: 8px;
+        }
+        .duty-card-box.duty-shape-card .duty-info-box { align-items: center; }
+
+        .duty-avatar-box.duty-shape-square { border-radius: 6px; }
+        .duty-avatar-box.duty-shape-oval { border-radius: 999px; }
+        .duty-avatar-box.duty-shape-card { border-radius: 14px; width: 52px; height: 52px; }
+
+        .duty-name-pill.duty-shape-square { border-radius: 4px; }
+        .duty-name-pill.duty-shape-oval { border-radius: 999px; }
+        .duty-name-pill.duty-shape-card { border-radius: 8px; width: 100%; }
+
+        /* Aktif nöbetçi hücresi vurgu şekilleri (renk/opaklık JS tarafından inline stil ile uygulanır) */
+        .duty-card-box.duty-active.duty-highlight-border {
+            border-width: 2px;
+            box-shadow: 0 0 0 1px var(--duty-highlight-color, var(--neon-blue)) inset;
+        }
+        .duty-card-box.duty-active.duty-highlight-glow {
+            box-shadow: 0 0 14px 1px var(--duty-highlight-color, var(--neon-blue));
+        }
+        .duty-card-box.duty-active.duty-highlight-left-bar {
+            border-left: 4px solid var(--duty-highlight-color, var(--neon-blue));
+        }
+        .duty-card-box.duty-active.duty-highlight-underline {
+            border-bottom: 3px solid var(--duty-highlight-color, var(--neon-blue));
+        }
+        .duty-card-box.duty-empty {
+            opacity: 0.55;
+        }
+
+        /* Yönetim panelindeki nöbet yeri satırı (sürükle-bırak sıralama) */
+        .dutypos-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid #1e293b;
+            border-radius: 8px;
+            padding: 6px 8px;
+        }
+        .dutypos-row.dragging { opacity: 0.4; }
+        .dutypos-row .dutypos-drag-handle { cursor: grab; color: #475569; }
+        .dutypos-row .dutypos-drag-handle:active { cursor: grabbing; }
+
+        /* Öğretmen kadrosu (roster) sürükle-bırak sıralama */
+        .roster-row { cursor: default; transition: opacity 0.15s, border-color 0.15s; }
+        .roster-row.dragging { opacity: 0.4; }
+        .roster-row .roster-drag-handle { cursor: grab; color: #475569; flex-shrink: 0; }
+        .roster-row .roster-drag-handle:active { cursor: grabbing; }
+        .roster-row.drag-over-top { border-top: 2px solid var(--neon-blue); }
+        .roster-row.drag-over-bottom { border-bottom: 2px solid var(--neon-blue); }
+        .dutypos-row.drag-over-top { border-top: 2px solid var(--neon-blue); }
+        .dutypos-row.drag-over-bottom { border-bottom: 2px solid var(--neon-blue); }
+
+        /* =========================================
+           NÖBETÇİ KARTI GENİŞLETİLMİŞ ANİMASYON VE EFEKT SİNIFLARI
+        ========================================= */
+        @keyframes dutyFadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes dutySlideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes dutyZoomIn {
+            from { opacity: 0; transform: scale(0.88); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        @keyframes dutyPulseGlow {
+            0%, 100% { box-shadow: 0 0 6px 1px var(--duty-highlight-color, var(--neon-blue)); }
+            50%       { box-shadow: 0 0 18px 4px var(--duty-highlight-color, var(--neon-blue)); }
+        }
+        @keyframes dutyShimmer {
+            0%   { background-position: -200% center; }
+            100% { background-position:  200% center; }
+        }
+        .duty-anim-fade-in   { animation: dutyFadeIn   var(--duty-anim-dur, 0.5s) ease both; }
+        .duty-anim-slide-up  { animation: dutySlideUp  var(--duty-anim-dur, 0.5s) ease both; }
+        .duty-anim-zoom-in   { animation: dutyZoomIn   var(--duty-anim-dur, 0.5s) ease both; }
+        .duty-anim-pulse-glow{ animation: dutyPulseGlow var(--duty-anim-dur, 2s) ease-in-out infinite; }
+        .duty-anim-shimmer {
+            background: linear-gradient(90deg, transparent 25%, rgba(255,255,255,0.08) 50%, transparent 75%);
+            background-size: 200% 100%;
+            animation: dutyShimmer var(--duty-anim-dur, 2s) linear infinite;
+        }
+        /* Hover efektleri */
+        .duty-hover-lift:hover   { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(0,0,0,0.4); }
+        .duty-hover-glow:hover   { box-shadow: 0 0 16px 2px var(--duty-highlight-color, var(--neon-blue)); }
+        .duty-hover-scale:hover  { transform: scale(1.04); }
+        .duty-card-box           { transition: transform var(--duty-transition, 0.4s), box-shadow var(--duty-transition, 0.4s); }
+
+        /* Arka plan desenleri */
+        .duty-bg-pattern-dots {
+            background-image: radial-gradient(circle, rgba(255,255,255,0.07) 1px, transparent 1px);
+            background-size: 12px 12px;
+        }
+        .duty-bg-pattern-lines {
+            background-image: repeating-linear-gradient(0deg, rgba(255,255,255,0.04) 0px, rgba(255,255,255,0.04) 1px, transparent 1px, transparent 10px);
+        }
+        .duty-bg-pattern-grid {
+            background-image:
+                repeating-linear-gradient(0deg, rgba(255,255,255,0.04) 0px, rgba(255,255,255,0.04) 1px, transparent 1px, transparent 16px),
+                repeating-linear-gradient(90deg, rgba(255,255,255,0.04) 0px, rgba(255,255,255,0.04) 1px, transparent 1px, transparent 16px);
+        }
+
+        /* Ayarlar ikonu listesi satırı */
+        .ds-icon-row {
+            display: flex; align-items: center; gap: 6px;
+            background: rgba(15,23,42,0.7); border: 1px solid #1e293b;
+            border-radius: 8px; padding: 6px 8px; font-size: 11px;
+        }
+        .ds-icon-row .ds-icon-preview { font-size: 14px; color: #94a3b8; width: 20px; text-align: center; }
+        .ds-icon-row .ds-icon-label   { flex: 1; color: #cbd5e1; }
+        .ds-icon-row .ds-icon-remove  { color: #f87171; cursor: pointer; font-size: 10px; padding: 2px 6px; border-radius: 4px; background: rgba(248,113,113,0.1); border: 1px solid rgba(248,113,113,0.2); }
+        .ds-icon-row .ds-icon-remove:hover { background: rgba(248,113,113,0.25); }
+
+        .clock-box {
+            background: radial-gradient(circle, #0e1726 0%, #02040a 100%);
+            border: 1px solid var(--neon-blue);
+            text-align: center;
+            padding: 8px;
+            box-shadow: 0 0 12px rgba(0, 180, 216, 0.2);
+        }
+
+        .digital-clock {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 32px;
+            color: var(--neon-blue);
+            font-weight: 700;
+            text-shadow: 0 0 8px rgba(0, 180, 216, 0.4);
+            line-height: 1.1;
+        }
+
+        .digital-date {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .bell-countdown {
+            margin-top: 6px;
+            font-size: 12px;
+            color: var(--neon-yellow);
+            font-weight: 500;
+        }
+
+        .lesson-schedule-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+        }
+
+        .lesson-schedule-table th {
+            background-color: rgba(17, 27, 45, 0.5);
+            color: var(--text-muted);
+            padding: 3px;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .lesson-schedule-table td {
+            padding: 4px;
+            text-align: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+            color: #cbd5e1;
+        }
+
+        .lesson-schedule-table tr.active-row {
+            background-color: rgba(255, 183, 3, 0.12);
+            color: var(--neon-yellow);
+            font-weight: bold;
+        }
+
+        .lesson-schedule-table tr.active-row td {
+            border-top: 1px solid var(--neon-yellow);
+            border-bottom: 1px solid var(--neon-yellow);
+            color: var(--neon-yellow);
+        }
+
+        .announcements-box {
+            /* Konum/ebat artık panoInitLayout() tarafından dinamik olarak uygulanır. */
+        }
+
+        .ann-list {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            overflow: hidden;
+            height: 100%;
+        }
+
+        .ann-item {
+            font-size: 11px;
+            line-height: 1.25;
+            color: #cbd5e1;
+            display: flex;
+            align-items: flex-start;
+        }
+
+        .ann-item i {
+            color: var(--neon-red);
+            font-size: 7px;
+            margin-top: 3px;
+            margin-right: 6px;
+        }
+
+        .achievement-slider {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .achievement-img {
+            width: 44px;
+            height: 44px;
+            border-radius: 6px;
+            object-fit: cover;
+            border: 1.5px solid var(--neon-blue);
+        }
+
+        .achievement-details h4 {
+            font-size: 13px;
+            color: #fff;
+        }
+
+        .achievement-details p {
+            font-size: 10px;
+            color: var(--neon-yellow);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }

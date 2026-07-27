@@ -7,7 +7,7 @@
     <!-- Google Fonts & FontAwesome Icons -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Roboto:wght@400;500;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Roboto:wght@400;500;700&family=Fira+Code:wght@400;500&family=Poppins:wght@400;600;700&family=Montserrat:wght@400;600;700&family=Oswald:wght@400;500;700&family=Bebas+Neue&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- Excel & Tailwind CSS -->
@@ -96,7 +96,7 @@
                 <div style="font-weight: bold; font-size: 11px; color: var(--neon-yellow); margin-top: 1px;" id="display-special-day">Belirli Gün Bulunmuyor</div>
             </div>
             <div>
-                <div style="font-size: 8px; color: var(--text-muted);">HAVA DURUMU</div>
+                <div style="font-size: 8px; color: var(--text-muted);" id="display-weather-label">HAVA DURUMU</div>
                 <div style="font-size: 13px; font-weight: bold; color: var(--neon-blue);" id="display-weather">Yükleniyor...</div>
             </div>
         </div>
@@ -128,29 +128,18 @@
 
         <!-- Saat ve Geri Sayım Kutusu -->
         <div class="dashboard-card clock-box pano-module" id="clock-dashboard-card" data-module="clock">
-            <div class="digital-date" id="display-clock-date">Yükleniyor...</div>
-            <div class="digital-clock" id="display-clock-time">00:00:00</div>
-            <div class="bell-countdown" id="display-bell-countdown">Hesaplanıyor...</div>
+            <div class="clk-date-wrap"><div class="digital-date" id="display-clock-date">Yükleniyor...</div></div>
+            <div class="clk-time-wrap"><div class="digital-clock" id="display-clock-time">00:00:00</div></div>
+            <div class="clk-cd-wrap"><div class="bell-countdown" id="display-bell-countdown">Hesaplanıyor...</div></div>
         </div>
 
         <!-- Ayın Örnekleri -->
         <div class="dashboard-card pano-module" id="achievements-dashboard-card" data-module="achievements" style="border-color: rgba(0, 180, 216, 0.3);">
             <div class="card-header" id="display-achievements-title" style="background: linear-gradient(to right, #0077b6, #03045e); border-bottom-color: var(--neon-blue); font-size: 13px; padding: 4px;">AYIN ENLERİ</div>
             <div class="card-body" style="gap: 10px; padding: 6px;">
-                <div class="achievement-slider">
-                    <img src="https://images.unsplash.com/photo-1580582932707-520aed937b7b?q=80&w=120" class="achievement-img" id="display-achievement-clean-img" alt="Temiz Sınıf">
-                    <div class="achievement-details">
-                        <h4 id="display-clean-class">3/C Sınıfı</h4>
-                        <p><i class="fa-solid fa-wand-magic-sparkles"></i> Temiz Sınıf</p>
-                    </div>
-                </div>
-                <div class="achievement-slider">
-                    <img src="https://images.unsplash.com/photo-1544717305-2782549b5136?q=80&w=120" class="achievement-img" id="display-achievement-student-img" alt="Öğrenci">
-                    <div class="achievement-details">
-                        <h4 id="display-best-student">M. Asaf Çözüm (3/C)</h4>
-                        <p><i class="fa-solid fa-star"></i> Örnek Öğrenci</p>
-                    </div>
-                </div>
+                <!-- Ayın Enleri alanları artık dinamiktir: renderAchievementsCard() appConfig.achievementCategories
+                     listesine göre burada anlık üretilir (istenildiği kadar alan, aralarda ayırıcı ile). -->
+                <div class="achievements-flex ach-layout-column" id="achievements-container"></div>
             </div>
         </div>
 
@@ -278,7 +267,10 @@
                         <i class="fa-solid fa-images w-5"></i> Görsel Oynatma Listesi
                     </button>
                     <button class="w-full text-left px-4 py-3 text-slate-400 hover:bg-slate-800 hover:text-white rounded-lg text-sm flex items-center gap-3 transition" onclick="switchTab('tab-listmanagers', this)">
-                        <i class="fa-solid fa-list-check w-5"></i> Duyuru & Belirli Günler
+                        <i class="fa-solid fa-bullhorn w-5"></i> Duyurular
+                    </button>
+                    <button class="w-full text-left px-4 py-3 text-slate-400 hover:bg-slate-800 hover:text-white rounded-lg text-sm flex items-center gap-3 transition" onclick="switchTab('tab-specialday', this)">
+                        <i class="fa-solid fa-cloud-sun w-5"></i> Belirli Gün & Hava Durumu
                     </button>
                     <button class="w-full text-left px-4 py-3 text-slate-400 hover:bg-slate-800 hover:text-white rounded-lg text-sm flex items-center gap-3 transition" onclick="switchTab('tab-quotes', this)">
                         <i class="fa-solid fa-quote-right w-5"></i> Günün Sözü
@@ -297,6 +289,9 @@
                     </button>
                     <button class="w-full text-left px-4 py-3 text-slate-400 hover:bg-slate-800 hover:text-white rounded-lg text-sm flex items-center gap-3 transition" onclick="switchTab('tab-hours', this)">
                         <i class="fa-solid fa-clock w-5"></i> Zil Planlayıcı
+                    </button>
+                    <button class="w-full text-left px-4 py-3 text-slate-400 hover:bg-slate-800 hover:text-white rounded-lg text-sm flex items-center gap-3 transition" onclick="switchTab('tab-clock', this)">
+                        <i class="fa-solid fa-hourglass-half w-5"></i> Saat / Geri Sayım
                     </button>
                     <button class="w-full text-left px-4 py-3 text-slate-400 hover:bg-slate-800 hover:text-white rounded-lg text-sm flex items-center gap-3 transition" onclick="switchTab('tab-modules', this)">
                         <i class="fa-solid fa-cubes w-5"></i> Modül Ayarları
@@ -376,13 +371,13 @@
                         <div class="space-y-4">
                             <div class="form-group">
                                 <label class="text-xs text-slate-400 block mb-1">Okul Adı (TV Başlığı)</label>
-                                <input type="text" id="input-school-name" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-white text-xs">
+                                <input type="text" id="input-school-name" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-white text-xs" oninput="handleLiveIdentityPreview()">
                             </div>
                             <div class="form-group">
                                 <label class="text-xs text-slate-400 block mb-1">Yönetici Paneli Alt Metni</label>
-                                <input type="text" id="input-brand-sub" placeholder="Yönetici Paneli için Tıklayın veya 'A' Tuşuna Basın" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-white text-xs">
+                                <input type="text" id="input-brand-sub" placeholder="Yönetici Paneli için Tıklayın veya 'A' Tuşuna Basın" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-white text-xs" oninput="handleLiveIdentityPreview()">
                                 <label class="flex items-center gap-2 mt-2 text-xs text-slate-400 cursor-pointer">
-                                    <input type="checkbox" id="input-brand-sub-visible" class="accent-cyan-500" checked>
+                                    <input type="checkbox" id="input-brand-sub-visible" class="accent-cyan-500" checked onchange="handleLiveIdentityPreview()">
                                     Bu metin panoda görünsün
                                 </label>
                             </div>
@@ -451,10 +446,18 @@
                                 <select id="input-name-font" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2.5 text-white text-xs" onchange="handleLiveIdentityPreview()">
                                     <option value="'Rajdhani', sans-serif" style="font-family:'Rajdhani', sans-serif;">Rajdhani (Varsayılan)</option>
                                     <option value="'Roboto', sans-serif" style="font-family:'Roboto', sans-serif;">Roboto</option>
+                                    <option value="'Poppins', sans-serif" style="font-family:'Poppins', sans-serif;">Poppins</option>
+                                    <option value="'Montserrat', sans-serif" style="font-family:'Montserrat', sans-serif;">Montserrat</option>
+                                    <option value="'Oswald', sans-serif" style="font-family:'Oswald', sans-serif;">Oswald</option>
+                                    <option value="'Bebas Neue', sans-serif" style="font-family:'Bebas Neue', sans-serif;">Bebas Neue</option>
                                     <option value="'Fira Code', monospace" style="font-family:'Fira Code', monospace;">Fira Code</option>
                                     <option value="Arial, sans-serif" style="font-family:Arial, sans-serif;">Arial</option>
+                                    <option value="'Trebuchet MS', sans-serif" style="font-family:'Trebuchet MS', sans-serif;">Trebuchet MS</option>
+                                    <option value="Tahoma, sans-serif" style="font-family:Tahoma, sans-serif;">Tahoma</option>
+                                    <option value="Impact, sans-serif" style="font-family:Impact, sans-serif;">Impact</option>
                                     <option value="Georgia, serif" style="font-family:Georgia, serif;">Georgia</option>
                                     <option value="'Times New Roman', serif" style="font-family:'Times New Roman', serif;">Times New Roman</option>
+                                    <option value="'Courier New', monospace" style="font-family:'Courier New', monospace;">Courier New</option>
                                     <option value="Verdana, sans-serif" style="font-family:Verdana, sans-serif;">Verdana</option>
                                 </select>
                             </div>
@@ -469,6 +472,87 @@
                                 <p class="text-[10px] text-slate-500 mt-1">Okul adını, seçtiği konumdan bağımsız olarak ince ayar ile sağa/sola kaydırır.</p>
                             </div>
                         </div>
+                    </div>
+
+                    <!-- Çerçeve, Arkaplan & Efekt + Canlı Önizleme -->
+                    <div class="bg-slate-950 border border-slate-800 rounded-xl p-5 space-y-4">
+                        <h3 class="text-white font-bold flex items-center gap-2"><i class="fa-solid fa-wand-magic-sparkles text-cyan-400"></i> Çerçeve, Arkaplan & Efekt</h3>
+
+                        <!-- Canlı Önizleme -->
+                        <div>
+                            <label class="text-xs text-slate-400 block mb-2"><i class="fa-solid fa-eye text-cyan-400"></i> Canlı Önizleme</label>
+                            <div class="school-brand" id="brand-live-preview-box" style="cursor: default; pointer-events: none; padding: 10px 14px;">
+                                <div class="brand-zone" style="flex: 0 1 auto; justify-content: flex-start;">
+                                    <div class="brand-logo" id="preview-logo-box2" style="width:54px;height:54px;">
+                                        <img id="preview-logo-img2" class="hidden" alt="Logo Önizleme">
+                                        <span id="preview-logo-text2">M</span>
+                                    </div>
+                                    <div id="preview-name-block2">
+                                        <div class="brand-name" id="preview-brand-name2">2071 MELİKŞAH İLKOKULU</div>
+                                        <div class="brand-sub" id="preview-brand-sub2">Yönetici Paneli için Tıklayın veya 'A' Tuşuna Basın</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-3 gap-6 pt-2 border-t border-slate-800">
+                            <div class="form-group">
+                                <label class="text-xs text-slate-400 block mb-1"><i class="fa-solid fa-vector-square text-cyan-400"></i> Çerçeve Stili</label>
+                                <select id="input-brand-border-style" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2.5 text-white text-xs" onchange="handleLiveIdentityPreview()">
+                                    <option value="solid">Düz Çizgi (Varsayılan)</option>
+                                    <option value="dashed">Kesik Çizgi</option>
+                                    <option value="dotted">Noktalı</option>
+                                    <option value="double">Çift Çizgi</option>
+                                    <option value="none">Çerçeve Yok</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="text-xs text-slate-400 block mb-1">Çerçeve Rengi</label>
+                                <input type="color" id="input-brand-border-color" value="#00b4d8" class="w-full h-9 bg-slate-900 border border-slate-800 rounded-lg cursor-pointer" oninput="handleLiveIdentityPreview()">
+                            </div>
+                            <div class="form-group">
+                                <label class="text-xs text-slate-400 flex justify-between mb-1">Çerçeve Kalınlığı <span id="brand-border-width-value" class="text-cyan-400 font-mono">2px</span></label>
+                                <input type="range" id="input-brand-border-width" min="0" max="8" value="2" class="w-full accent-cyan-500" oninput="handleLiveIdentityPreview()">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-3 gap-6 pt-2 border-t border-slate-800">
+                            <div class="form-group">
+                                <label class="text-xs text-slate-400 block mb-1"><i class="fa-solid fa-fill-drip text-cyan-400"></i> Arkaplan Türü</label>
+                                <select id="input-brand-bg-type" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2.5 text-white text-xs" onchange="handleLiveIdentityPreview()">
+                                    <option value="gradient">Degrade (Varsayılan)</option>
+                                    <option value="solid">Düz Renk</option>
+                                    <option value="none">Şeffaf / Yok</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="text-xs text-slate-400 block mb-1">Arkaplan Rengi 1</label>
+                                <input type="color" id="input-brand-bg-color1" value="#09101f" class="w-full h-9 bg-slate-900 border border-slate-800 rounded-lg cursor-pointer" oninput="handleLiveIdentityPreview()">
+                            </div>
+                            <div class="form-group">
+                                <label class="text-xs text-slate-400 block mb-1">Arkaplan Rengi 2 <span class="text-slate-500">(Degrade için)</span></label>
+                                <input type="color" id="input-brand-bg-color2" value="#0d1b35" class="w-full h-9 bg-slate-900 border border-slate-800 rounded-lg cursor-pointer" oninput="handleLiveIdentityPreview()">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 gap-4 pt-2 border-t border-slate-800">
+                            <div class="form-group">
+                                <label class="text-xs text-slate-400 block mb-1"><i class="fa-solid fa-sparkles text-cyan-400"></i> Efekt</label>
+                                <select id="input-brand-effect" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2.5 text-white text-xs" onchange="handleLiveIdentityPreview()">
+                                    <option value="glow">Neon Parıltı (Varsayılan)</option>
+                                    <option value="shadow">Yumuşak Gölge</option>
+                                    <option value="glass">Cam Görünüm (Glassmorphism)</option>
+                                    <option value="flat">Efektsiz / Düz</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Kart Görünüm & Yayın Ayarları (Modül Ayarları sekmesinden taşındı) -->
+                    <div class="bg-slate-950 border border-slate-800 rounded-xl p-5 space-y-3">
+                        <h3 class="text-white font-bold flex items-center gap-2"><i class="fa-solid fa-cube text-cyan-400"></i> Kart Görünüm & Yayın Ayarları</h3>
+                        <p class="text-[11px] text-slate-500">Bu modülün panodaki kartı için ebat, renk, yazı tipi ve yayın (aktif/pasif) durumunu buradan yönetin.</p>
+                        <div id="module-embed-brand"></div>
                     </div>
                 </div>
 
@@ -553,6 +637,189 @@
                             </tbody>
                         </table>
                     </div>
+
+                    <!-- PANO GÖRÜNÜM VE İÇERİK BİÇİMLENDİRME AYARLARI -->
+                    <div class="bg-slate-950 border border-cyan-500/20 rounded-xl p-5 space-y-4">
+                        <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                            <h3 class="text-white font-bold text-sm flex items-center gap-2"><i class="fa-solid fa-brush text-cyan-400"></i> Pano Görünümü: Biçimlendirme</h3>
+                            <span class="text-[10px] text-slate-500">"Sınıfların Ders Durumları" kutularının renk, hizalama ve yazı ayarları</span>
+                        </div>
+
+                        <!-- Genel Düzen -->
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="form-group">
+                                <label class="text-[10px] text-slate-400 block mb-1">Sütun Sayısı</label>
+                                <input type="number" id="sbs-columns" min="2" max="8" value="4" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-white text-xs" oninput="updateScheduleBoardLivePreview()">
+                            </div>
+                            <div class="form-group">
+                                <label class="text-[10px] text-slate-400 block mb-1">Kutular Arası Boşluk (px)</label>
+                                <input type="number" id="sbs-gap" min="0" max="24" value="6" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-white text-xs" oninput="updateScheduleBoardLivePreview()">
+                            </div>
+                        </div>
+                        <p class="text-[10px] text-slate-500 -mt-2">Sınıf adı ve ders adı için dikey/yatay hizalama ayarları artık aşağıda kendi bölümlerinde ayrı ayrı yapılır.</p>
+
+                        <!-- Kutu Renklendirme -->
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2 border-t border-slate-800">
+                            <div class="form-group">
+                                <label class="text-[9px] text-slate-400 flex items-center gap-1.5 mb-1">
+                                    <input type="checkbox" id="sbs-box-bg-enabled" onchange="updateScheduleBoardLivePreview()"> Kutu Arka Planı
+                                </label>
+                                <input type="color" id="sbs-box-bg" value="#111b2d" class="w-full h-8 bg-slate-900 border border-slate-800 rounded-lg cursor-pointer" oninput="updateScheduleBoardLivePreview()">
+                            </div>
+                            <div class="form-group">
+                                <label class="text-[9px] text-slate-400 flex items-center gap-1.5 mb-1">
+                                    <input type="checkbox" id="sbs-box-border-enabled" onchange="updateScheduleBoardLivePreview()"> Kutu Kenarlığı
+                                </label>
+                                <input type="color" id="sbs-box-border" value="#111b2d" class="w-full h-8 bg-slate-900 border border-slate-800 rounded-lg cursor-pointer" oninput="updateScheduleBoardLivePreview()">
+                            </div>
+                            <div class="form-group">
+                                <label class="text-[9px] text-slate-400 flex items-center gap-1.5 mb-1">
+                                    <input type="checkbox" id="sbs-active-bg-enabled" onchange="updateScheduleBoardLivePreview()"> Aktif Ders Arka Planı
+                                </label>
+                                <input type="color" id="sbs-active-bg" value="#00b4d8" class="w-full h-8 bg-slate-900 border border-slate-800 rounded-lg cursor-pointer" oninput="updateScheduleBoardLivePreview()">
+                            </div>
+                            <div class="form-group">
+                                <label class="text-[9px] text-slate-400 flex items-center gap-1.5 mb-1">
+                                    <input type="checkbox" id="sbs-active-border-enabled" onchange="updateScheduleBoardLivePreview()"> Aktif Ders Vurgusu
+                                </label>
+                                <input type="color" id="sbs-active-border" value="#00b4d8" class="w-full h-8 bg-slate-900 border border-slate-800 rounded-lg cursor-pointer" oninput="updateScheduleBoardLivePreview()">
+                            </div>
+                            <div class="form-group">
+                                <label class="text-[10px] text-slate-400 block mb-1">Kutu Köşe Yuvarlaklığı (px)</label>
+                                <input type="number" id="sbs-box-radius" min="0" max="24" value="6" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-white text-xs" oninput="updateScheduleBoardLivePreview()">
+                            </div>
+                        </div>
+
+                        <!-- Sınıf Adı Etiketi -->
+                        <div class="grid grid-cols-2 md:grid-cols-6 gap-3 pt-2 border-t border-slate-800">
+                            <div class="form-group">
+                                <label class="text-[9px] text-slate-400 flex items-center gap-1.5 mb-1">
+                                    <input type="checkbox" id="sbs-name-bg-enabled" onchange="updateScheduleBoardLivePreview()"> Sınıf Adı Arka Planı
+                                </label>
+                                <input type="color" id="sbs-name-bg" value="#09101f" class="w-full h-8 bg-slate-900 border border-slate-800 rounded-lg cursor-pointer" oninput="updateScheduleBoardLivePreview()">
+                            </div>
+                            <div class="form-group">
+                                <label class="text-[9px] text-slate-400 flex items-center gap-1.5 mb-1">
+                                    <input type="checkbox" id="sbs-name-color-enabled" onchange="updateScheduleBoardLivePreview()"> Sınıf Adı Yazı Rengi
+                                </label>
+                                <input type="color" id="sbs-name-color" value="#7dd3fc" class="w-full h-8 bg-slate-900 border border-slate-800 rounded-lg cursor-pointer" oninput="updateScheduleBoardLivePreview()">
+                            </div>
+                            <div class="form-group">
+                                <label class="text-[10px] text-slate-400 block mb-1">Sınıf Adı Yazı Boyutu (px)</label>
+                                <input type="number" id="sbs-name-size" min="8" max="24" value="12" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-white text-xs" oninput="updateScheduleBoardLivePreview()">
+                            </div>
+                            <div class="form-group">
+                                <label class="text-[10px] text-slate-400 block mb-1">Sınıf Adı Yatay Hizalama</label>
+                                <select id="sbs-name-align" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-white text-xs" onchange="updateScheduleBoardLivePreview()">
+                                    <option value="left">Sola</option>
+                                    <option value="center" selected>Ortaya</option>
+                                    <option value="right">Sağa</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="text-[10px] text-slate-400 block mb-1">Sınıf Adı Dikey Hizalama</label>
+                                <select id="sbs-name-valign" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-white text-xs" onchange="updateScheduleBoardLivePreview()">
+                                    <option value="top" selected>Üste</option>
+                                    <option value="center">Ortaya</option>
+                                    <option value="bottom">Alta</option>
+                                </select>
+                            </div>
+                            <div class="form-group flex items-end pb-1.5">
+                                <label class="text-[10px] text-slate-400 flex items-center gap-1.5">
+                                    <input type="checkbox" id="sbs-name-bold" checked onchange="updateScheduleBoardLivePreview()"> Kalın Yazı
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Ders Adı Yazısı -->
+                        <div class="grid grid-cols-2 md:grid-cols-6 gap-3 pt-2 border-t border-slate-800">
+                            <div class="form-group">
+                                <label class="text-[9px] text-slate-400 flex items-center gap-1.5 mb-1">
+                                    <input type="checkbox" id="sbs-lesson-color-enabled" onchange="updateScheduleBoardLivePreview()"> Ders Adı Yazı Rengi
+                                </label>
+                                <input type="color" id="sbs-lesson-color" value="#ffffff" class="w-full h-8 bg-slate-900 border border-slate-800 rounded-lg cursor-pointer" oninput="updateScheduleBoardLivePreview()">
+                            </div>
+                            <div class="form-group">
+                                <label class="text-[10px] text-slate-400 block mb-1">Ders Adı Yazı Boyutu (px)</label>
+                                <input type="number" id="sbs-lesson-size" min="8" max="24" value="12" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-white text-xs" oninput="updateScheduleBoardLivePreview()">
+                            </div>
+                            <div class="form-group">
+                                <label class="text-[10px] text-slate-400 block mb-1">Ders Adı Font Ailesi</label>
+                                <select id="sbs-lesson-font" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-white text-xs" onchange="updateScheduleBoardLivePreview()">
+                                    <option value="">Sistem Varsayılanı</option>
+                                    <option value="'Rajdhani', sans-serif">Rajdhani</option>
+                                    <option value="'Roboto', sans-serif">Roboto</option>
+                                    <option value="'Fira Code', monospace">Fira Code</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="text-[10px] text-slate-400 block mb-1">Ders Adı Yatay Hizalama</label>
+                                <select id="sbs-lesson-align" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-white text-xs" onchange="updateScheduleBoardLivePreview()">
+                                    <option value="left">Sola</option>
+                                    <option value="center" selected>Ortaya</option>
+                                    <option value="right">Sağa</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="text-[10px] text-slate-400 block mb-1">Ders Adı Dikey Hizalama</label>
+                                <select id="sbs-lesson-valign" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-white text-xs" onchange="updateScheduleBoardLivePreview()">
+                                    <option value="top">Üste</option>
+                                    <option value="center">Ortaya</option>
+                                    <option value="bottom" selected>Alta</option>
+                                </select>
+                            </div>
+                            <div class="form-group flex items-end pb-1.5">
+                                <label class="text-[10px] text-slate-400 flex items-center gap-1.5">
+                                    <input type="checkbox" id="sbs-lesson-bold" checked onchange="updateScheduleBoardLivePreview()"> Kalın Yazı
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Teneffüs Rengi -->
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2 border-t border-slate-800">
+                            <div class="form-group">
+                                <label class="text-[9px] text-slate-400 flex items-center gap-1.5 mb-1">
+                                    <input type="checkbox" id="sbs-recess-color-enabled" onchange="updateScheduleBoardLivePreview()"> Teneffüs Yazı Rengi
+                                </label>
+                                <input type="color" id="sbs-recess-color" value="#38b000" class="w-full h-8 bg-slate-900 border border-slate-800 rounded-lg cursor-pointer" oninput="updateScheduleBoardLivePreview()">
+                            </div>
+                        </div>
+
+                        <!-- CANLI ÖNİZLEME -->
+                        <div class="pt-3 border-t border-slate-800">
+                            <h4 class="text-white font-bold text-xs flex items-center gap-2 mb-2"><i class="fa-solid fa-eye text-cyan-400"></i> Canlı Önizleme</h4>
+                            <div class="schedule-grid" id="sbs-live-preview" style="min-height: 90px; background: rgba(2,4,10,0.4); padding: 8px; border-radius: 10px;">
+                                <div class="class-schedule-box active">
+                                    <div class="class-name-wrap"><span class="class-name-badge">1/A</span></div>
+                                    <div class="class-lesson-wrap"><div class="class-lesson-name">Matematik</div></div>
+                                </div>
+                                <div class="class-schedule-box">
+                                    <div class="class-name-wrap"><span class="class-name-badge">2/B</span></div>
+                                    <div class="class-lesson-wrap"><div class="class-lesson-name recess">Teneffüs ⚽</div></div>
+                                </div>
+                                <div class="class-schedule-box">
+                                    <div class="class-name-wrap"><span class="class-name-badge">3/C</span></div>
+                                    <div class="class-lesson-wrap"><div class="class-lesson-name">Türkçe</div></div>
+                                </div>
+                                <div class="class-schedule-box">
+                                    <div class="class-name-wrap"><span class="class-name-badge">4/D</span></div>
+                                    <div class="class-lesson-wrap"><div class="class-lesson-name">Paydos 🏠</div></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex gap-2 pt-2 border-t border-slate-800">
+                            <button class="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white font-bold rounded-lg text-xs flex items-center gap-2" onclick="scheduleBoardStyleSave()"><i class="fa-solid fa-floppy-disk"></i> Kaydet & Panoya Uygula</button>
+                            <button class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-lg text-xs flex items-center gap-2" onclick="scheduleBoardStyleReset()"><i class="fa-solid fa-arrow-rotate-left"></i> Varsayılana Sıfırla</button>
+                        </div>
+                    </div>
+
+                    <!-- Kart Görünüm & Yayın Ayarları (Modül Ayarları sekmesinden taşındı) -->
+                    <div class="bg-slate-950 border border-slate-800 rounded-xl p-5 space-y-3">
+                        <h3 class="text-white font-bold text-sm flex items-center gap-2"><i class="fa-solid fa-cube text-cyan-400"></i> Kart Görünüm & Yayın Ayarları</h3>
+                        <p class="text-[11px] text-slate-500">Bu modülün panodaki kartı için başlık metni, ebat, renk, yazı tipi ve yayın (aktif/pasif) durumunu buradan yönetin.</p>
+                        <div id="module-embed-schedule"></div>
+                    </div>
                 </div>
 
                 <!-- TAB 4: GÖRSEL MEDYA OYNATMA LİSTESİ -->
@@ -583,12 +850,22 @@
                             <div class="flex-1 overflow-y-auto space-y-2 max-h-48" id="admin-media-playlist"></div>
                         </div>
                     </div>
+
+                    <!-- Kart Görünüm & Yayın Ayarları (Modül Ayarları sekmesinden taşındı) -->
+                    <div class="bg-slate-950 border border-slate-800 rounded-xl p-5 space-y-3">
+                        <h3 class="text-white font-bold text-sm flex items-center gap-2"><i class="fa-solid fa-cube text-cyan-400"></i> Kart Görünüm & Yayın Ayarları</h3>
+                        <p class="text-[11px] text-slate-500">Bu modülün panodaki kartı için ebat, renk, yazı tipi ve yayın (aktif/pasif) durumunu buradan yönetin.</p>
+                        <div id="module-embed-media"></div>
+                    </div>
                 </div>
 
                 <!-- TAB 5: LİSTELER (DUYURULAR & BELİRLİ GÜNLER) -->
                 <div class="tab-content hidden space-y-6" id="tab-listmanagers">
-                    <div class="grid grid-cols-2 gap-6">
-                        <div class="bg-slate-950 border border-slate-800 rounded-xl p-5 space-y-4 flex flex-col justify-between">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                        <h2 class="text-lg font-bold text-red-400 flex items-center gap-2"><i class="fa-solid fa-bullhorn"></i> Duyuru Panosu Yönetimi</h2>
+                        <span class="text-xs text-slate-400 max-w-md text-right">Belirli Gün & Hava Durumu ayarları artık ayrı bir sekmeden yönetiliyor.</span>
+                    </div>
+                    <div class="bg-slate-950 border border-slate-800 rounded-xl p-5 space-y-4 flex flex-col justify-between">
                             <div>
                                 <div class="flex items-center justify-between mb-3">
                                     <h3 class="text-white font-bold flex items-center gap-2" id="announcement-form-title"><i class="fa-solid fa-bullhorn text-red-500"></i> Duyuru Panosu Yönetimi</h3>
@@ -644,32 +921,158 @@
                                 </div>
                             </div>
                             <div class="border border-slate-850 rounded-lg max-h-48 overflow-y-auto animate-fadeIn" id="admin-announcements-list-wrapper"></div>
-                        </div>
+                    </div>
 
-                        <div class="bg-slate-950 border border-slate-800 rounded-xl p-5 space-y-4 flex flex-col justify-between">
-                            <div>
-                                <div class="flex items-center justify-between mb-3">
-                                    <h3 class="text-white font-bold flex items-center gap-2"><i class="fa-solid fa-calendar-day text-yellow-400"></i> Belirli Gün & Haftalar Listesi</h3>
-                                    <div class="flex items-center gap-2">
-                                        <button onclick="ozelGunSablonIndir()" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-yellow-400 border border-yellow-500/20 font-bold rounded-lg text-[10px] flex items-center gap-1"><i class="fa-solid fa-download"></i> Şablon</button>
-                                        <label class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-yellow-400 border border-yellow-500/30 font-bold rounded-lg text-[10px] cursor-pointer flex items-center gap-1">
-                                            <i class="fa-solid fa-cloud-arrow-up"></i> Excel Yükle
-                                            <input type="file" id="specialday-excel-input" class="hidden" accept=".xlsx,.xls" onchange="ozelGunExcelYukle(event)">
-                                        </label>
-                                    </div>
-                                </div>
-                                <p class="text-[10px] text-slate-400 mb-2">Başlangıç/Bitiş tarihleri opsiyoneldir (GG.AA). Sadece belirli bir gün için tek tarihi Başlangıç alanına girin; bir hafta boyunca göstermek için Başlangıç ve Bitiş tarihlerini birlikte girin.</p>
-                                <div class="flex gap-2 mb-2">
-                                    <input type="text" id="new-specialday-input" placeholder="Örn: 29 Ekim Cumhuriyet Bayramı" class="flex-1 bg-slate-900 border border-slate-850 rounded-lg p-2 text-white text-xs">
-                                </div>
-                                <div class="flex gap-2">
-                                    <input type="text" id="new-specialday-start" placeholder="Başlangıç (GG.AA)" class="w-32 bg-slate-900 border border-slate-850 rounded-lg p-2 text-white text-xs text-center font-mono">
-                                    <input type="text" id="new-specialday-end" placeholder="Bitiş (GG.AA - opsiyonel)" class="w-36 bg-slate-900 border border-slate-850 rounded-lg p-2 text-white text-xs text-center font-mono">
-                                    <button id="specialday-submit-btn" class="flex-1 px-5 py-2 bg-emerald-500 text-white font-bold rounded-lg text-xs hover:bg-emerald-600" onclick="addSpecialDayToList()">Ekle</button>
-                                </div>
+                    <!-- Kart Görünüm & Yayın Ayarları: Duyurular (Modül Ayarları sekmesinden taşındı) -->
+                    <div class="bg-slate-950 border border-slate-800 rounded-xl p-5 space-y-3">
+                        <h3 class="text-white font-bold text-sm flex items-center gap-2"><i class="fa-solid fa-cube text-cyan-400"></i> Kart Görünüm & Yayın Ayarları</h3>
+                        <p class="text-[11px] text-slate-500">Duyuru kartının başlığı, ebatı, rengi ve yayın (aktif/pasif) durumu.</p>
+                        <div id="module-embed-announcements"></div>
+                    </div>
+                </div>
+
+                <!-- TAB: BELİRLİ GÜN & HAVA DURUMU YÖNETİMİ (Duyuru & Belirli Günler sekmesinden ayrıldı) -->
+                <div class="tab-content hidden space-y-6" id="tab-specialday">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                        <h2 class="text-lg font-bold text-yellow-400 flex items-center gap-2"><i class="fa-solid fa-cloud-sun"></i> Belirli Gün & Hava Durumu Yönetimi</h2>
+                        <span class="text-xs text-slate-400 max-w-md text-right">Panodaki tek kartta sırayla dönen belirli gün/hafta metinleri ile canlı hava durumu buradan yönetilir.</span>
+                    </div>
+
+                    <div class="bg-slate-950 border border-slate-800 rounded-xl p-5 space-y-4">
+                        <div class="flex items-center justify-between mb-1 flex-wrap gap-2">
+                            <h3 class="text-white font-bold flex items-center gap-2"><i class="fa-solid fa-calendar-day text-yellow-400"></i> Belirli Gün & Haftalar Listesi</h3>
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <button onclick="ozelGunSablonIndir()" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-yellow-400 border border-yellow-500/20 font-bold rounded-lg text-[10px] flex items-center gap-1"><i class="fa-solid fa-download"></i> Şablon</button>
+                                <label class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-yellow-400 border border-yellow-500/30 font-bold rounded-lg text-[10px] cursor-pointer flex items-center gap-1">
+                                    <i class="fa-solid fa-cloud-arrow-up"></i> Excel Yükle
+                                    <input type="file" id="specialday-excel-input" class="hidden" accept=".xlsx,.xls" onchange="ozelGunExcelYukle(event)">
+                                </label>
+                                <label class="flex items-center gap-1.5 text-[10px] text-slate-400 cursor-pointer ml-1">
+                                    <input type="checkbox" id="specialday-select-all" onchange="toggleSpecialDaySelectAll(this.checked)"> Tümünü Seç
+                                </label>
+                                <button id="specialday-bulk-delete-btn" class="px-2.5 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-lg text-[10px] font-bold disabled:opacity-40 disabled:cursor-not-allowed" onclick="bulkDeleteSpecialDays()" disabled>
+                                    <i class="fa-solid fa-trash-can"></i> Seçilenleri Sil (<span id="specialday-selected-count">0</span>)
+                                </button>
                             </div>
-                            <div class="border border-slate-850 rounded-lg max-h-48 overflow-y-auto" id="admin-specialdays-list-wrapper"></div>
                         </div>
+                        <p class="text-[10px] text-slate-400 mb-1">Başlangıç/Bitiş tarihleri opsiyoneldir (GG.AA). Sadece belirli bir gün için tek tarihi Başlangıç alanına girin; bir hafta boyunca göstermek için Başlangıç ve Bitiş tarihlerini birlikte girin.</p>
+                        <div class="flex gap-2">
+                            <input type="text" id="new-specialday-input" placeholder="Örn: 29 Ekim Cumhuriyet Bayramı" class="flex-1 bg-slate-900 border border-slate-850 rounded-lg p-2 text-white text-xs">
+                        </div>
+                        <div class="flex gap-2">
+                            <input type="text" id="new-specialday-start" placeholder="Başlangıç (GG.AA)" class="w-32 bg-slate-900 border border-slate-850 rounded-lg p-2 text-white text-xs text-center font-mono">
+                            <input type="text" id="new-specialday-end" placeholder="Bitiş (GG.AA - opsiyonel)" class="w-36 bg-slate-900 border border-slate-850 rounded-lg p-2 text-white text-xs text-center font-mono">
+                            <button id="specialday-submit-btn" class="flex-1 px-5 py-2 bg-emerald-500 text-white font-bold rounded-lg text-xs hover:bg-emerald-600" onclick="addSpecialDayToList()">Ekle</button>
+                        </div>
+                        <div class="border border-slate-850 rounded-lg max-h-48 overflow-y-auto" id="admin-specialdays-list-wrapper"></div>
+                    </div>
+
+                    <!-- Belirli Gün Metni Biçimlendirme -->
+                    <div class="bg-slate-950 border border-slate-800 rounded-xl p-5 space-y-4">
+                        <h3 class="text-white font-bold text-sm flex items-center gap-2"><i class="fa-solid fa-font text-yellow-400"></i> Belirli Gün Metni Biçimlendirme</h3>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="form-group">
+                                <label class="text-xs text-slate-400 block mb-1">Liste Boşken Gösterilecek Metin</label>
+                                <input type="text" id="input-specialday-empty-text" placeholder="İyi Dersler Dileriz" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2.5 text-white text-xs">
+                            </div>
+                            <div class="form-group">
+                                <label class="text-xs text-slate-400 block mb-1">Metin Rengi</label>
+                                <input type="color" id="input-specialday-color" value="#ffb703" class="w-full h-9 bg-slate-900 border border-slate-800 rounded-lg cursor-pointer">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4 pt-3 border-t border-slate-800">
+                            <div class="form-group">
+                                <label class="text-xs text-slate-400 block mb-1">Yazı Tipi (Font)</label>
+                                <select id="input-specialday-font" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2.5 text-white text-xs">
+                                    <option value="">Varsayılan</option>
+                                    <option value="'Rajdhani', sans-serif">Rajdhani</option>
+                                    <option value="'Roboto', sans-serif">Roboto</option>
+                                    <option value="'Orbitron', sans-serif">Orbitron</option>
+                                    <option value="'Exo 2', sans-serif">Exo 2</option>
+                                    <option value="'Share Tech Mono', monospace">Share Tech Mono</option>
+                                    <option value="'Oswald', sans-serif">Oswald</option>
+                                    <option value="'Nunito', sans-serif">Nunito</option>
+                                    <option value="Arial, sans-serif">Arial</option>
+                                    <option value="'Times New Roman', serif">Times New Roman</option>
+                                    <option value="'Courier New', monospace">Courier New</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="text-xs text-slate-400 block mb-1">Yazı Boyutu (px)</label>
+                                <input type="number" id="input-specialday-size" min="6" max="48" placeholder="11" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2.5 text-white text-xs font-mono">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Hava Durumu Ayarları -->
+                    <div class="bg-slate-950 border border-slate-800 rounded-xl p-5 space-y-4">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-white font-bold text-sm flex items-center gap-2"><i class="fa-solid fa-cloud-sun-rain text-cyan-400"></i> Hava Durumu Ayarları</h3>
+                            <button onclick="fetchLiveWeather()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-cyan-400 border border-cyan-500/20 font-bold rounded-lg text-[10px] flex items-center gap-1.5"><i class="fa-solid fa-rotate"></i> Şimdi Test Et</button>
+                        </div>
+                        <p class="text-[11px] text-slate-500">Hava durumu, Open-Meteo servisinden şehrin enlem/boylam koordinatlarına göre canlı olarak çekilir.</p>
+                        <div class="grid grid-cols-3 gap-4">
+                            <div class="form-group">
+                                <label class="text-xs text-slate-400 block mb-1">Şehir Adı</label>
+                                <input type="text" id="input-weather-city" placeholder="Muş" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2.5 text-white text-xs">
+                            </div>
+                            <div class="form-group">
+                                <label class="text-xs text-slate-400 block mb-1">Enlem (Latitude)</label>
+                                <input type="text" id="input-weather-lat" placeholder="38.73" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2.5 text-white text-xs font-mono">
+                            </div>
+                            <div class="form-group">
+                                <label class="text-xs text-slate-400 block mb-1">Boylam (Longitude)</label>
+                                <input type="text" id="input-weather-lng" placeholder="41.49" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2.5 text-white text-xs font-mono">
+                            </div>
+                        </div>
+                        <p class="text-[10px] text-slate-500 -mt-1">Koordinatları bilmiyorsanız <a href="https://www.latlong.net/" target="_blank" rel="noopener" class="text-cyan-400 underline">latlong.net</a> gibi bir siteden şehrinizin enlem/boylamını bulabilirsiniz.</p>
+                        <div class="grid grid-cols-4 gap-4 pt-2 border-t border-slate-800">
+                            <div class="form-group">
+                                <label class="text-xs text-slate-400 block mb-1">"HAVA DURUMU" Etiketi</label>
+                                <input type="text" id="input-weather-label" placeholder="HAVA DURUMU" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2.5 text-white text-xs">
+                            </div>
+                            <div class="form-group">
+                                <label class="text-xs text-slate-400 block mb-1">Hava Durumu İkonu (Emoji)</label>
+                                <input type="text" id="input-weather-icon" placeholder="🌤️" maxlength="4" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2.5 text-white text-xs text-center">
+                            </div>
+                            <div class="form-group">
+                                <label class="text-xs text-slate-400 block mb-1">Bağlantı Hatası İkonu</label>
+                                <input type="text" id="input-weather-error-icon" placeholder="⛅" maxlength="4" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2.5 text-white text-xs text-center">
+                            </div>
+                            <div class="form-group">
+                                <label class="text-xs text-slate-400 block mb-1">Sıcaklık Yazı Rengi</label>
+                                <input type="color" id="input-weather-color" value="#00b4d8" class="w-full h-9 bg-slate-900 border border-slate-800 rounded-lg cursor-pointer">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4 pt-3 border-t border-slate-800">
+                            <div class="form-group">
+                                <label class="text-xs text-slate-400 block mb-1">Yazı Tipi (Font)</label>
+                                <select id="input-weather-font" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2.5 text-white text-xs">
+                                    <option value="">Varsayılan</option>
+                                    <option value="'Rajdhani', sans-serif">Rajdhani</option>
+                                    <option value="'Roboto', sans-serif">Roboto</option>
+                                    <option value="'Orbitron', sans-serif">Orbitron</option>
+                                    <option value="'Exo 2', sans-serif">Exo 2</option>
+                                    <option value="'Share Tech Mono', monospace">Share Tech Mono</option>
+                                    <option value="'Oswald', sans-serif">Oswald</option>
+                                    <option value="'Nunito', sans-serif">Nunito</option>
+                                    <option value="Arial, sans-serif">Arial</option>
+                                    <option value="'Times New Roman', serif">Times New Roman</option>
+                                    <option value="'Courier New', monospace">Courier New</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="text-xs text-slate-400 block mb-1">Yazı Boyutu (px)</label>
+                                <input type="number" id="input-weather-size" min="6" max="48" placeholder="13" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2.5 text-white text-xs font-mono">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Kart Görünüm & Yayın Ayarları (Modül Ayarları sekmesinden taşındı) -->
+                    <div class="bg-slate-950 border border-slate-800 rounded-xl p-5 space-y-3">
+                        <h3 class="text-white font-bold text-sm flex items-center gap-2"><i class="fa-solid fa-cube text-cyan-400"></i> Kart Görünüm & Yayın Ayarları</h3>
+                        <p class="text-[11px] text-slate-500">Bu kartın başlığı, ebatı, rengi ve yayın (aktif/pasif) durumu.</p>
+                        <div id="module-embed-specialday"></div>
                     </div>
                 </div>
 
@@ -708,8 +1111,25 @@
 
                     <!-- Söz Listesi -->
                     <div class="bg-slate-950 border border-slate-800 rounded-xl p-5 space-y-3">
-                        <h3 class="text-white font-bold flex items-center gap-2"><i class="fa-solid fa-list text-purple-400"></i> Kayıtlı Sözler</h3>
+                        <div class="flex items-center justify-between flex-wrap gap-2">
+                            <h3 class="text-white font-bold flex items-center gap-2"><i class="fa-solid fa-list text-purple-400"></i> Kayıtlı Sözler</h3>
+                            <div class="flex items-center gap-3">
+                                <label class="flex items-center gap-1.5 text-[10px] text-slate-400 cursor-pointer">
+                                    <input type="checkbox" id="quote-select-all" onchange="toggleQuoteSelectAll(this.checked)"> Tümünü Seç
+                                </label>
+                                <button id="quote-bulk-delete-btn" class="px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-lg text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed" onclick="bulkDeleteQuotes()" disabled>
+                                    <i class="fa-solid fa-trash-can"></i> Seçilenleri Sil (<span id="quote-selected-count">0</span>)
+                                </button>
+                            </div>
+                        </div>
                         <div class="border border-slate-850 rounded-lg max-h-72 overflow-y-auto" id="admin-quotes-list-wrapper"></div>
+                    </div>
+
+                    <!-- Kart Görünüm & Yayın Ayarları (Modül Ayarları sekmesinden taşındı) -->
+                    <div class="bg-slate-950 border border-slate-800 rounded-xl p-5 space-y-3">
+                        <h3 class="text-white font-bold text-sm flex items-center gap-2"><i class="fa-solid fa-cube text-cyan-400"></i> Kart Görünüm & Yayın Ayarları</h3>
+                        <p class="text-[11px] text-slate-500">Bu modülün panodaki kartı için başlık metni, ebat, renk, yazı tipi ve yayın (aktif/pasif) durumunu buradan yönetin.</p>
+                        <div id="module-embed-quote"></div>
                     </div>
                 </div>
 
@@ -815,6 +1235,44 @@
                                 <span class="text-[10px] text-slate-500">(0 = sınırsız / hepsi)</span>
                             </div>
                         </div>
+                        <div class="border-t border-slate-800 pt-4 flex items-center justify-between gap-4">
+                            <label class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer select-none">
+                                <input type="checkbox" id="input-bday-show-year" class="w-4 h-4 accent-rose-500">
+                                Yaklaşan doğum günü tarihine <b class="text-rose-400">yılı da</b> ekle <span class="text-[10px] text-slate-500">(Örn: 24.11.2027)</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Simge (Emoji) Ayarları -->
+                    <div class="bg-slate-950 border border-slate-800 rounded-xl p-5 space-y-4">
+                        <h3 class="text-white font-bold flex items-center gap-2"><i class="fa-solid fa-icons text-rose-400"></i> Kutlama Simgeleri (🎈🎉🍰)</h3>
+                        <div class="grid grid-cols-3 gap-4">
+                            <div class="form-group">
+                                <label class="text-xs text-slate-400 block mb-1">Simgeler</label>
+                                <input type="text" id="input-bday-emoji-text" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-white text-sm text-center" placeholder="🎈🎉🍰">
+                                <span class="text-[10px] text-slate-500 mt-1 block">Boş bırakırsanız simge gösterilmez. İstediğiniz emojiyi yazabilirsiniz.</span>
+                            </div>
+                            <div class="form-group">
+                                <label class="text-xs text-slate-400 block mb-1">Simge Konumu</label>
+                                <select id="input-bday-emoji-position" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-white text-xs">
+                                    <option value="top">İsmin Üstünde</option>
+                                    <option value="middle" selected>İsim ile Alt Yazı Arasında</option>
+                                    <option value="bottom">En Altta</option>
+                                    <option value="hidden">Gizle</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="text-xs text-slate-400 block mb-1">Simge Boyutu (px)</label>
+                                <input type="number" id="input-bday-emoji-size" min="12" max="80" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-white text-xs text-center" placeholder="32">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Kart Görünüm & Yayın Ayarları (Modül Ayarları sekmesinden taşındı) -->
+                    <div class="bg-slate-950 border border-slate-800 rounded-xl p-5 space-y-3">
+                        <h3 class="text-white font-bold flex items-center gap-2"><i class="fa-solid fa-cube text-cyan-400"></i> Kart Görünüm & Yayın Ayarları</h3>
+                        <p class="text-[11px] text-slate-500">Bu modülün panodaki kartı için başlık metni, ebat, renk, yazı tipi ve yayın (aktif/pasif) durumunu buradan yönetin.</p>
+                        <div id="module-embed-birthday"></div>
                     </div>
                 </div>
 
@@ -822,63 +1280,56 @@
                 <div class="tab-content hidden space-y-6" id="tab-achievements">
                     <div class="flex items-center justify-between border-b border-slate-800 pb-2">
                         <h2 class="text-lg font-bold text-cyan-400 flex items-center gap-2"><i class="fa-solid fa-ranking-star"></i> Ayın Enleri Başarı Tablosu Yönetimi</h2>
-                        <span class="text-xs text-slate-400 max-w-md text-right">Birden fazla kayıt ekleyebilirsiniz. Aktif kayıtlar panoda sırayla peş peşe slayt şeklinde gösterilir. Pasif yaptığınız kayıtlar listede kalır ama panoda gösterilmez.</span>
+                        <span class="text-xs text-slate-400 max-w-md text-right">Her alan (örn. Ayın Temiz Sınıfı, Ayın Örnek Öğrencisi) ayrı bir hücre gibi yönetilir. Birden fazla kayıt ekleyebilir, alan başlıklarını değiştirebilir ve dilediğiniz kadar yeni alan (Ayın/Haftanın Eni) tanımlayabilirsiniz.</span>
                     </div>
 
-                    <div class="grid grid-cols-2 gap-6">
-                        <!-- AYIN TEMİZ SINIFI YÖNETİMİ -->
-                        <div class="bg-slate-950 border border-slate-800 rounded-xl p-5 space-y-4 flex flex-col justify-between">
-                            <div>
-                                <h3 class="text-white font-bold flex items-center gap-2 mb-3"><i class="fa-solid fa-wand-magic-sparkles text-cyan-400"></i> Ayın Temiz Sınıfı Kayıtları</h3>
-                                <div class="grid grid-cols-2 gap-3 mb-3">
-                                    <div class="form-group col-span-2">
-                                        <label class="text-xs text-slate-400 block mb-1">Sınıf / Başlık</label>
-                                        <input type="text" id="input-cleanclass-title" placeholder="Örn: 3/C Sınıfı" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-white text-xs">
-                                    </div>
-                                    <div class="form-group col-span-2">
-                                        <label class="text-xs text-slate-400 block mb-1">Görsel Adresi (URL)</label>
-                                        <input type="text" id="input-cleanclass-img" placeholder="https://..." class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-white text-xs">
-                                    </div>
-                                </div>
-                                <div class="flex justify-end">
-                                    <button id="cleanclass-submit-btn" class="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white font-bold rounded-lg text-xs" onclick="addCleanClassRecord()">Listeye Ekle</button>
-                                </div>
+                    <!-- GENEL YERLEŞİM & AYIRICI AYARLARI -->
+                    <div class="bg-slate-950 border border-slate-800 rounded-xl p-5 space-y-3">
+                        <h3 class="text-white font-bold text-sm flex items-center gap-2"><i class="fa-solid fa-table-cells text-cyan-400"></i> Genel Yerleşim & Ayırıcı</h3>
+                        <p class="text-[11px] text-slate-500">Alanların (hücrelerin) panoda üst üste mi yoksa yan yana mı sıralanacağını ve aralarındaki ayırıcı çizgi/simge/desen seçimini buradan yönetin.</p>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            <div class="form-group">
+                                <label class="text-xs text-slate-400 block mb-1">Hücre Yerleşimi</label>
+                                <select id="input-ach-layout" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-white text-xs">
+                                    <option value="column">Üst Üste (Dikey)</option>
+                                    <option value="row">Yan Yana (Yatay)</option>
+                                </select>
                             </div>
-                            <div class="border-t border-slate-850 pt-3">
-                                <div class="flex items-center justify-between mb-2">
-                                    <h4 class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Kayıt Listesi</h4>
-                                    <span class="text-[10px] text-slate-500" id="cleanclass-count-label">0 kayıt</span>
-                                </div>
-                                <div class="border border-slate-850 rounded-lg max-h-64 overflow-y-auto" id="admin-cleanclass-list-wrapper"></div>
+                            <div class="form-group">
+                                <label class="text-xs text-slate-400 block mb-1">Satır Başına Hücre Sayısı</label>
+                                <input type="number" id="input-ach-columns" min="0" max="12" step="1" value="0" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-white text-xs" placeholder="0 = Otomatik">
+                            </div>
+                            <div class="form-group">
+                                <label class="text-xs text-slate-400 block mb-1">Ayırıcı Türü</label>
+                                <select id="input-ach-separator" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-white text-xs" onchange="toggleAchSeparatorIconField()">
+                                    <option value="line">Çizgi</option>
+                                    <option value="dots">Noktalı Desen</option>
+                                    <option value="icon">Simge (İkon)</option>
+                                    <option value="none">Yok</option>
+                                </select>
+                            </div>
+                            <div class="form-group" id="ach-separator-icon-wrapper">
+                                <label class="text-xs text-slate-400 block mb-1">Ayırıcı Simgesi (Font Awesome sınıfı)</label>
+                                <input type="text" id="input-ach-separator-icon" placeholder="fa-star" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-white text-xs font-mono">
                             </div>
                         </div>
+                        <p class="text-[10px] text-slate-500"><i class="fa-solid fa-circle-info"></i> Hücrelerdeki başlık ve görseller her zaman dikey olarak ortalanır. "Satır Başına Hücre Sayısı" sadece "Yan Yana (Yatay)" seçiliyken geçerlidir; çok sayıda alan eklendiğinde panonun taşmaması için hücreler belirttiğiniz sayı kadar sütun halinde alt satırlara bölünür. 0 bırakırsanız eski davranış (tek satır) devam eder.</p>
+                    </div>
 
-                        <!-- AYIN ÖRNEK ÖĞRENCİSİ YÖNETİMİ -->
-                        <div class="bg-slate-950 border border-slate-800 rounded-xl p-5 space-y-4 flex flex-col justify-between">
-                            <div>
-                                <h3 class="text-white font-bold flex items-center gap-2 mb-3"><i class="fa-solid fa-star text-yellow-400"></i> Ayın Örnek Öğrencisi Kayıtları</h3>
-                                <div class="grid grid-cols-2 gap-3 mb-3">
-                                    <div class="form-group col-span-2">
-                                        <label class="text-xs text-slate-400 block mb-1">Öğrenci Adı / Sınıfı</label>
-                                        <input type="text" id="input-beststudent-title" placeholder="Örn: M. Asaf ÇÖZÜM (3/C)" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-white text-xs">
-                                    </div>
-                                    <div class="form-group col-span-2">
-                                        <label class="text-xs text-slate-400 block mb-1">Görsel Adresi (URL)</label>
-                                        <input type="text" id="input-beststudent-img" placeholder="https://..." class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-white text-xs">
-                                    </div>
-                                </div>
-                                <div class="flex justify-end">
-                                    <button id="beststudent-submit-btn" class="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-black font-bold rounded-lg text-xs" onclick="addBestStudentRecord()">Listeye Ekle</button>
-                                </div>
-                            </div>
-                            <div class="border-t border-slate-850 pt-3">
-                                <div class="flex items-center justify-between mb-2">
-                                    <h4 class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Kayıt Listesi</h4>
-                                    <span class="text-[10px] text-slate-500" id="beststudent-count-label">0 kayıt</span>
-                                </div>
-                                <div class="border border-slate-850 rounded-lg max-h-64 overflow-y-auto" id="admin-beststudent-list-wrapper"></div>
-                            </div>
-                        </div>
+                    <!-- DİNAMİK ALAN (HÜCRE) LİSTESİ -->
+                    <div id="admin-achievement-categories-wrapper" class="space-y-5"></div>
+
+                    <div class="flex justify-center">
+                        <button class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs flex items-center gap-2" onclick="addAchievementCategory()">
+                            <i class="fa-solid fa-plus"></i> Yeni Alan Ekle (Ayın/Haftanın Eni)
+                        </button>
+                    </div>
+
+                    <!-- Kart Görünüm & Yayın Ayarları (Modül Ayarları sekmesinden taşındı) -->
+                    <div class="bg-slate-950 border border-slate-800 rounded-xl p-5 space-y-3">
+                        <h3 class="text-white font-bold text-sm flex items-center gap-2"><i class="fa-solid fa-cube text-cyan-400"></i> Kart Görünüm & Yayın Ayarları</h3>
+                        <p class="text-[11px] text-slate-500">Bu modülün panodaki kartı için başlık metni, ebat, renk, yazı tipi ve yayın (aktif/pasif) durumunu buradan yönetin.</p>
+                        <div id="module-embed-achievements"></div>
                     </div>
                 </div>
 
@@ -1030,6 +1481,452 @@
                     </div>
                     <p class="text-[10px] text-slate-500 -mt-3">Buradan eklediğiniz veya sildiğiniz ders saati, hem <strong>Zil Zamanlayıcı</strong> hem de <strong>Ders Programı</strong> matrisindeki sütun sayısını otomatik olarak günceller — her ikisi de her zaman senkron kalır.</p>
                     <div class="grid grid-cols-4 gap-4" id="admin-bell-hours-inputs"></div>
+
+                    <!-- Günlük Zil Saatleri Kartı - Görünüm Ayarları -->
+                    <div class="border-t border-slate-800 pt-5 mt-2">
+                        <div class="flex items-center justify-between flex-wrap gap-2 mb-3">
+                            <h3 class="text-white font-bold text-sm flex items-center gap-2"><i class="fa-solid fa-sliders text-yellow-400"></i> Günlük Zil Saatleri Kartı — Görünüm Ayarları</h3>
+                            <button type="button" onclick="resetBellHoursDisplaySettings()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-[10px] font-bold rounded-lg flex items-center gap-1.5"><i class="fa-solid fa-rotate-left"></i> Varsayılana Sıfırla</button>
+                        </div>
+                        <p class="text-[10px] text-slate-500 mb-4">Bu bölümdeki tüm değişiklikler panoya <strong class="text-yellow-400">anında yansır</strong> ve otomatik olarak <strong class="text-yellow-400">kalıcı kaydedilir</strong> — ayrıca kaydetmenize gerek yok.</p>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- Satır / Sütun Boşluğu -->
+                            <div class="bg-slate-950 border border-slate-850 p-3 rounded-xl space-y-3">
+                                <h4 class="text-[11px] font-bold text-slate-300 uppercase tracking-wide">Aralık &amp; Boşluk</h4>
+                                <div>
+                                    <label class="text-[10px] text-slate-500 flex justify-between"><span>Satır Arası Boşluk</span> <span id="bhs-row-gap-val" class="text-yellow-400 font-mono">4px</span></label>
+                                    <input type="range" min="0" max="20" step="1" id="bhs-row-gap" value="4" class="w-full accent-yellow-500" oninput="bellHoursDisplaySettingsUpdate()">
+                                </div>
+                                <div>
+                                    <label class="text-[10px] text-slate-500 flex justify-between"><span>Sütun Arası Boşluk</span> <span id="bhs-col-gap-val" class="text-yellow-400 font-mono">4px</span></label>
+                                    <input type="range" min="0" max="20" step="1" id="bhs-col-gap" value="4" class="w-full accent-yellow-500" oninput="bellHoursDisplaySettingsUpdate()">
+                                </div>
+                                <p class="text-[9px] text-slate-600">Değeri 0'a çekerseniz satır/sütunlar birbirine iyice yaklaşır; artırdıkça aralık genişler.</p>
+                            </div>
+
+                            <!-- Teneffüs Gösterimi -->
+                            <div class="bg-slate-950 border border-slate-850 p-3 rounded-xl space-y-3">
+                                <h4 class="text-[11px] font-bold text-slate-300 uppercase tracking-wide">Teneffüs Gösterimi</h4>
+                                <div>
+                                    <label class="text-[10px] text-slate-500 block mb-1">Teneffüs Satırları</label>
+                                    <select id="bhs-recess-mode" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-1.5 text-xs text-white" onchange="bellHoursDisplaySettingsUpdate()">
+                                        <option value="all">Tüm Teneffüsleri Göster</option>
+                                        <option value="activeOnly">Sadece Aktif Teneffüsü Göster</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="text-[10px] text-slate-500 block mb-1">Teneffüs Satırı Ayırıcısı</label>
+                                    <select id="bhs-recess-label-mode" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-1.5 text-xs text-white" onchange="bellHoursDisplaySettingsUpdate()">
+                                        <option value="line">Düz Çizgi</option>
+                                        <option value="dotted">Noktalı Çizgi</option>
+                                        <option value="icon">Sembol (İkon)</option>
+                                        <option value="time">Saat Aralığı — "10:15 - 10:30 arası Teneffüs"</option>
+                                    </select>
+                                    <p class="text-[9px] text-slate-600 mt-1">Seçtiğiniz ayırıcı stili teneffüs satırında görünür; aktif teneffüste bildirim metni her zaman ayrıca gösterilir.</p>
+                                </div>
+                                <div>
+                                    <label class="text-[10px] text-slate-500 block mb-1">Aktif Teneffüs Metni</label>
+                                    <select id="bhs-recess-text-mode" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-1.5 text-xs text-white" onchange="bellHoursDisplaySettingsUpdate()">
+                                        <option value="static">Otomatik — "🔔 Şu Anda Teneffüs"</option>
+                                        <option value="countdown">Otomatik — "🔔 Teneffüs …dk."</option>
+                                        <option value="custom">Manuel — Kendi Metnimi Yazayım</option>
+                                    </select>
+                                </div>
+                                <div id="bhs-recess-custom-text-wrap" class="hidden">
+                                    <label class="text-[10px] text-slate-500 block mb-1">Manuel Teneffüs Metni</label>
+                                    <input type="text" id="bhs-recess-custom-text" maxlength="60" placeholder="Örn: 🔔 Teneffüs Vakti!" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-1.5 text-xs text-white" oninput="bellHoursDisplaySettingsUpdate()">
+                                </div>
+                                <div>
+                                    <label class="text-[10px] text-slate-500 flex justify-between"><span>Teneffüs Satırı Yüksekliği</span> <span id="bhs-recess-gap-val" class="text-yellow-400 font-mono">3px</span></label>
+                                    <input type="range" min="0" max="20" step="1" id="bhs-recess-gap" value="3" class="w-full accent-yellow-500" oninput="bellHoursDisplaySettingsUpdate()">
+                                    <p class="text-[9px] text-slate-600 mt-1">Teneffüs satırının boyunu ders satırlarından bağımsız ayarlar.</p>
+                                </div>
+                                <div>
+                                    <label class="text-[10px] text-slate-500 flex justify-between"><span>Teneffüs Satırı Yazı Boyutu</span> <span id="bhs-recess-fs-val" class="text-yellow-400 font-mono">9px</span></label>
+                                    <input type="range" min="6" max="16" step="1" id="bhs-recess-fs" value="9" class="w-full accent-yellow-500" oninput="bellHoursDisplaySettingsUpdate()">
+                                </div>
+                            </div>
+
+                            <!-- Aktif Teneffüs Vurgusu -->
+                            <div class="bg-slate-950 border border-slate-850 p-3 rounded-xl space-y-3">
+                                <h4 class="text-[11px] font-bold text-slate-300 uppercase tracking-wide">Aktif Teneffüs Satırı Vurgusu</h4>
+                                <p class="text-[9px] text-slate-600 -mt-1">Şu an devam eden teneffüsün satırı, aşağıdaki ayarlarla diğer (pasif) teneffüs satırlarından bağımsız olarak biçimlendirilir.</p>
+                                <div class="grid grid-cols-1 gap-3">
+                                    <div>
+                                        <label class="text-[10px] text-slate-500 block mb-1">Vurgu Rengi</label>
+                                        <input type="color" id="bhs-active-recess-color" value="#22c55e" class="w-full h-8 bg-slate-900 border border-slate-800 rounded-lg cursor-pointer" oninput="bellHoursDisplaySettingsUpdate()">
+                                    </div>
+                                    <div>
+                                        <label class="text-[10px] text-slate-500 block mb-1">Vurgu Efekti</label>
+                                        <select id="bhs-active-recess-effect" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-1.5 text-xs text-white" onchange="bellHoursDisplaySettingsUpdate()">
+                                            <option value="none">Yok (Sade)</option>
+                                            <option value="glow">Parlama (Glow)</option>
+                                            <option value="pulse">Nabız (Pulse)</option>
+                                            <option value="border">Kalın Çerçeve</option>
+                                            <option value="solid">Düz Renk (Dolgu)</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="text-[10px] text-slate-500 flex justify-between"><span>Aktif Teneffüs Satırı Yüksekliği</span> <span id="bhs-active-recess-gap-val" class="text-yellow-400 font-mono">3px</span></label>
+                                        <input type="range" min="0" max="24" step="1" id="bhs-active-recess-gap" value="3" class="w-full accent-yellow-500" oninput="bellHoursDisplaySettingsUpdate()">
+                                    </div>
+                                    <div>
+                                        <label class="text-[10px] text-slate-500 flex justify-between"><span>Aktif Teneffüs Satırı Yazı Boyutu</span> <span id="bhs-active-recess-fs-val" class="text-yellow-400 font-mono">10.5px</span></label>
+                                        <input type="range" min="6" max="20" step="0.5" id="bhs-active-recess-fs" value="10.5" class="w-full accent-yellow-500" oninput="bellHoursDisplaySettingsUpdate()">
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label class="text-[10px] text-slate-500 block mb-1">Canlı Önizleme</label>
+                                    <table class="lesson-schedule-table" id="bhs-preview-recess-table" style="background:#0b1220;border-radius:8px;overflow:hidden;">
+                                        <tbody>
+                                            <tr id="bhs-preview-recess-2" class="recess-row recess-style-line active-recess">
+                                                <td colspan="4">
+                                                    <div class="recess-label"><i class="fa-solid fa-mug-hot"></i><span class="recess-label-text">Teneffüs</span><span class="recess-badge">🔔 Şu Anda Teneffüs</span></div>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                    <p class="text-[9px] text-slate-600 mt-1">Bu önizleme gerçek saatten bağımsızdır; renk/efekt/boy ayarlarınızı anında gösterir.</p>
+                                </div>
+                            </div>
+
+                            <!-- Aktif Ders Vurgusu -->
+                            <div class="bg-slate-950 border border-slate-850 p-3 rounded-xl space-y-3">
+                                <h4 class="text-[11px] font-bold text-slate-300 uppercase tracking-wide">Aktif Ders Satırı Vurgusu</h4>
+                                <div class="grid grid-cols-1 gap-3">
+                                    <div>
+                                        <label class="text-[10px] text-slate-500 block mb-1">Vurgu Rengi</label>
+                                        <input type="color" id="bhs-active-color" value="#ffb703" class="w-full h-8 bg-slate-900 border border-slate-800 rounded-lg cursor-pointer" oninput="bellHoursDisplaySettingsUpdate()">
+                                    </div>
+                                    <div>
+                                        <label class="text-[10px] text-slate-500 block mb-1">Vurgu Efekti</label>
+                                        <select id="bhs-active-effect" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-1.5 text-xs text-white" onchange="bellHoursDisplaySettingsUpdate()">
+                                            <option value="none">Yok (Sade)</option>
+                                            <option value="glow">Parlama (Glow)</option>
+                                            <option value="pulse">Nabız (Pulse)</option>
+                                            <option value="border">Kalın Çerçeve</option>
+                                            <option value="solid">Düz Renk (Dolgu)</option>
+                                        </select>
+                                        <p class="text-[9px] text-slate-600 mt-1">"Düz Renk (Dolgu)" seçilirse satır, saydam vurgu yerine seçtiğiniz rengin tamamıyla doldurulur.</p>
+                                    </div>
+                                    <div>
+                                        <label class="text-[10px] text-slate-500 flex justify-between"><span>Aktif Ders Satırı Yüksekliği</span> <span id="bhs-active-gap-val" class="text-yellow-400 font-mono">6px</span></label>
+                                        <input type="range" min="0" max="24" step="1" id="bhs-active-gap" value="6" class="w-full accent-yellow-500" oninput="bellHoursDisplaySettingsUpdate()">
+                                        <p class="text-[9px] text-slate-600 mt-1">Sadece o an aktif olan (vurgulanan) ders satırının boyunu diğer satırlardan bağımsız ayarlar.</p>
+                                    </div>
+                                    <div>
+                                        <label class="text-[10px] text-slate-500 flex justify-between"><span>Aktif Ders Satırı Yazı Boyutu</span> <span id="bhs-active-fs-val" class="text-yellow-400 font-mono">11px</span></label>
+                                        <input type="range" min="8" max="20" step="1" id="bhs-active-fs" value="11" class="w-full accent-yellow-500" oninput="bellHoursDisplaySettingsUpdate()">
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label class="text-[10px] text-slate-500 block mb-1">Canlı Önizleme</label>
+                                    <table class="lesson-schedule-table" id="bhs-preview-table" style="background:#0b1220;border-radius:8px;overflow:hidden;">
+                                        <tbody>
+                                            <tr>
+                                                <td>Pzt</td><td>2. Ders</td><td>09:35</td><td>10:15</td>
+                                            </tr>
+                                            <tr id="bhs-preview-recess" class="recess-row recess-style-line active-recess">
+                                                <td colspan="4">
+                                                    <div class="recess-label"><i class="fa-solid fa-mug-hot"></i><span class="recess-label-text">Teneffüs</span><span class="recess-badge">🔔 Şu Anda Teneffüs</span></div>
+                                                </td>
+                                            </tr>
+                                            <tr id="bhs-preview-row" class="active-row">
+                                                <td>Pzt</td><td>3. Ders</td><td>10:30</td><td>11:10</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                    <p class="text-[9px] text-slate-600 mt-1">Bu önizleme gerçek saatten bağımsızdır; renk/efekt/boy ayarlarınızı anında gösterir.</p>
+                                </div>
+                            </div>
+
+                            <!-- Sütun Başlığı Biçimlendirme -->
+                            <div class="bg-slate-950 border border-slate-850 p-3 rounded-xl space-y-3">
+                                <h4 class="text-[11px] font-bold text-slate-300 uppercase tracking-wide">Sütun Başlığı Biçimi (Ders / Giriş / Çıkış)</h4>
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label class="text-[10px] text-slate-500 block mb-1">Arka Plan Rengi</label>
+                                        <input type="color" id="bhs-header-bg" value="#111b2d" class="w-full h-8 bg-slate-900 border border-slate-800 rounded-lg cursor-pointer" oninput="bellHoursDisplaySettingsUpdate()">
+                                    </div>
+                                    <div>
+                                        <label class="text-[10px] text-slate-500 block mb-1">Yazı Rengi</label>
+                                        <input type="color" id="bhs-header-color" value="#94a3b8" class="w-full h-8 bg-slate-900 border border-slate-800 rounded-lg cursor-pointer" oninput="bellHoursDisplaySettingsUpdate()">
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="text-[10px] text-slate-500 flex justify-between"><span>Yazı Boyutu</span> <span id="bhs-header-fs-val" class="text-yellow-400 font-mono">11px</span></label>
+                                    <input type="range" min="8" max="18" step="1" id="bhs-header-fs" value="11" class="w-full accent-yellow-500" oninput="bellHoursDisplaySettingsUpdate()">
+                                </div>
+                                <label class="flex items-center gap-2 text-[10px] text-slate-400 cursor-pointer">
+                                    <input type="checkbox" id="bhs-header-bold" checked class="accent-yellow-500" onchange="bellHoursDisplaySettingsUpdate()"> Kalın Yazı
+                                </label>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- Kart Görünüm & Yayın Ayarları (Modül Ayarları sekmesinden taşındı) -->
+                    <div class="bg-slate-950 border border-slate-800 rounded-xl p-5 space-y-3">
+                        <h3 class="text-white font-bold text-sm flex items-center gap-2"><i class="fa-solid fa-cube text-cyan-400"></i> Kart Görünüm & Yayın Ayarları</h3>
+                        <p class="text-[11px] text-slate-500">Bu modülün panodaki kartı için başlık metni, ebat, renk, yazı tipi ve yayın (aktif/pasif) durumunu buradan yönetin.</p>
+                        <div id="module-embed-bellhours"></div>
+                    </div>
+                </div>
+
+                <!-- TAB: SAAT / GERİ SAYIM BİÇİMLENDİRME -->
+                <div class="tab-content hidden space-y-4" id="tab-clock">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                        <h2 class="text-lg font-bold text-cyan-400 flex items-center gap-2"><i class="fa-solid fa-hourglass-half"></i> Saat / Geri Sayım: Biçimlendirme</h2>
+                        <span class="text-[10px] text-slate-500">Tarih, Saat ve Geri Sayım metinleri birbirinden bağımsız düzenlenir</span>
+                    </div>
+
+                    <!-- CANLI ÖNİZLEME -->
+                    <div class="bg-slate-950 border border-cyan-500/20 rounded-xl p-5">
+                        <h4 class="text-white font-bold text-xs flex items-center gap-2 mb-3"><i class="fa-solid fa-eye text-cyan-400"></i> Canlı Önizleme</h4>
+                        <div class="clock-box" id="clks-live-preview" style="max-width:260px;min-height:170px;border-radius:10px;">
+                            <div class="clk-date-wrap"><div class="digital-date" id="clks-preview-date">25.07.2026 | Cumartesi</div></div>
+                            <div class="clk-time-wrap"><div class="digital-clock" id="clks-preview-time">14:32:07</div></div>
+                            <div class="clk-cd-wrap"><div class="bell-countdown" id="clks-preview-cd">Zilin Çalmasına: <span style="color:#ef4444;font-weight:bold">12 dk. 04 sn kaldı (Derste)</span></div></div>
+                        </div>
+                    </div>
+
+                    <!-- TARİH METNİ -->
+                    <div class="bg-slate-950 border border-cyan-500/20 rounded-xl p-5 space-y-3">
+                        <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                            <h3 class="text-white font-bold text-sm flex items-center gap-2"><i class="fa-solid fa-calendar-day text-cyan-400"></i> Tarih Metni</h3>
+                            <label class="flex items-center gap-2 text-[10px] text-slate-400 cursor-pointer">
+                                <input type="checkbox" id="clks-date-active" checked class="accent-cyan-500" onchange="updateClockStyleLivePreview()"> Göster
+                            </label>
+                        </div>
+                        <label class="flex items-center gap-2 text-[10px] text-slate-400 cursor-pointer">
+                            <input type="checkbox" id="clks-date-weekday" checked class="accent-cyan-500" onchange="updateClockStyleLivePreview()"> Gün adını da göster (Örn: "| Cumartesi")
+                        </label>
+                        <div class="grid grid-cols-2 md:grid-cols-6 gap-3">
+                            <div class="form-group">
+                                <label class="text-[9px] text-slate-400 flex items-center gap-1.5 mb-1">
+                                    <input type="checkbox" id="clks-date-color-enabled" onchange="updateClockStyleLivePreview()"> Yazı Rengi
+                                </label>
+                                <input type="color" id="clks-date-color" value="#94a3b8" class="w-full h-8 bg-slate-900 border border-slate-800 rounded-lg cursor-pointer" oninput="updateClockStyleLivePreview()">
+                            </div>
+                            <div class="form-group">
+                                <label class="text-[10px] text-slate-400 block mb-1">Yazı Boyutu (px)</label>
+                                <input type="number" id="clks-date-size" min="6" max="40" value="11" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-white text-xs" oninput="updateClockStyleLivePreview()">
+                            </div>
+                            <div class="form-group">
+                                <label class="text-[10px] text-slate-400 block mb-1">Font Ailesi</label>
+                                <select id="clks-date-font" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-white text-xs" onchange="updateClockStyleLivePreview()">
+                                    <option value="">Sistem Varsayılanı</option>
+                                    <option value="'Rajdhani', sans-serif">Rajdhani</option>
+                                    <option value="'Roboto', sans-serif">Roboto</option>
+                                    <option value="'Fira Code', monospace">Fira Code</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="text-[10px] text-slate-400 block mb-1">Yatay Hizalama</label>
+                                <select id="clks-date-align" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-white text-xs" onchange="updateClockStyleLivePreview()">
+                                    <option value="left">Sola</option>
+                                    <option value="center" selected>Ortaya</option>
+                                    <option value="right">Sağa</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="text-[10px] text-slate-400 block mb-1">Dikey Hizalama</label>
+                                <select id="clks-date-valign" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-white text-xs" onchange="updateClockStyleLivePreview()">
+                                    <option value="top">Üste</option>
+                                    <option value="center" selected>Ortaya</option>
+                                    <option value="bottom">Alta</option>
+                                </select>
+                            </div>
+                            <div class="form-group flex items-end pb-1.5">
+                                <label class="text-[10px] text-slate-400 flex items-center gap-1.5">
+                                    <input type="checkbox" id="clks-date-bold" onchange="updateClockStyleLivePreview()"> Kalın Yazı
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SAAT METNİ -->
+                    <div class="bg-slate-950 border border-cyan-500/20 rounded-xl p-5 space-y-3">
+                        <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                            <h3 class="text-white font-bold text-sm flex items-center gap-2"><i class="fa-solid fa-clock text-cyan-400"></i> Saat Metni</h3>
+                            <label class="flex items-center gap-2 text-[10px] text-slate-400 cursor-pointer">
+                                <input type="checkbox" id="clks-time-active" checked class="accent-cyan-500" onchange="updateClockStyleLivePreview()"> Göster
+                            </label>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="form-group">
+                                <label class="text-[10px] text-slate-400 block mb-1">Saat Biçimi</label>
+                                <select id="clks-time-format" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-white text-xs" onchange="updateClockStyleLivePreview()">
+                                    <option value="24" selected>24 Saat (14:32)</option>
+                                    <option value="12">12 Saat (02:32 ÖS)</option>
+                                </select>
+                            </div>
+                            <div class="form-group flex items-end pb-1.5">
+                                <label class="text-[10px] text-slate-400 flex items-center gap-1.5">
+                                    <input type="checkbox" id="clks-time-seconds" checked class="accent-cyan-500" onchange="updateClockStyleLivePreview()"> Saniyeyi Göster
+                                </label>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 md:grid-cols-6 gap-3">
+                            <div class="form-group">
+                                <label class="text-[9px] text-slate-400 flex items-center gap-1.5 mb-1">
+                                    <input type="checkbox" id="clks-time-color-enabled" onchange="updateClockStyleLivePreview()"> Yazı Rengi
+                                </label>
+                                <input type="color" id="clks-time-color" value="#00b4d8" class="w-full h-8 bg-slate-900 border border-slate-800 rounded-lg cursor-pointer" oninput="updateClockStyleLivePreview()">
+                            </div>
+                            <div class="form-group">
+                                <label class="text-[10px] text-slate-400 block mb-1">Yazı Boyutu (px)</label>
+                                <input type="number" id="clks-time-size" min="10" max="72" value="32" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-white text-xs" oninput="updateClockStyleLivePreview()">
+                            </div>
+                            <div class="form-group">
+                                <label class="text-[10px] text-slate-400 block mb-1">Font Ailesi</label>
+                                <select id="clks-time-font" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-white text-xs" onchange="updateClockStyleLivePreview()">
+                                    <option value="">Sistem Varsayılanı</option>
+                                    <option value="'Rajdhani', sans-serif">Rajdhani</option>
+                                    <option value="'Roboto', sans-serif">Roboto</option>
+                                    <option value="'Fira Code', monospace">Fira Code</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="text-[10px] text-slate-400 block mb-1">Yatay Hizalama</label>
+                                <select id="clks-time-align" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-white text-xs" onchange="updateClockStyleLivePreview()">
+                                    <option value="left">Sola</option>
+                                    <option value="center" selected>Ortaya</option>
+                                    <option value="right">Sağa</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="text-[10px] text-slate-400 block mb-1">Dikey Hizalama</label>
+                                <select id="clks-time-valign" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-white text-xs" onchange="updateClockStyleLivePreview()">
+                                    <option value="top">Üste</option>
+                                    <option value="center" selected>Ortaya</option>
+                                    <option value="bottom">Alta</option>
+                                </select>
+                            </div>
+                            <div class="form-group flex items-end pb-1.5">
+                                <label class="text-[10px] text-slate-400 flex items-center gap-1.5">
+                                    <input type="checkbox" id="clks-time-bold" checked onchange="updateClockStyleLivePreview()"> Kalın Yazı
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- GERİ SAYIM METNİ -->
+                    <div class="bg-slate-950 border border-cyan-500/20 rounded-xl p-5 space-y-3">
+                        <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                            <h3 class="text-white font-bold text-sm flex items-center gap-2"><i class="fa-solid fa-stopwatch text-cyan-400"></i> Geri Sayım Metni</h3>
+                            <label class="flex items-center gap-2 text-[10px] text-slate-400 cursor-pointer">
+                                <input type="checkbox" id="clks-cd-active" checked class="accent-cyan-500" onchange="updateClockStyleLivePreview()"> Göster
+                            </label>
+                        </div>
+
+                        <!-- Süre biçimi ve satır düzeni -->
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="form-group flex items-end pb-1.5">
+                                <label class="text-[10px] text-slate-400 flex items-center gap-1.5">
+                                    <input type="checkbox" id="clks-cd-seconds" checked class="accent-cyan-500" onchange="updateClockStyleLivePreview()"> Kalan Sürede Saniyeyi Göster
+                                </label>
+                            </div>
+                            <div class="form-group">
+                                <label class="text-[10px] text-slate-400 block mb-1">Etiket / Süre Satır Düzeni</label>
+                                <select id="clks-cd-layout" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-white text-xs" onchange="updateClockStyleLivePreview()">
+                                    <option value="inline" selected>Aynı Satırda</option>
+                                    <option value="stacked">Alt Alta</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Düzenlenebilir metinler -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div class="form-group">
+                                <label class="text-[10px] text-slate-400 block mb-1">"Derste" Etiketi</label>
+                                <input type="text" id="clks-cd-inclass-text" maxlength="40" value="Zilin Çalmasına:" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-white text-xs" oninput="updateClockStyleLivePreview()">
+                            </div>
+                            <div class="form-group">
+                                <label class="text-[10px] text-slate-400 block mb-1">"Derste" Süre Sonrası Ek Metin</label>
+                                <input type="text" id="clks-cd-inclass-suffix" maxlength="40" value="kaldı (Derste)" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-white text-xs" oninput="updateClockStyleLivePreview()">
+                            </div>
+                            <div class="form-group">
+                                <label class="text-[10px] text-slate-400 block mb-1">"Derste" Vurgu Rengi</label>
+                                <input type="color" id="clks-cd-inclass-color" value="#ef4444" class="w-full h-8 bg-slate-900 border border-slate-800 rounded-lg cursor-pointer" oninput="updateClockStyleLivePreview()">
+                            </div>
+                            <div class="form-group">
+                                <label class="text-[10px] text-slate-400 block mb-1">"Teneffüs" Etiketi</label>
+                                <input type="text" id="clks-cd-break-text" maxlength="40" value="Derse Giriş Ziline:" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-white text-xs" oninput="updateClockStyleLivePreview()">
+                            </div>
+                            <div class="form-group">
+                                <label class="text-[10px] text-slate-400 block mb-1">"Teneffüs" Süre Sonrası Ek Metin</label>
+                                <input type="text" id="clks-cd-break-suffix" maxlength="40" value="(Teneffüs)" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-white text-xs" oninput="updateClockStyleLivePreview()">
+                            </div>
+                            <div class="form-group">
+                                <label class="text-[10px] text-slate-400 block mb-1">"Teneffüs" Vurgu Rengi</label>
+                                <input type="color" id="clks-cd-break-color" value="#22c55e" class="w-full h-8 bg-slate-900 border border-slate-800 rounded-lg cursor-pointer" oninput="updateClockStyleLivePreview()">
+                            </div>
+                            <div class="form-group md:col-span-3">
+                                <label class="text-[10px] text-slate-400 block mb-1">"Eğitim Saatleri Dışı" Metni</label>
+                                <input type="text" id="clks-cd-outofhours-text" maxlength="60" value="Eğitim Saatleri Dışındasınız" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-white text-xs" oninput="updateClockStyleLivePreview()">
+                            </div>
+                        </div>
+
+                        <!-- Genel biçim -->
+                        <div class="grid grid-cols-2 md:grid-cols-6 gap-3 pt-2 border-t border-slate-800">
+                            <div class="form-group">
+                                <label class="text-[9px] text-slate-400 flex items-center gap-1.5 mb-1">
+                                    <input type="checkbox" id="clks-cd-color-enabled" onchange="updateClockStyleLivePreview()"> Genel Yazı Rengi
+                                </label>
+                                <input type="color" id="clks-cd-color" value="#ffb703" class="w-full h-8 bg-slate-900 border border-slate-800 rounded-lg cursor-pointer" oninput="updateClockStyleLivePreview()">
+                            </div>
+                            <div class="form-group">
+                                <label class="text-[10px] text-slate-400 block mb-1">Yazı Boyutu (px)</label>
+                                <input type="number" id="clks-cd-size" min="6" max="32" value="12" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-white text-xs" oninput="updateClockStyleLivePreview()">
+                            </div>
+                            <div class="form-group">
+                                <label class="text-[10px] text-slate-400 block mb-1">Font Ailesi</label>
+                                <select id="clks-cd-font" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-white text-xs" onchange="updateClockStyleLivePreview()">
+                                    <option value="">Sistem Varsayılanı</option>
+                                    <option value="'Rajdhani', sans-serif">Rajdhani</option>
+                                    <option value="'Roboto', sans-serif">Roboto</option>
+                                    <option value="'Fira Code', monospace">Fira Code</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="text-[10px] text-slate-400 block mb-1">Yatay Hizalama</label>
+                                <select id="clks-cd-align" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-white text-xs" onchange="updateClockStyleLivePreview()">
+                                    <option value="left">Sola</option>
+                                    <option value="center" selected>Ortaya</option>
+                                    <option value="right">Sağa</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="text-[10px] text-slate-400 block mb-1">Dikey Hizalama</label>
+                                <select id="clks-cd-valign" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-white text-xs" onchange="updateClockStyleLivePreview()">
+                                    <option value="top">Üste</option>
+                                    <option value="center" selected>Ortaya</option>
+                                    <option value="bottom">Alta</option>
+                                </select>
+                            </div>
+                            <div class="form-group flex items-end pb-1.5">
+                                <label class="text-[10px] text-slate-400 flex items-center gap-1.5">
+                                    <input type="checkbox" id="clks-cd-bold" onchange="updateClockStyleLivePreview()"> Kalın Yazı
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex gap-2 pt-2 border-t border-slate-800">
+                        <button class="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white font-bold rounded-lg text-xs flex items-center gap-2" onclick="clockStyleSave()"><i class="fa-solid fa-floppy-disk"></i> Kaydet & Panoya Uygula</button>
+                        <button class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-lg text-xs flex items-center gap-2" onclick="clockStyleReset()"><i class="fa-solid fa-arrow-rotate-left"></i> Varsayılana Sıfırla</button>
+                    </div>
+
+                    <!-- Kart Görünüm & Yayın Ayarları (Modül Ayarları sekmesinden taşındı) -->
+                    <div class="bg-slate-950 border border-slate-800 rounded-xl p-5 space-y-3">
+                        <h3 class="text-white font-bold text-sm flex items-center gap-2"><i class="fa-solid fa-cube text-cyan-400"></i> Kart Görünüm & Yayın Ayarları</h3>
+                        <p class="text-[11px] text-slate-500">Bu modülün panodaki kartı için ebat, renk, yazı tipi ve yayın (aktif/pasif) durumunu buradan yönetin.</p>
+                        <div id="module-embed-clock"></div>
+                    </div>
                 </div>
 
                 <!-- TAB: MODÜL AYARLARI (TÜM KARTLAR İÇİN BAŞLIK/EBAT/RENK/YAYIN) -->
@@ -1045,8 +1942,12 @@
                             </button>
                         </div>
                     </div>
-                    <p class="text-xs text-slate-500">Her modül için başlık metnini, ebat, renk, yayın durumunu (aktif/pasif) ve başlık çubuğunun aktif/pasif durumunu ayrı ayrı yönetin. Değişiklikler otomatik kaydedilir.</p>
-                    <div class="space-y-2" id="admin-module-settings-list"></div>
+                    <p class="text-xs text-slate-500">Bu sekme artık yalnızca genel işlemler içindir: yeni modül ekleme ve son değişikliği geri alma. Yerleşik (hazır) modüllerin başlık, ebat, renk, yazı tipi ve yayın (aktif/pasif) ayarları artık kendi menülerine taşındı — örneğin Doğum Günü kartının ayarları "Bugün Doğanlar" sekmesinde, Nöbet kartının ayarları "Nöbet Modülü Ayarları" sekmesindedir.</p>
+                    <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3">
+                        <h3 class="text-white font-bold text-sm flex items-center gap-2"><i class="fa-solid fa-puzzle-piece text-emerald-400"></i> Özel (Eklenen) Modüller</h3>
+                        <p class="text-[11px] text-slate-500">Kendi eklediğiniz özel modüllerin ayrı bir sabit menüsü olmadığı için ayarları burada listelenir.</p>
+                        <div class="space-y-2" id="admin-module-settings-list"></div>
+                    </div>
                 </div>
 
                 <!-- TAB: YERLEŞİM DÜZENLEYİCİ (SÜRÜKLE-BIRAK / EBAT / YAZI BOYUTU / ŞABLONLAR) -->
@@ -1324,6 +2225,13 @@
                         </div>
                         <div id="ds-live-preview-grid" class="duty-grid p-3 bg-black/30 rounded-lg" style="grid-template-columns: repeat(auto-fit, minmax(140px,1fr)); gap: 10px;"></div>
                     </div>
+
+                    <!-- Kart Görünüm & Yayın Ayarları (Modül Ayarları sekmesinden taşındı) -->
+                    <div class="bg-slate-950 border border-slate-800 rounded-xl p-5 space-y-3">
+                        <h3 class="text-white font-bold text-sm flex items-center gap-2"><i class="fa-solid fa-cube text-cyan-400"></i> Kart Ebat & Yayın Ayarları</h3>
+                        <p class="text-[11px] text-slate-500">Bu modülün panodaki kartı için ebat ve yayın (aktif/pasif) durumunu buradan yönetin. Renk, yazı tipi ve diğer görünüm ayarları yukarıdaki bölümlerden yapılır.</p>
+                        <div id="module-embed-duty"></div>
+                    </div>
                 </div>
 
                 <!-- TAB 8: TEMA MOTORU -->
@@ -1414,6 +2322,12 @@
         </div>
     </div>
 
+    <!-- BULUT SENKRONİZASYONU (Firebase Firestore) — verilerin cihazlar arasında kalıcı ve
+         senkron kalmasını sağlar. app.js içindeki FIREBASE_CONFIG doldurulmadığı sürece
+         bu betikler yüklenir ama devre dışı kalır; uygulama eskisi gibi sadece bu tarayıcıda
+         (localStorage) çalışmaya devam eder. -->
+    <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
     <script src="app.js"></script>
 </body>
 </html>

@@ -552,15 +552,14 @@
         // 4) FIREBASE_CONFIG doldurulduğunda bulut senkronizasyonu OTOMATİK devreye
         //    girer; hiçbir şey doldurmazsanız uygulama eskisi gibi çalışmaya devam eder.
         // ============================================================================
-const firebaseConfig = {
-  apiKey: "AIzaSyDJZExRfi-kAdHEDLv7AjtwrLYkC-kpujg",
-  authDomain: "project-901941050121091601.firebaseapp.com",
-  projectId: "project-901941050121091601",
-  storageBucket: "project-901941050121091601.firebasestorage.app",
-  messagingSenderId: "1039327814086",
-  appId: "1:1039327814086:web:b3e07e06b82a7b3b3c52c7",
-  measurementId: "G-41J00T8BN6"
-};
+        const FIREBASE_CONFIG = {
+            apiKey: "BURAYA_KENDI_API_KEYINIZI_YAZIN",
+            authDomain: "PROJE-ADINIZ.firebaseapp.com",
+            projectId: "PROJE-ADINIZ",
+            storageBucket: "PROJE-ADINIZ.appspot.com",
+            messagingSenderId: "GONDEREN_KIMLIGI",
+            appId: "UYGULAMA_KIMLIGI"
+        };
 
         const CLOUD_SYNC_ENABLED = !!(FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.apiKey.indexOf('BURAYA_') === -1);
 

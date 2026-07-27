@@ -351,7 +351,7 @@
     }
   ],
   "achievementWidget": {
-    "layout": "row",
+    "layout": "column",
     "separator": "line",
     "separatorIcon": "fa-star",
     "separatorThickness": 1,
@@ -917,20 +917,20 @@
     "birthday": {
       "c": 1,
       "cs": 24,
-      "r": 24,
+      "r": 1,
       "rs": 24,
       "fs": 100
     },
     "schedule": {
       "c": 1,
       "cs": 24,
-      "r": 1,
+      "r": 25,
       "rs": 24,
       "fs": 100
     },
     "clock": {
       "c": 1,
-      "cs": 11,
+      "cs": 24,
       "r": 49,
       "rs": 16,
       "fs": 100
@@ -945,12 +945,12 @@
     "media": {
       "c": 25,
       "cs": 48,
-      "r": 10,
+      "r": 9,
       "rs": 40,
       "fs": 100
     },
     "duty": {
-      "c": 13,
+      "c": 25,
       "cs": 48,
       "r": 49,
       "rs": 16,

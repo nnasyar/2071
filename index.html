@@ -832,7 +832,14 @@
                                 <div class="grid grid-cols-2 gap-4">
                                     <div class="form-group col-span-2">
                                         <label class="text-xs text-slate-400 block mb-1">Görsel Adresi (Görsel URL)</label>
-                                        <input type="text" id="input-media-url" placeholder="https://images.unsplash.com/..." class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2.5 text-white text-xs">
+                                        <div class="flex gap-2">
+                                            <input type="text" id="input-media-url" placeholder="https://images.unsplash.com/..." class="flex-1 bg-slate-900 border border-slate-800 rounded-lg p-2.5 text-white text-xs">
+                                            <label class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs rounded-lg cursor-pointer whitespace-nowrap flex items-center gap-1.5">
+                                                <i class="fa-solid fa-upload"></i> Bilgisayardan Yükle
+                                                <input type="file" accept="image/*" class="hidden" onchange="handleMediaFileSelect(this)">
+                                            </label>
+                                        </div>
+                                        <p class="text-[9px] text-slate-500 mt-1">Bir görsel adresi (URL) yapıştırabilir ya da bilgisayarınızdan doğrudan bir fotoğraf yükleyebilirsiniz.</p>
                                     </div>
                                     <div class="form-group col-span-2">
                                         <label class="text-xs text-slate-400 block mb-1">Fotoğraf Açıklama Metni (Altyazı)</label>
@@ -1311,6 +1318,10 @@
                             <div class="form-group" id="ach-separator-icon-wrapper">
                                 <label class="text-xs text-slate-400 block mb-1">Ayırıcı Simgesi (Font Awesome sınıfı)</label>
                                 <input type="text" id="input-ach-separator-icon" placeholder="fa-star" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-white text-xs font-mono">
+                            </div>
+                            <div class="form-group" id="ach-separator-thickness-wrapper">
+                                <label class="text-xs text-slate-400 block mb-1">Ayırıcı Kalınlığı (px)</label>
+                                <input type="number" id="input-ach-separator-thickness" min="1" max="20" step="1" value="1" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-white text-xs">
                             </div>
                         </div>
                         <p class="text-[10px] text-slate-500"><i class="fa-solid fa-circle-info"></i> Hücrelerdeki başlık ve görseller her zaman dikey olarak ortalanır. "Satır Başına Hücre Sayısı" sadece "Yan Yana (Yatay)" seçiliyken geçerlidir; çok sayıda alan eklendiğinde panonun taşmaması için hücreler belirttiğiniz sayı kadar sütun halinde alt satırlara bölünür. 0 bırakırsanız eski davranış (tek satır) devam eder.</p>
@@ -2322,12 +2333,11 @@
         </div>
     </div>
 
-    <!-- BULUT SENKRONİZASYONU (Firebase Firestore) — verilerin cihazlar arasında kalıcı ve
-         senkron kalmasını sağlar. app.js içindeki FIREBASE_CONFIG doldurulmadığı sürece
-         bu betikler yüklenir ama devre dışı kalır; uygulama eskisi gibi sadece bu tarayıcıda
+    <!-- BULUT SENKRONİZASYONU (GitHub API) — verilerin ve fotoğrafların cihazlar arasında
+         kalıcı ve senkron kalmasını sağlar. Tarayıcının yerleşik fetch() fonksiyonu
+         kullanıldığından harici bir SDK'ya gerek yoktur. app.js içindeki GITHUB_CONFIG
+         doldurulmadığı sürece devre dışı kalır; uygulama eskisi gibi sadece bu tarayıcıda
          (localStorage) çalışmaya devam eder. -->
-    <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
     <script src="app.js"></script>
 </body>
 </html>

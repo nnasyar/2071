@@ -639,7 +639,7 @@
         const GITHUB_TOKEN_STORAGE_KEY = 'panoGithubToken';
         let cloudWriteTimer = null;
         let cloudPollTimer = null;
-        let lastSyncedConfigJSON = '';
+        let lastSyncedVersion = 0;
 
         // ── GitHub Token yönetimi (tarayıcı başına, localStorage) ──────────────────
         function getGithubToken() {
@@ -720,44 +720,77 @@
             };
             if (token) headers['Authorization'] = 'Bearer ' + token;
 
+            // 1) Önce depoya erişim var mı, token geçerli mi diye hızlı bir okuma kontrolü yapılır.
             fetch(`${GITHUB_API_BASE}/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}`, { headers })
                 .then(async res => {
-                    if (btn) btn.disabled = false;
                     if (res.status === 404) {
-                        resultEl.textContent = '✖ Depo bulunamadı: owner/repo adını veya token yetkisini kontrol edin.';
-                        resultEl.className = 'text-[10px] text-red-400';
-                        if (typeof writeCMSLog === 'function') writeCMSLog('Bağlantı testi: depo bulunamadı (404).');
-                        return;
+                        return { fail: '✖ Depo bulunamadı: owner/repo adını veya token yetkisini kontrol edin.', log: 'depo bulunamadı (404).' };
                     }
                     if (res.status === 401) {
-                        resultEl.textContent = '✖ Token geçersiz veya süresi dolmuş.';
-                        resultEl.className = 'text-[10px] text-red-400';
-                        if (typeof writeCMSLog === 'function') writeCMSLog('Bağlantı testi: token geçersiz (401).');
-                        return;
+                        return { fail: '✖ Token geçersiz veya süresi dolmuş.', log: 'token geçersiz (401).' };
                     }
                     if (!res.ok) {
-                        resultEl.textContent = `✖ GitHub API hatası (HTTP ${res.status}).`;
-                        resultEl.className = 'text-[10px] text-red-400';
-                        if (typeof writeCMSLog === 'function') writeCMSLog(`Bağlantı testi başarısız: HTTP ${res.status}.`);
-                        return;
+                        return { fail: `✖ GitHub API hatası (HTTP ${res.status}).`, log: `HTTP ${res.status}.` };
                     }
-                    const data = await res.json().catch(() => null);
                     if (!token) {
-                        resultEl.textContent = '✔ Depoya okuma erişimi başarılı (token girilmedi — sadece görüntüleme).';
-                        resultEl.className = 'text-[10px] text-emerald-400';
-                        if (typeof writeCMSLog === 'function') writeCMSLog('Bağlantı testi: okuma başarılı, token yok.');
-                        return;
+                        return { ok: '✔ Depoya okuma erişimi başarılı (token girilmedi — sadece görüntüleme).', log: 'okuma başarılı, token yok.' };
                     }
-                    const canWrite = !!(data && data.permissions && (data.permissions.push || data.permissions.admin));
-                    if (canWrite) {
-                        resultEl.textContent = '✔ Bağlantı ve token başarılı — kaydetme/yükleme aktif.';
+                    // 2) Okuma başarılıysa, GERÇEK bir yazma izni testi yapılır: küçük bir test
+                    // dosyası depoya yazılıp hemen ardından silinir. "permissions" alanına
+                    // güvenmiyoruz çünkü ince ayarlı (fine-grained) tokenlarda bu alan token'ın
+                    // GERÇEK Contents izniyle her zaman birebir uyuşmuyor; en güvenilir test,
+                    // fiilen yazmayı denemektir.
+                    const dir = GITHUB_CONFIG.dataPath.includes('/') ? GITHUB_CONFIG.dataPath.slice(0, GITHUB_CONFIG.dataPath.lastIndexOf('/')) : '';
+                    const testPath = (dir ? dir + '/' : '') + '_baglanti_testi.json';
+                    const testHeaders = Object.assign({ 'Content-Type': 'application/json' }, headers);
+                    const testUrl = `${GITHUB_API_BASE}/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/contents/${testPath}`;
+
+                    // Varsa eski test dosyasının sha'sını al (bir önceki testten silinmemiş olabilir).
+                    const existing = await fetch(`${testUrl}?_=${Date.now()}`, { headers, cache: 'no-store' })
+                        .then(r => (r.status === 404 ? null : (r.ok ? r.json() : null))).catch(() => null);
+
+                    const putRes = await fetch(testUrl, {
+                        method: 'PUT',
+                        headers: testHeaders,
+                        body: JSON.stringify({
+                            message: 'Bağlantı testi (otomatik, hemen silinecek)',
+                            content: utf8ToBase64(JSON.stringify({ test: true, at: new Date().toISOString() })),
+                            branch: GITHUB_CONFIG.branch,
+                            sha: existing ? existing.sha : undefined
+                        })
+                    });
+
+                    if (!putRes.ok) {
+                        const errJson = await putRes.json().catch(() => ({}));
+                        if (putRes.status === 403 || putRes.status === 404) {
+                            return { fail: '⚠ Token geçerli ama bu depoya yazma izni yok (Contents: Read and write olmalı).', log: `yazma denemesi reddedildi (HTTP ${putRes.status}): ${errJson.message || ''}` };
+                        }
+                        return { fail: `✖ Yazma testi başarısız (HTTP ${putRes.status}): ${errJson.message || ''}`, log: `yazma testi HTTP ${putRes.status}.` };
+                    }
+
+                    // Yazma başarılı — test dosyasını hemen temizle.
+                    const putJson = await putRes.json().catch(() => null);
+                    const newSha = putJson && putJson.content ? putJson.content.sha : null;
+                    if (newSha) {
+                        await fetch(testUrl, {
+                            method: 'DELETE',
+                            headers: testHeaders,
+                            body: JSON.stringify({ message: 'Bağlantı testi temizliği', sha: newSha, branch: GITHUB_CONFIG.branch })
+                        }).catch(() => {});
+                    }
+                    return { ok: '✔ Bağlantı ve token başarılı — gerçek yazma denemesi doğrulandı, kaydetme/yükleme aktif.', log: 'yazma testi başarılı (test dosyası yazılıp silindi).' };
+                })
+                .then(result => {
+                    if (btn) btn.disabled = false;
+                    if (!result) return;
+                    if (result.ok) {
+                        resultEl.textContent = result.ok;
                         resultEl.className = 'text-[10px] text-emerald-400';
-                        if (typeof writeCMSLog === 'function') writeCMSLog('Bağlantı testi: token geçerli ve yazma izni var.');
                     } else {
-                        resultEl.textContent = '⚠ Token geçerli ama bu depoya yazma izni yok (Contents: Read and write olmalı).';
-                        resultEl.className = 'text-[10px] text-amber-400';
-                        if (typeof writeCMSLog === 'function') writeCMSLog('Bağlantı testi: token geçerli fakat yazma izni tespit edilemedi.');
+                        resultEl.textContent = result.fail;
+                        resultEl.className = result.fail.startsWith('⚠') ? 'text-[10px] text-amber-400' : 'text-[10px] text-red-400';
                     }
+                    if (typeof writeCMSLog === 'function') writeCMSLog('Bağlantı testi: ' + result.log);
                 })
                 .catch(err => {
                     if (btn) btn.disabled = false;
@@ -896,6 +929,13 @@
         // daha güncelse (örn. başka bir cihazdan yapılan bir değişiklik varsa) arka planda
         // indirilip sayfa otomatik tazelenir; böylece her cihaz aynı güncel veriyi gösterir.
         // Bu OKUMA işlemi token gerektirmez (raw.githubusercontent.com, herkese açık repo).
+        //
+        // NOT: Karşılaştırma tüm JSON metnini birebir eşitlemek yerine __syncVersion adlı
+        // artan bir sayaçla yapılır. Ham JSON metni karşılaştırması, uygulama içindeki
+        // otomatik veri normalleştirme/varsayılan tamamlama adımları yüzünden (anahtar
+        // sırası veya eksik alanların doldurulması gibi) içerik aynı olsa bile farklı
+        // string üretebiliyordu; bu da "değişiklik yok ama farklı" sanılıp sayfanın
+        // gereksiz yere sürekli kendini yenilemesine (yenileme döngüsüne) yol açıyordu.
         function cloudSyncPullOnce() {
             if (!GITHUB_READ_ENABLED) return;
             githubGetFileRaw(GITHUB_CONFIG.dataPath).then(result => {
@@ -909,14 +949,15 @@
                     console.warn('Bulut verisi okunamadı (bozuk JSON):', e);
                     return;
                 }
-                const cloudJSON = JSON.stringify(cloudData);
-                if (cloudJSON !== JSON.stringify(appConfig)) {
-                    localStorage.setItem('okulPanoDataV8', cloudJSON);
-                    lastSyncedConfigJSON = cloudJSON;
+                const cloudVersion = cloudData.__syncVersion || 0;
+                const localVersion = appConfig.__syncVersion || 0;
+                lastSyncedVersion = cloudVersion;
+                if (cloudVersion > localVersion) {
+                    localStorage.setItem('okulPanoDataV8', JSON.stringify(cloudData));
                     location.reload();
-                } else {
-                    lastSyncedConfigJSON = cloudJSON;
                 }
+                // cloudVersion <= localVersion: yereldeki veri buluttakiyle aynı ya da daha
+                // yeni (henüz gönderilmemiş bir kaydımız olabilir) — dokunma, yeniden yükleme.
             }).catch(err => {
                 console.warn('Bulut senkronizasyonu okunamadı (çevrimdışı olabilir, yerel veriyle devam ediliyor):', err);
             });
@@ -936,10 +977,10 @@
                     if (!result) return;
                     let cloudData;
                     try { cloudData = JSON.parse(result.text); } catch (e) { return; }
-                    const cloudJSON = JSON.stringify(cloudData);
-                    if (cloudJSON === lastSyncedConfigJSON) return; // kendi yazdığımız değişiklik (yankı) — yok say
-                    lastSyncedConfigJSON = cloudJSON;
-                    localStorage.setItem('okulPanoDataV8', cloudJSON);
+                    const cloudVersion = cloudData.__syncVersion || 0;
+                    if (cloudVersion <= lastSyncedVersion) return; // yeni bir değişiklik yok (ya da kendi yazdığımız — yankı)
+                    lastSyncedVersion = cloudVersion;
+                    localStorage.setItem('okulPanoDataV8', JSON.stringify(cloudData));
                     const adminPanel = document.getElementById('admin-panel');
                     const isAdminOpen = adminPanel && !adminPanel.classList.contains('hidden');
                     if (!isAdminOpen) location.reload();
@@ -969,7 +1010,7 @@
                 return;
             }
             const json = JSON.stringify(appConfig, null, 2);
-            lastSyncedConfigJSON = JSON.stringify(appConfig);
+            lastSyncedVersion = appConfig.__syncVersion || 0;
             const base64Content = utf8ToBase64(json);
             githubGetFile(GITHUB_CONFIG.dataPath).then(existing => {
                 const sha = existing ? existing.sha : null;
@@ -996,8 +1037,10 @@
         // ============================================================================
 
         // Yerel (localStorage) kalıcı kayıt + (varsa) bulut senkronizasyonu.
-        // Tüm "kaydet" işlemleri bu tek fonksiyon üzerinden geçer.
+        // Tüm "kaydet" işlemleri bu tek fonksiyon üzerinden geçer. Her çağrıda __syncVersion
+        // bir artırılır; bulut karşılaştırmaları ham JSON metni yerine bu sayaca bakar.
         function panoPersist() {
+            appConfig.__syncVersion = (appConfig.__syncVersion || 0) + 1;
             localStorage.setItem('okulPanoDataV8', JSON.stringify(appConfig));
             cloudPushDebounced();
         }

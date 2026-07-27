@@ -615,7 +615,7 @@
         // ============================================================================
         const GITHUB_CONFIG = {
             owner: "nnasyar",           // GitHub kullanıcı adınız (veya organizasyon adı)
-            repo: "2071",                 // 1. Adımda oluşturduğunuz depo adı
+            repo: "2071pano",                 // 1. Adımda oluşturduğunuz depo adı
             branch: "main",                      // Depo varsayılan dalı (genelde "main")
             dataPath: "data/pano-config.json",   // Pano verisinin (JSON) saklanacağı dosya yolu
             imagesPath: "images"                 // Fotoğrafların yükleneceği klasör

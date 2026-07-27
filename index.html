@@ -2331,6 +2331,10 @@
                         <button class="px-3 py-2 bg-cyan-700 hover:bg-cyan-600 text-white font-bold rounded-lg text-xs flex items-center gap-1.5" onclick="saveGithubTokenFromInput()"><i class="fa-solid fa-floppy-disk"></i> Kaydet</button>
                         <button class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-lg text-xs flex items-center gap-1.5" onclick="clearGithubTokenFromInput()"><i class="fa-solid fa-trash-can"></i> Kaldır</button>
                     </div>
+                    <div class="flex items-center gap-2 mt-2">
+                        <button id="github-test-connection-btn" class="px-3 py-2 bg-indigo-700 hover:bg-indigo-600 text-white font-bold rounded-lg text-xs flex items-center gap-1.5" onclick="testGithubConnection()"><i class="fa-solid fa-plug-circle-check"></i> Bağlantıyı Test Et</button>
+                        <span id="github-test-result" class="text-[10px]"></span>
+                    </div>
                     <p class="text-[10px] text-slate-500 mt-1.5">Token SADECE bu tarayıcıda (localStorage) saklanır ve bir kez girilir; kaydetme ve fotoğraf yükleme için gereklidir. Panoyu sadece görüntüleyen ekranların token'a ihtiyacı yoktur.</p>
                 </div>
 

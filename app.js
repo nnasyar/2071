@@ -536,249 +536,117 @@
         }
 
         // ============================================================================
-        // BULUT SENKRONİZASYONU (GitHub API — Depo/Repo Tabanlı) — DETAYLI KURULUM
+        // BULUT SENKRONİZASYONU (Supabase — Veritabanı + Depolama Tabanlı)
         // ----------------------------------------------------------------------------
-        // Bu uygulama varsayılan olarak verileri SADECE bu tarayıcıda (localStorage)
-        // saklar; GitHub Pages gibi statik bir barındırmaya yüklendiğinde farklı bir
-        // cihaz/tarayıcıdan açıldığında veriler görünmez. Aşağıdaki adımları izleyip
-        // GITHUB_CONFIG alanını kendi (ücretsiz, kredi kartı GEREKTİRMEYEN) GitHub
-        // deponuzun bilgileriyle doldurursanız, tüm pano verisi VE yüklenen fotoğraflar
-        // bir GitHub deposuna (repo) yazılır; panoyu hangi cihazdan/tarayıcıdan
-        // açarsanız açın aynı güncel veriyi ve fotoğrafları görürsünüz.
+        // Pano verisi (appConfig) bir Supabase tablosunda (public.pano_config, tek satır,
+        // id=1) JSON olarak saklanır; yüklenen fotoğraflar ise Supabase Storage'da
+        // ("pano-images" adlı herkese açık bucket) tutulur. Panoyu hangi cihazdan/
+        // tarayıcıdan açarsanız açın aynı güncel veriyi ve fotoğrafları görürsünüz.
         //
-        // ── ADIM 1: Bu iş için AYRI ve KÜÇÜK bir GitHub deposu oluşturun ────────────
-        //   a) https://github.com adresinde oturum açın (hesabınız yoksa ücretsiz
-        //      oluşturun — kart bilgisi istenmez).
-        //   b) Sağ üstten "+" > "New repository" ile yeni bir depo açın
-        //      (örn. adı "okul-panosu-veri"). "Public" (herkese açık) seçin —
-        //      görseller herkese açık pano ekranında zaten gösterileceği için bu
-        //      genelde sorun değildir ve fotoğrafların tarayıcıda (<img>) doğrudan
-        //      gösterilebilmesi için gereklidir. ÖNEMLİ: Bu depoyu SADECE bu pano
-        //      verisi için kullanın; kişisel/iş projelerinizin olduğu depoyu
-        //      KULLANMAYIN (aşağıdaki güvenlik notuna bakın).
+        // Aşağıdaki SUPABASE_CONFIG.anonKey, GitHub token'ının aksine BİLEREK koda
+        // gömülüdür — Supabase'in "anon / public" anahtarı tam olarak bunun için
+        // tasarlanmıştır ve tarayıcı kodunda görünmesi güvenlik açığı SAYILMAZ.
+        // Gerçek güvenlik, Supabase projesindeki "Row Level Security" (RLS) kurallarıyla
+        // sağlanır (bkz. kurulum SQL'i). ⚠ ASLA "service_role" anahtarını buraya
+        // yazmayın — o anahtar sunucu yetkisine sahiptir ve gizli kalmalıdır.
         //
-        // ── ADIM 2: Sadece bu depoya erişebilen bir Token (anahtar) oluşturun ──────
-        //   a) Sağ üstteki profil fotoğrafınıza tıklayın > Settings.
-        //   b) Sol menüde en altta "Developer settings" e girin.
-        //   c) "Personal access tokens" > "Fine-grained tokens" > "Generate new token".
-        //   d) Bir isim verin (örn. "okul-panosu-web").
-        //   e) "Expiration" (son kullanma tarihi) için makul bir süre seçin (örn. 1 yıl);
-        //      süre dolunca burada yeni bir token üretip dosyada güncellersiniz.
-        //   f) "Repository access" > "Only select repositories" seçip SADECE
-        //      1. Adımda oluşturduğunuz depoyu seçin.
-        //   g) "Permissions" > "Repository permissions" altında "Contents" iznini
-        //      bulup "Read and write" yapın. BAŞKA HİÇBİR İZİN VERMEYİN.
-        //   h) "Generate token" deyip çıkan anahtarı (ghp_... veya github_pat_... ile
-        //      başlar) kopyalayın — bu ekrandan ayrılınca bir daha gösterilmez.
-        //
-        // ── ADIM 3: GITHUB_CONFIG alanını doldurun (SADECE owner/repo/branch — TOKEN DEĞİL) ─
-        //   Aşağıdaki nesnede owner (kullanıcı adınız) ve repo (1. Adımda oluşturduğunuz
-        //   depo adı) alanlarını doldurun. Dosyayı kaydedip yeniden yükleyin. owner/repo
-        //   dolu olduğu an OKUMA (pano verisini/fotoğrafları görüntüleme) OTOMATİK devreye
-        //   girer ve TOKEN GEREKTİRMEZ — doldurmazsanız uygulama eskisi gibi (sadece bu
-        //   tarayıcıda/localStorage) çalışmaya devam eder, hiçbir şey bozulmaz.
-        //
-        //   Token'ı BURAYA (koda) YAZMAYIN. Bunun yerine:
-        //   a) Pano/panoyu yönetici olarak açtığınız tarayıcıda Yönetim Paneline girin.
-        //   b) "Bulut Bağlantısı (GitHub Token)" kutusuna 2. Adımda kopyaladığınız
-        //      token'ı yapıştırıp "Kaydet" e basın.
-        //   c) Token SADECE o tarayıcının localStorage'ında saklanır; dosyanın/deponun
-        //      içine hiç yazılmaz, GitHub'a push edilen kodda görünmez.
-        //   d) Bu işlemi bir kere yaptıktan sonra, o tarayıcı/cihaz için YETERLİDİR —
-        //      tarayıcı verilerini/localStorage'ı temizlemediğiniz sürece tekrar
-        //      girmeniz gerekmez ve her kaydetme/fotoğraf yükleme otomatik çalışır.
-        //      Başka bir bilgisayardan/tarayıcıdan admin girişi yaparsanız, token'ı
-        //      SADECE o cihazda bir kez daha girmeniz gerekir — panoyu SADECE
-        //      GÖRÜNTÜLEYEN ekranların (öğrenci/öğretmen panosu) token'a hiç ihtiyacı
-        //      yoktur, onlar owner/repo dolu olduğu an otomatik okur.
-        //
-        // ── ⚠ GÜVENLİK UYARISI (ÖNEMLİ, MUTLAKA OKUYUN) ─────────────────────────────
-        //   Token koda YAZILMADIĞI için GitHub'ın "secret scanning" uyarısı/engeli
-        //   tetiklenmez ve sayfa kaynağında görünmez. Yine de:
-        //   • Token'ı MUTLAKA sadece 1. Adımdaki tek/küçük depoya, sadece "Contents:
-        //     Read and write" izniyle sınırlandırın (2. Adım f/g).
-        //   • Bu token'ı ASLA başka bir depoda/projede kullanmayın; tarayıcı adres
-        //     çubuğundan/ekran paylaşımından başkalarıyla paylaşmayın.
-        //   • Depoyu, önemli/özel başka hiçbir dosya koymayacağınız şekilde SADECE
-        //     bu pano için kullanın.
-        //   • Bu haliyle en kötü ihtimalle biri bu depodaki pano verisini/fotoğrafları
-        //     değiştirebilir (kart bilgisi, hesabınız veya diğer depolarınız risk
-        //     altında DEĞİLDİR); süresi dolunca token'ı yenileyip eskisini iptal edin.
-        //   • Daha sıkı güvenlik (ör. sunucu taraflı bir ara katman/proxy ile token'ı
-        //     tarayıcıdan tamamen gizlemek) isterseniz ayrıca yardımcı olabilirim.
-        //
-        // ── SINIRLAR ─────────────────────────────────────────────────────────────
-        //   GitHub API: saatte 5.000 istek (bu pano için fazlasıyla yeterli).
-        //   Depo/dosya boyutu: ücretsiz, pratikte önerilen depo boyutu ~1GB altı.
-        //   Fotoğraflar otomatik olarak küçültülüp sıkıştırılarak yüklenir (bkz.
-        //   resizeImageFile), böylece hem hızlı yüklenir hem de depo şişmez.
+        // Kurulum (bir kere, Supabase projenizin SQL Editor'ünde):
+        //   1) public.pano_config tablosu + RLS politikaları
+        //   2) storage.buckets içinde "pano-images" adlı herkese açık (public) bucket
+        //      + storage.objects için RLS politikaları
+        //   (Tam SQL script'i ayrıca iletildi.)
         // ============================================================================
-        const GITHUB_CONFIG = {
-            owner: "nnasyar",                    // GitHub kullanıcı adınız (veya organizasyon adı)
-            repo: "2071",                         // 1. Adımda oluşturduğunuz depo adı
-            branch: "main",                      // Depo varsayılan dalı (genelde "main")
-            dataPath: "data/pano-config.json",   // Pano verisinin (JSON) saklanacağı dosya yolu
-            imagesPath: "images"                 // Fotoğrafların yükleneceği klasör
+        const SUPABASE_CONFIG = {
+            url: "https://lvrwponfyvdxvypeewnw.supabase.co",
+            anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx2cndwb25meXZkeHZ5cGVld253Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUxNjM1MDUsImV4cCI6MjEwMDczOTUwNX0.AqsnWHE3nPF_dQ8cxuqBGK_IIyqrK21gLFXgoGrGtls",
+            table: "pano_config",
+            rowId: 1,
+            imagesBucket: "pano-images"
         };
-        // NOT: Token BURAYA YAZILMAZ. GitHub, koda gömülü token'ları "secret scanning" ile
-        // yakalayıp push'u engeller (ve zaten güvenli de değildir). Token, Yönetim Paneli
-        // içindeki "Bulut Bağlantısı" bölümünden girilir ve SADECE o tarayıcının
-        // localStorage'ında saklanır — dosyanın/deponun içine hiç yazılmaz.
 
-        // Okuma (veri/fotoğraf görüntüleme) SADECE owner+repo dolu olunca çalışır; token
-        // GEREKTİRMEZ (herkese açık repo). Yazma (kaydetme/fotoğraf yükleme) ise ayrıca
-        // token ister — bkz. githubWriteEnabled().
-        const GITHUB_READ_ENABLED = !!(
-            GITHUB_CONFIG.owner && GITHUB_CONFIG.owner.indexOf('KULLANICI-ADINIZ') === -1 &&
-            GITHUB_CONFIG.repo && GITHUB_CONFIG.repo.indexOf('REPO-ADINIZ') === -1
-        );
-        // Geriye dönük uyumluluk için eski isim de tutuluyor (kodun başka yerlerinde kullanılıyor).
-        const CLOUD_SYNC_ENABLED = GITHUB_READ_ENABLED;
+        // Okuma da yazma da SUPABASE_CONFIG dolu olduğu an otomatik aktif olur; token
+        // girişine hiç gerek yoktur (GitHub sürümünden farkı budur).
+        const CLOUD_SYNC_ENABLED = !!(SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey);
 
-        const GITHUB_API_BASE = 'https://api.github.com';
-        const GITHUB_TOKEN_STORAGE_KEY = 'panoGithubToken';
+        let supabaseClient = null;
+        if (CLOUD_SYNC_ENABLED) {
+            if (window.supabase && typeof window.supabase.createClient === 'function') {
+                supabaseClient = window.supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
+            } else {
+                console.warn('Supabase kütüphanesi yüklenemedi (index.html içindeki <script> etiketini kontrol edin).');
+            }
+        }
+
+        function cloudWriteEnabled() {
+            return !!supabaseClient;
+        }
+
         let cloudWriteTimer = null;
         let cloudPollTimer = null;
         let lastSyncedVersion = 0;
 
-        // ── GitHub Token yönetimi (tarayıcı başına, localStorage) ──────────────────
-        function getGithubToken() {
-            try { return (localStorage.getItem(GITHUB_TOKEN_STORAGE_KEY) || '').trim(); }
-            catch (e) { return ''; }
-        }
-        function setGithubToken(token) {
-            try {
-                if (token) localStorage.setItem(GITHUB_TOKEN_STORAGE_KEY, token.trim());
-                else localStorage.removeItem(GITHUB_TOKEN_STORAGE_KEY);
-            } catch (e) { console.warn('Token kaydedilemedi:', e); }
-        }
-        // Yazma (kaydetme/fotoğraf yükleme) için hem owner/repo dolu olmalı hem de BU
-        // tarayıcıda bir token girilmiş olmalı.
-        function githubWriteEnabled() {
-            return GITHUB_READ_ENABLED && !!getGithubToken();
-        }
-        // Admin paneli > Bulut Bağlantısı kutusundaki "Kaydet" butonuna bağlıdır.
-        function saveGithubTokenFromInput() {
-            const input = document.getElementById('github-token-input');
-            if (!input) return;
-            const val = input.value.trim();
-            if (!val) { showCustomNotification('Uyarı', 'Lütfen bir GitHub token girin.'); return; }
-            setGithubToken(val);
-            input.value = '';
-            githubTokenStatusRefresh();
-            showCustomNotification('Tamam', 'GitHub token bu tarayıcıya kaydedildi.');
-            writeCMSLog('GitHub token bu tarayıcı için kaydedildi. Bekleyen değişiklikler buluta gönderiliyor...');
-            cloudPushNow();
-        }
-        // Admin paneli > Bulut Bağlantısı kutusundaki "Kaldır" butonuna bağlıdır.
-        function clearGithubTokenFromInput() {
-            setGithubToken('');
-            githubTokenStatusRefresh();
-            writeCMSLog('GitHub token bu tarayıcıdan kaldırıldı. Kaydetme/fotoğraf yükleme artık çalışmayacak.');
-        }
-        // Admin paneli açıldığında ve token kaydedilip/kaldırıldığında durum metnini günceller.
-        function githubTokenStatusRefresh() {
-            const el = document.getElementById('github-token-status');
+        // Yönetim Paneli açıldığında Bulut Bağlantısı durum metnini günceller.
+        function supabaseStatusRefresh() {
+            const el = document.getElementById('supabase-status');
             if (!el) return;
-            if (!GITHUB_READ_ENABLED) {
-                el.textContent = '○ GITHUB_CONFIG (owner/repo) doldurulmamış';
+            if (!CLOUD_SYNC_ENABLED) {
+                el.textContent = '○ SUPABASE_CONFIG (url/anonKey) doldurulmamış';
                 el.className = 'text-[10px] text-slate-500';
-            } else if (getGithubToken()) {
-                el.textContent = '● Token kayıtlı — kaydetme/yükleme aktif';
+            } else if (supabaseClient) {
+                el.textContent = '● Supabase bağlı — kaydetme/yükleme aktif';
                 el.className = 'text-[10px] text-emerald-400';
             } else {
-                el.textContent = '○ Token girilmedi — sadece okuma (görüntüleme) aktif';
-                el.className = 'text-[10px] text-amber-400';
+                el.textContent = '✖ Supabase kütüphanesi yüklenemedi';
+                el.className = 'text-[10px] text-red-400';
             }
         }
 
-        // Admin paneli > Bulut Bağlantısı kutusundaki "Bağlantıyı Test Et" butonuna bağlıdır.
-        // Gerçek bir GitHub API isteği atarak: 1) owner/repo doğru mu, 2) depo herkese açık/erişilebilir mi,
-        // 3) (token girilmişse) token geçerli mi ve bu depoya yazma izni var mı kontrol eder.
-        function testGithubConnection() {
-            const btn = document.getElementById('github-test-connection-btn');
-            const resultEl = document.getElementById('github-test-result');
+        // Yönetim Paneli > Bulut Bağlantısı kutusundaki "Bağlantıyı Test Et" butonuna bağlıdır.
+        // Gerçek bir okuma + yazma denemesi yaparak (data satırını okuyup aynı değerle
+        // tekrar yazarak) hem tablonun hem RLS politikalarının doğru kurulduğunu doğrular.
+        function testSupabaseConnection() {
+            const btn = document.getElementById('supabase-test-connection-btn');
+            const resultEl = document.getElementById('supabase-test-result');
             if (!resultEl) return;
 
-            if (!GITHUB_READ_ENABLED) {
-                resultEl.textContent = '✖ GITHUB_CONFIG (owner/repo) doldurulmamış — app.js içinde ayarlanmalı.';
+            if (!CLOUD_SYNC_ENABLED) {
+                resultEl.textContent = '✖ SUPABASE_CONFIG (url/anonKey) doldurulmamış — app.js içinde ayarlanmalı.';
                 resultEl.className = 'text-[10px] text-red-400';
                 return;
             }
-
-            const inputEl = document.getElementById('github-token-input');
-            const typedToken = inputEl ? inputEl.value.trim() : '';
-            const token = typedToken || getGithubToken();
+            if (!supabaseClient) {
+                resultEl.textContent = '✖ Supabase kütüphanesi yüklenemedi (index.html <script> etiketini kontrol edin).';
+                resultEl.className = 'text-[10px] text-red-400';
+                return;
+            }
 
             resultEl.textContent = '… Bağlantı test ediliyor';
             resultEl.className = 'text-[10px] text-slate-400';
             if (btn) btn.disabled = true;
 
-            const headers = {
-                'Accept': 'application/vnd.github+json',
-                'X-GitHub-Api-Version': '2022-11-28'
-            };
-            if (token) headers['Authorization'] = 'Bearer ' + token;
-
-            // 1) Önce depoya erişim var mı, token geçerli mi diye hızlı bir okuma kontrolü yapılır.
-            fetch(`${GITHUB_API_BASE}/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}`, { headers })
-                .then(async res => {
-                    if (res.status === 404) {
-                        return { fail: '✖ Depo bulunamadı: owner/repo adını veya token yetkisini kontrol edin.', log: 'depo bulunamadı (404).' };
+            supabaseClient
+                .from(SUPABASE_CONFIG.table)
+                .select('id, sync_version')
+                .eq('id', SUPABASE_CONFIG.rowId)
+                .maybeSingle()
+                .then(({ data, error }) => {
+                    if (error) {
+                        throw error;
                     }
-                    if (res.status === 401) {
-                        return { fail: '✖ Token geçersiz veya süresi dolmuş.', log: 'token geçersiz (401).' };
+                    if (!data) {
+                        return { fail: `✖ "${SUPABASE_CONFIG.table}" tablosunda id=${SUPABASE_CONFIG.rowId} satırı yok — kurulum SQL'indeki INSERT adımını çalıştırdınız mı?`, log: 'satır bulunamadı.' };
                     }
-                    if (!res.ok) {
-                        return { fail: `✖ GitHub API hatası (HTTP ${res.status}).`, log: `HTTP ${res.status}.` };
-                    }
-                    if (!token) {
-                        return { ok: '✔ Depoya okuma erişimi başarılı (token girilmedi — sadece görüntüleme).', log: 'okuma başarılı, token yok.' };
-                    }
-                    // 2) Okuma başarılıysa, GERÇEK bir yazma izni testi yapılır: küçük bir test
-                    // dosyası depoya yazılıp hemen ardından silinir. "permissions" alanına
-                    // güvenmiyoruz çünkü ince ayarlı (fine-grained) tokenlarda bu alan token'ın
-                    // GERÇEK Contents izniyle her zaman birebir uyuşmuyor; en güvenilir test,
-                    // fiilen yazmayı denemektir.
-                    const dir = GITHUB_CONFIG.dataPath.includes('/') ? GITHUB_CONFIG.dataPath.slice(0, GITHUB_CONFIG.dataPath.lastIndexOf('/')) : '';
-                    const testPath = (dir ? dir + '/' : '') + '_baglanti_testi.json';
-                    const testHeaders = Object.assign({ 'Content-Type': 'application/json' }, headers);
-                    const testUrl = `${GITHUB_API_BASE}/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/contents/${testPath}`;
-
-                    // Varsa eski test dosyasının sha'sını al (bir önceki testten silinmemiş olabilir).
-                    const existing = await fetch(`${testUrl}?_=${Date.now()}`, { headers, cache: 'no-store' })
-                        .then(r => (r.status === 404 ? null : (r.ok ? r.json() : null))).catch(() => null);
-
-                    const putRes = await fetch(testUrl, {
-                        method: 'PUT',
-                        headers: testHeaders,
-                        body: JSON.stringify({
-                            message: 'Bağlantı testi (otomatik, hemen silinecek)',
-                            content: utf8ToBase64(JSON.stringify({ test: true, at: new Date().toISOString() })),
-                            branch: GITHUB_CONFIG.branch,
-                            sha: existing ? existing.sha : undefined
-                        })
-                    });
-
-                    if (!putRes.ok) {
-                        const errJson = await putRes.json().catch(() => ({}));
-                        if (putRes.status === 403 || putRes.status === 404) {
-                            return { fail: '⚠ Token geçerli ama bu depoya yazma izni yok (Contents: Read and write olmalı).', log: `yazma denemesi reddedildi (HTTP ${putRes.status}): ${errJson.message || ''}` };
-                        }
-                        return { fail: `✖ Yazma testi başarısız (HTTP ${putRes.status}): ${errJson.message || ''}`, log: `yazma testi HTTP ${putRes.status}.` };
-                    }
-
-                    // Yazma başarılı — test dosyasını hemen temizle.
-                    const putJson = await putRes.json().catch(() => null);
-                    const newSha = putJson && putJson.content ? putJson.content.sha : null;
-                    if (newSha) {
-                        await fetch(testUrl, {
-                            method: 'DELETE',
-                            headers: testHeaders,
-                            body: JSON.stringify({ message: 'Bağlantı testi temizliği', sha: newSha, branch: GITHUB_CONFIG.branch })
-                        }).catch(() => {});
-                    }
-                    return { ok: '✔ Bağlantı ve token başarılı — gerçek yazma denemesi doğrulandı, kaydetme/yükleme aktif.', log: 'yazma testi başarılı (test dosyası yazılıp silindi).' };
+                    // Okuma başarılı — şimdi gerçek bir YAZMA testi (upsert) yapılır.
+                    return supabaseClient
+                        .from(SUPABASE_CONFIG.table)
+                        .update({ updated_at: new Date().toISOString() })
+                        .eq('id', SUPABASE_CONFIG.rowId)
+                        .then(({ error: writeErr }) => {
+                            if (writeErr) {
+                                return { fail: '⚠ Okuma başarılı ama yazma reddedildi: ' + writeErr.message + ' (RLS "update" politikasını kontrol edin).', log: 'yazma reddedildi: ' + writeErr.message };
+                            }
+                            return { ok: '✔ Bağlantı başarılı — okuma ve yazma doğrulandı, kaydetme/yükleme aktif.', log: 'okuma+yazma testi başarılı.' };
+                        });
                 })
                 .then(result => {
                     if (btn) btn.disabled = false;
@@ -794,75 +662,10 @@
                 })
                 .catch(err => {
                     if (btn) btn.disabled = false;
-                    resultEl.textContent = '✖ Ağ hatası: ' + (err && err.message ? err.message : err);
+                    resultEl.textContent = '✖ Hata: ' + (err && err.message ? err.message : err);
                     resultEl.className = 'text-[10px] text-red-400';
-                    if (typeof writeCMSLog === 'function') writeCMSLog('Bağlantı testi ağ hatası: ' + (err && err.message ? err.message : err));
+                    if (typeof writeCMSLog === 'function') writeCMSLog('Bağlantı testi hatası: ' + (err && err.message ? err.message : err));
                 });
-        }
-
-        // Türkçe karakterler dahil metinleri GitHub API'nin beklediği base64 formatına çevirir/çözer.
-        function utf8ToBase64(str) {
-            return btoa(unescape(encodeURIComponent(str)));
-        }
-        function base64ToUtf8(b64) {
-            return decodeURIComponent(escape(atob(b64.replace(/\n/g, ''))));
-        }
-
-        function githubApiHeaders() {
-            const headers = {
-                'Accept': 'application/vnd.github+json',
-                'X-GitHub-Api-Version': '2022-11-28'
-            };
-            const token = getGithubToken();
-            if (token) headers['Authorization'] = 'Bearer ' + token;
-            return headers;
-        }
-
-        // Depodaki bir dosyayı GitHub API üzerinden (kimlik doğrulamalı, sha bilgisiyle) okur.
-        // Sadece YAZMADAN hemen önce güncel sha'yı almak için kullanılır. Dosya yoksa null döner.
-        function githubGetFile(path) {
-            const url = `${GITHUB_API_BASE}/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/contents/${path}?ref=${encodeURIComponent(GITHUB_CONFIG.branch)}&_=${Date.now()}`;
-            return fetch(url, { headers: githubApiHeaders(), cache: 'no-store' }).then(res => {
-                if (res.status === 404) return null;
-                if (!res.ok) throw new Error('GitHub okuma hatası: ' + res.status);
-                return res.json();
-            }).then(json => {
-                if (!json || !json.content) return null;
-                return { sha: json.sha, text: base64ToUtf8(json.content) };
-            });
-        }
-
-        // Depodaki bir dosyayı raw.githubusercontent.com üzerinden (KİMLİK DOĞRULAMA GEREKTİRMEDEN,
-        // herkese açık repo) okur. Tüm ekranların (sadece görüntüleyenler dahil) veri/fotoğraf
-        // OKUMASI bu yolla yapılır; böylece görüntüleme yapan cihazların token'a ihtiyacı olmaz ve
-        // GitHub API'nin (kimliksiz) saatlik istek sınırına takılmaz. Dosya yoksa null döner.
-        function githubGetFileRaw(path) {
-            const url = `https://raw.githubusercontent.com/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/${GITHUB_CONFIG.branch}/${path}?t=${Date.now()}`;
-            return fetch(url, { cache: 'no-store' }).then(res => {
-                if (res.status === 404) return null;
-                if (!res.ok) throw new Error('GitHub (raw) okuma hatası: ' + res.status);
-                return res.text();
-            }).then(text => (text === null ? null : { text }));
-        }
-
-        // Depoya bir dosya yazar (varsa günceller, yoksa oluşturur). content, base64 kodlu olmalıdır.
-        function githubPutFile(path, base64Content, message, sha) {
-            const body = { message: message, content: base64Content, branch: GITHUB_CONFIG.branch };
-            if (sha) body.sha = sha;
-            return fetch(`${GITHUB_API_BASE}/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/contents/${path}`, {
-                method: 'PUT',
-                headers: Object.assign({ 'Content-Type': 'application/json' }, githubApiHeaders()),
-                body: JSON.stringify(body)
-            }).then(res => {
-                if (!res.ok) {
-                    return res.json().catch(() => ({})).then(errJson => {
-                        const err = new Error('GitHub yazma hatası: ' + res.status + ' ' + (errJson.message || ''));
-                        err.status = res.status;
-                        throw err;
-                    });
-                }
-                return res.json();
-            });
         }
 
         // Büyük/orijinal boyutlu fotoğrafları hem hızlı yüklenmesi hem de depo şişmemesi için
@@ -895,146 +698,152 @@
             });
         }
 
-        // FOTOĞRAF YÜKLEME (GitHub API): Görsel dosyası önce küçültülüp sıkıştırılır, sonra
-        // depoya (images/ klasörüne) bir commit olarak yazılır; appConfig içinde ise sadece
-        // görselin raw.githubusercontent.com bağlantısı (küçük bir metin) saklanır. Bu işlem
-        // TOKEN gerektirir (Yönetim Paneli > Bulut Bağlantısı). Token yoksa veya yükleme
-        // başarısız olursa null döner ve çağıran taraf eskisi gibi base64'ü (sadece bu
-        // cihazda) kullanmaya devam eder.
+        // FOTOĞRAF YÜKLEME (Supabase Storage): Görsel dosyası önce küçültülüp sıkıştırılır,
+        // sonra "pano-images" bucket'ına yüklenir; appConfig içinde ise sadece görselin
+        // herkese açık (public) URL'si (küçük bir metin) saklanır. Supabase bağlantısı
+        // kurulmamışsa veya yükleme başarısız olursa null döner ve çağıran taraf eskisi
+        // gibi base64'ü (sadece bu cihazda) kullanmaya devam eder.
         function uploadImageFileToCloud(file, folderHint) {
             if (!file) return Promise.resolve(null);
-            if (!githubWriteEnabled()) {
-                if (GITHUB_READ_ENABLED && typeof writeCMSLog === 'function') {
-                    writeCMSLog('⚠ Fotoğraf buluta yüklenemedi: bu tarayıcıda GitHub token girilmemiş (Yönetim Paneli > Bulut Bağlantısı). Görsel sadece bu cihazda saklanacak.');
+            if (!supabaseClient) {
+                if (CLOUD_SYNC_ENABLED && typeof writeCMSLog === 'function') {
+                    writeCMSLog('⚠ Fotoğraf buluta yüklenemedi: Supabase bağlantısı kurulamadı. Görsel sadece bu cihazda saklanacak.');
                 }
                 return Promise.resolve(null);
             }
             return resizeImageFile(file, 1600, 0.82).then(dataUrl => {
-                const base64Content = dataUrl.split(',')[1];
                 const ext = (file.type && file.type.indexOf('png') !== -1) ? 'png' : 'jpg';
                 const safeName = (file.name || 'gorsel').replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9._-]/g, '_');
-                const path = `${GITHUB_CONFIG.imagesPath}/${folderHint}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}_${safeName}.${ext}`;
-                return githubPutFile(path, base64Content, `Fotoğraf yüklendi: ${folderHint}`).then(() => {
-                    return `https://raw.githubusercontent.com/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/${GITHUB_CONFIG.branch}/${path}`;
+                const path = `${folderHint}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}_${safeName}.${ext}`;
+                return fetch(dataUrl).then(r => r.blob()).then(blob => {
+                    return supabaseClient.storage
+                        .from(SUPABASE_CONFIG.imagesBucket)
+                        .upload(path, blob, { contentType: blob.type, upsert: true, cacheControl: '3600' })
+                        .then(({ error }) => {
+                            if (error) throw error;
+                            const { data: pub } = supabaseClient.storage
+                                .from(SUPABASE_CONFIG.imagesBucket)
+                                .getPublicUrl(path);
+                            return pub && pub.publicUrl ? pub.publicUrl : null;
+                        });
                 });
             }).catch(err => {
                 console.warn('Görsel buluta yüklenemedi, sadece bu cihazda (base64) saklanacak:', err);
-                if (typeof writeCMSLog === 'function') writeCMSLog('⚠ Görsel buluta yüklenemedi: ' + err.message);
+                if (typeof writeCMSLog === 'function') writeCMSLog('⚠ Görsel buluta yüklenemedi: ' + (err && err.message ? err.message : err));
                 return null;
             });
         }
 
         // Sayfa açılışında ÖNCE yereldeki (localStorage) veriyle ANINDA çizim yapılır
-        // (hızlı, çevrimdışı da çalışır). Ardından buluttaki (GitHub deposundaki) kayıt
-        // daha güncelse (örn. başka bir cihazdan yapılan bir değişiklik varsa) arka planda
+        // (hızlı, çevrimdışı da çalışır). Ardından buluttaki (Supabase'teki) kayıt daha
+        // güncelse (örn. başka bir cihazdan yapılan bir değişiklik varsa) arka planda
         // indirilip sayfa otomatik tazelenir; böylece her cihaz aynı güncel veriyi gösterir.
-        // Bu OKUMA işlemi token gerektirmez (raw.githubusercontent.com, herkese açık repo).
         //
         // NOT: Karşılaştırma tüm JSON metnini birebir eşitlemek yerine __syncVersion adlı
-        // artan bir sayaçla yapılır. Ham JSON metni karşılaştırması, uygulama içindeki
-        // otomatik veri normalleştirme/varsayılan tamamlama adımları yüzünden (anahtar
-        // sırası veya eksik alanların doldurulması gibi) içerik aynı olsa bile farklı
-        // string üretebiliyordu; bu da "değişiklik yok ama farklı" sanılıp sayfanın
-        // gereksiz yere sürekli kendini yenilemesine (yenileme döngüsüne) yol açıyordu.
+        // artan bir sayaçla (aynı zamanda tabloda ayrı bir sütun olan sync_version ile)
+        // yapılır. Ham JSON metni karşılaştırması, uygulama içindeki otomatik veri
+        // normalleştirme/varsayılan tamamlama adımları yüzünden (anahtar sırası veya
+        // eksik alanların doldurulması gibi) içerik aynı olsa bile farklı string
+        // üretebiliyordu; bu da gereksiz yere sürekli yenileme döngüsüne yol açıyordu.
         function cloudSyncPullOnce() {
-            if (!GITHUB_READ_ENABLED) return;
-            githubGetFileRaw(GITHUB_CONFIG.dataPath).then(result => {
-                if (!result) {
-                    // Depoda henüz hiç kayıt yok (ilk kurulum) — token varsa mevcut yerel veriyi buluta yükle.
-                    if (githubWriteEnabled()) cloudPushNow();
-                    return;
-                }
-                let cloudData;
-                try { cloudData = JSON.parse(result.text); } catch (e) {
-                    console.warn('Bulut verisi okunamadı (bozuk JSON):', e);
-                    return;
-                }
-                const cloudVersion = cloudData.__syncVersion || 0;
-                const localVersion = appConfig.__syncVersion || 0;
-                lastSyncedVersion = cloudVersion;
-                if (cloudVersion > localVersion) {
-                    localStorage.setItem('okulPanoDataV8', JSON.stringify(cloudData));
-                    location.reload();
-                }
-                // cloudVersion <= localVersion: yereldeki veri buluttakiyle aynı ya da daha
-                // yeni (henüz gönderilmemiş bir kaydımız olabilir) — dokunma, yeniden yükleme.
-            }).catch(err => {
-                console.warn('Bulut senkronizasyonu okunamadı (çevrimdışı olabilir, yerel veriyle devam ediliyor):', err);
-            });
+            if (!supabaseClient) return;
+            supabaseClient
+                .from(SUPABASE_CONFIG.table)
+                .select('data, sync_version')
+                .eq('id', SUPABASE_CONFIG.rowId)
+                .maybeSingle()
+                .then(({ data, error }) => {
+                    if (error) {
+                        console.warn('Bulut senkronizasyonu okunamadı (çevrimdışı olabilir, yerel veriyle devam ediliyor):', error);
+                        return;
+                    }
+                    if (!data || !data.data) {
+                        // Depoda henüz hiç kayıt yok (ilk kurulum) — mevcut yerel veriyi buluta yükle.
+                        cloudPushNow();
+                        return;
+                    }
+                    const cloudVersion = data.sync_version || 0;
+                    const localVersion = appConfig.__syncVersion || 0;
+                    lastSyncedVersion = cloudVersion;
+                    if (cloudVersion > localVersion) {
+                        localStorage.setItem('okulPanoDataV8', JSON.stringify(data.data));
+                        location.reload();
+                    }
+                    // cloudVersion <= localVersion: yereldeki veri buluttakiyle aynı ya da daha
+                    // yeni (henüz gönderilmemiş bir kaydımız olabilir) — dokunma, yeniden yükleme.
+                });
         }
 
-        // GitHub'ta Firestore'daki gibi "gerçek zamanlı dinleme" yoktur; bunun yerine belirli
-        // aralıklarla (varsayılan 25 sn) depo dosyası kontrol edilir (yoklama/polling, token
-        // gerektirmez). Başka bir cihazdan değişiklik geldiyse ve Yönetim Paneli o an açık
-        // DEĞİLSE, panoyu otomatik tazeler. Panel açıksa aktif düzenlemeyi bozmamak için
-        // dokunulmaz; localStorage zaten güncellenmiştir, panel kapatılınca doğal akışta yeni
-        // veriyle devam eder.
+        // Supabase'te Firestore'daki gibi anlık dinleme (Realtime) mevcuttur, ama en sağlam/
+        // basit yöntem olarak burada da (GitHub sürümündeki gibi) belirli aralıklarla
+        // (varsayılan 20 sn) tablo kontrol edilir (yoklama/polling). Başka bir cihazdan
+        // değişiklik geldiyse ve Yönetim Paneli o an açık DEĞİLSE, panoyu otomatik tazeler.
+        // Panel açıksa aktif düzenlemeyi bozmamak için dokunulmaz; localStorage zaten
+        // güncellenmiştir, panel kapatılınca doğal akışta yeni veriyle devam eder.
         function cloudSyncStartListening() {
-            if (!GITHUB_READ_ENABLED) return;
+            if (!supabaseClient) return;
             if (cloudPollTimer) clearInterval(cloudPollTimer);
             cloudPollTimer = setInterval(() => {
-                githubGetFileRaw(GITHUB_CONFIG.dataPath).then(result => {
-                    if (!result) return;
-                    let cloudData;
-                    try { cloudData = JSON.parse(result.text); } catch (e) { return; }
-                    const cloudVersion = cloudData.__syncVersion || 0;
-                    if (cloudVersion <= lastSyncedVersion) return; // yeni bir değişiklik yok (ya da kendi yazdığımız — yankı)
-                    lastSyncedVersion = cloudVersion;
-                    localStorage.setItem('okulPanoDataV8', JSON.stringify(cloudData));
-                    const adminPanel = document.getElementById('admin-panel');
-                    const isAdminOpen = adminPanel && !adminPanel.classList.contains('hidden');
-                    if (!isAdminOpen) location.reload();
-                }).catch(err => {
-                    console.warn('Bulut yoklaması hata verdi:', err);
-                });
-            }, 25000);
+                supabaseClient
+                    .from(SUPABASE_CONFIG.table)
+                    .select('data, sync_version')
+                    .eq('id', SUPABASE_CONFIG.rowId)
+                    .maybeSingle()
+                    .then(({ data, error }) => {
+                        if (error || !data || !data.data) return;
+                        const cloudVersion = data.sync_version || 0;
+                        if (cloudVersion <= lastSyncedVersion) return; // yeni bir değişiklik yok (ya da kendi yazdığımız — yankı)
+                        lastSyncedVersion = cloudVersion;
+                        localStorage.setItem('okulPanoDataV8', JSON.stringify(data.data));
+                        const adminPanel = document.getElementById('admin-panel');
+                        const isAdminOpen = adminPanel && !adminPanel.classList.contains('hidden');
+                        if (!isAdminOpen) location.reload();
+                    })
+                    .catch(err => {
+                        console.warn('Bulut yoklaması hata verdi:', err);
+                    });
+            }, 20000);
         }
 
         // Yerel bir kayıt (panoPersist) yapıldığında bulut kopyasını gecikmeli (debounce)
         // olarak günceller; art arda hızlı değişikliklerde (ör. renk seçici sürüklenirken)
-        // her karede değil, kullanıcı durduktan ~1.5sn sonra tek seferde (tek commit) yazılır.
+        // her karede değil, kullanıcı durduktan ~1.5sn sonra tek seferde (tek upsert) yazılır.
         function cloudPushDebounced() {
-            if (!githubWriteEnabled()) return;
+            if (!cloudWriteEnabled()) return;
             clearTimeout(cloudWriteTimer);
             cloudWriteTimer = setTimeout(cloudPushNow, 1500);
         }
 
-        // Buluta YAZAR (token gerekir). Her yazımdan hemen önce dosyanın güncel sürümünü
-        // (sha) tazeden alır, böylece başka bir cihazın az önce yaptığı değişikliğin üzerine
-        // yanlışlıkla yazılmaz; yine de çakışma olursa (409) bir kez daha dener.
+        // Buluta YAZAR (Supabase upsert). GitHub sürümündeki sha/409-çakışma mantığına
+        // gerek yoktur; Supabase tarafında id=1 satırı tek bir "upsert" ile güncellenir.
         function cloudPushNow() {
-            if (!githubWriteEnabled()) {
-                if (GITHUB_READ_ENABLED && typeof writeCMSLog === 'function') {
-                    writeCMSLog('⚠ Bulut kaydı yapılamadı: bu tarayıcıda GitHub token girilmemiş (Yönetim Paneli > Bulut Bağlantısı). Veri sadece bu cihazda kaydedildi.');
+            if (!cloudWriteEnabled()) {
+                if (CLOUD_SYNC_ENABLED && typeof writeCMSLog === 'function') {
+                    writeCMSLog('⚠ Bulut kaydı yapılamadı: Supabase bağlantısı kurulamadı. Veri sadece bu cihazda kaydedildi.');
                 }
                 return;
             }
-            const json = JSON.stringify(appConfig, null, 2);
-            lastSyncedVersion = appConfig.__syncVersion || 0;
-            const base64Content = utf8ToBase64(json);
-            githubGetFile(GITHUB_CONFIG.dataPath).then(existing => {
-                const sha = existing ? existing.sha : null;
-                return githubPutFile(GITHUB_CONFIG.dataPath, base64Content, 'Pano verisi güncellendi', sha);
-            }).catch(err => {
-                if (err && err.status === 409) {
-                    // Başka bir cihaz aynı anda yazdı (sürüm/sha uyuşmazlığı) — güncel sürümü alıp bir kez daha dene.
-                    return githubGetFile(GITHUB_CONFIG.dataPath).then(existing => {
-                        const sha = existing ? existing.sha : null;
-                        return githubPutFile(GITHUB_CONFIG.dataPath, base64Content, 'Pano verisi güncellendi (tekrar deneme)', sha);
-                    }).catch(err2 => {
-                        console.warn('Bulut kaydı ikinci denemede de başarısız oldu:', err2);
+            const versionToSend = appConfig.__syncVersion || 0;
+            lastSyncedVersion = versionToSend;
+            supabaseClient
+                .from(SUPABASE_CONFIG.table)
+                .upsert({
+                    id: SUPABASE_CONFIG.rowId,
+                    data: appConfig,
+                    sync_version: versionToSend,
+                    updated_at: new Date().toISOString()
+                })
+                .then(({ error }) => {
+                    if (error) {
+                        console.warn('Bulut kaydı başarısız oldu (yerel kayıt zaten yapıldı, bir sonraki değişiklikte tekrar denenecek):', error);
                         if (typeof writeCMSLog === 'function') {
-                            writeCMSLog("⚠ Bulut senkronizasyonu başarısız: " + (err2 && err2.message ? err2.message : err2) + " — veri sadece bu cihazda kaydedildi.");
+                            writeCMSLog('⚠ Bulut senkronizasyonu başarısız: ' + error.message + ' — veri sadece bu cihazda kaydedildi.');
                         }
-                    });
-                }
-                console.warn('Bulut kaydı başarısız oldu (yerel kayıt zaten yapıldı, bir sonraki değişiklikte tekrar denenecek):', err);
-                if (typeof writeCMSLog === 'function') {
-                    writeCMSLog("⚠ Bulut senkronizasyonu başarısız: " + (err && err.message ? err.message : err) + " — veri sadece bu cihazda kaydedildi.");
-                }
-            });
+                    }
+                });
         }
         // ============================================================================
+
 
         // Yerel (localStorage) kalıcı kayıt + (varsa) bulut senkronizasyonu.
         // Tüm "kaydet" işlemleri bu tek fonksiyon üzerinden geçer. Her çağrıda __syncVersion
@@ -1801,7 +1610,7 @@
             panoRenderModuleSizeList();
 
             // BULUT SENKRONİZASYONU: önce mevcut yerel veriyle yukarıda ANINDA çizim yapıldı;
-            // GITHUB_CONFIG doldurulmuşsa, arka planda buluttan daha güncel bir kayıt olup
+            // SUPABASE_CONFIG doldurulmuşsa, arka planda buluttan daha güncel bir kayıt olup
             // olmadığı kontrol edilir ve gerçek zamanlı dinleyici başlatılır.
             if (CLOUD_SYNC_ENABLED) {
                 writeCMSLog("Bulut senkronizasyonu etkin, buluttaki veriler kontrol ediliyor...");
@@ -4695,7 +4504,7 @@
 
         function openAdminPanel() {
             writeCMSLog("Yönetim Paneli açıldı.");
-            if (typeof githubTokenStatusRefresh === 'function') githubTokenStatusRefresh();
+            if (typeof supabaseStatusRefresh === 'function') supabaseStatusRefresh();
             const panel = document.getElementById('admin-panel');
             
             document.getElementById('input-school-name').value = appConfig.schoolName;

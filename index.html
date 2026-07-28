@@ -14,6 +14,9 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
 
+    <!-- Supabase (bulut veri + fotoğraf depolama) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
     <script>
         tailwind.config = {
             theme: {
@@ -2320,22 +2323,17 @@
                     </div>
                 </div>
 
-                <!-- Bulut Bağlantısı (GitHub Token) -->
+                <!-- Bulut Bağlantısı (Supabase) -->
                 <div class="border-t border-slate-800 pt-3 mt-4">
                     <div class="flex items-center justify-between text-[11px] text-slate-500 mb-1.5">
-                        <span class="font-mono text-cyan-400"><i class="fa-solid fa-cloud"></i> BULUT BAĞLANTISI (GitHub Token)</span>
-                        <span id="github-token-status" class="text-[10px]">○ Token girilmedi</span>
+                        <span class="font-mono text-cyan-400"><i class="fa-solid fa-cloud"></i> BULUT BAĞLANTISI (Supabase)</span>
+                        <span id="supabase-status" class="text-[10px]">○ Kontrol ediliyor...</span>
                     </div>
-                    <div class="flex gap-2">
-                        <input type="password" id="github-token-input" placeholder="GitHub token'ınızı yapıştırın (ghp_... veya github_pat_...)" autocomplete="off" class="flex-1 bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 font-mono">
-                        <button class="px-3 py-2 bg-cyan-700 hover:bg-cyan-600 text-white font-bold rounded-lg text-xs flex items-center gap-1.5" onclick="saveGithubTokenFromInput()"><i class="fa-solid fa-floppy-disk"></i> Kaydet</button>
-                        <button class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-lg text-xs flex items-center gap-1.5" onclick="clearGithubTokenFromInput()"><i class="fa-solid fa-trash-can"></i> Kaldır</button>
+                    <div class="flex items-center gap-2">
+                        <button id="supabase-test-connection-btn" class="px-3 py-2 bg-indigo-700 hover:bg-indigo-600 text-white font-bold rounded-lg text-xs flex items-center gap-1.5" onclick="testSupabaseConnection()"><i class="fa-solid fa-plug-circle-check"></i> Bağlantıyı Test Et</button>
+                        <span id="supabase-test-result" class="text-[10px]"></span>
                     </div>
-                    <div class="flex items-center gap-2 mt-2">
-                        <button id="github-test-connection-btn" class="px-3 py-2 bg-indigo-700 hover:bg-indigo-600 text-white font-bold rounded-lg text-xs flex items-center gap-1.5" onclick="testGithubConnection()"><i class="fa-solid fa-plug-circle-check"></i> Bağlantıyı Test Et</button>
-                        <span id="github-test-result" class="text-[10px]"></span>
-                    </div>
-                    <p class="text-[10px] text-slate-500 mt-1.5">Token SADECE bu tarayıcıda (localStorage) saklanır ve bir kez girilir; kaydetme ve fotoğraf yükleme için gereklidir. Panoyu sadece görüntüleyen ekranların token'a ihtiyacı yoktur.</p>
+                    <p class="text-[10px] text-slate-500 mt-1.5">Kaydetme ve fotoğraf yükleme otomatik çalışır — token girişine gerek yoktur. Panoyu açan her cihaz aynı güncel veriyi ve fotoğrafları görür.</p>
                 </div>
 
                 <!-- Ortak Konsol (Log Console) -->

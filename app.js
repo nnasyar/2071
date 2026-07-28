@@ -7123,3 +7123,45 @@
             downloadAnchor.remove();
             writeCMSLog("JSON sistem yedeği indirildi.");
         }
+
+        // "JSON Sistem Yedeği Al" ile indirilen bir yedek dosyasını geri yükler. Yerel
+        // (localStorage) ve buluttaki (Supabase) veriyi bu yedekle DEĞİŞTİRİR — dikkatli
+        // kullanın. Fotoğrafların kendisini geri getirmez (yedekte sadece linkleri vardır);
+        // eğer o linkler artık Supabase Storage'da yoksa (bucket silinmiş/değişmişse)
+        // fotoğraflar görünmeyecektir.
+        function importDataFromJSONFile(event) {
+            const file = event.target.files && event.target.files[0];
+            if (!file) return;
+            if (!confirm('Bu yedek, panodaki MEVCUT tüm ayarları/verileri üzerine yazacak. Devam edilsin mi?')) {
+                event.target.value = '';
+                return;
+            }
+            const reader = new FileReader();
+            reader.onerror = () => {
+                showCustomNotification('Hata', 'Yedek dosyası okunamadı.');
+            };
+            reader.onload = () => {
+                let restored;
+                try {
+                    restored = JSON.parse(reader.result);
+                } catch (e) {
+                    showCustomNotification('Hata', 'Geçersiz JSON dosyası.');
+                    return;
+                }
+                if (!restored || typeof restored !== 'object') {
+                    showCustomNotification('Hata', 'Geçersiz yedek içeriği.');
+                    return;
+                }
+                appConfig = restored;
+                // Geri yüklenen veriyi buluttaki mevcut sürümden daha yeni işaretle,
+                // böylece cloudPushNow() bunu buluta da yazar (diğer cihazlar da alır).
+                appConfig.__syncVersion = (appConfig.__syncVersion || 0) + 1;
+                localStorage.setItem('okulPanoDataV8', JSON.stringify(appConfig));
+                writeCMSLog('Yedekten geri yükleme yapıldı: ' + file.name);
+                cloudPushNow();
+                showCustomNotification('Tamam', 'Yedek geri yüklendi. Sayfa yenileniyor...');
+                setTimeout(() => location.reload(), 1200);
+            };
+            reader.readAsText(file);
+        }
+

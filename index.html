@@ -97,10 +97,15 @@
             <div style="border-bottom: 1.5px solid #111b2d; padding-bottom: 2px;">
                 <div style="font-size: 8px; color: var(--text-muted); text-transform: uppercase;" id="display-specialday-title">Belirli Gün / Hafta</div>
                 <div style="font-weight: bold; font-size: 11px; color: var(--neon-yellow); margin-top: 1px;" id="display-special-day">Belirli Gün Bulunmuyor</div>
+                <img id="display-special-day-img" class="hidden" alt="" style="max-width:100%; max-height:28px; object-fit:contain; margin-top:2px; display:block;">
             </div>
             <div>
                 <div style="font-size: 8px; color: var(--text-muted);" id="display-weather-label">HAVA DURUMU</div>
-                <div style="font-size: 13px; font-weight: bold; color: var(--neon-blue);" id="display-weather">Yükleniyor...</div>
+                <div style="font-size: 13px; font-weight: bold; color: var(--neon-blue);" id="display-weather">
+                    <span id="display-weather-city">Yükleniyor...</span>
+                    <span id="display-weather-temp"></span>
+                    <span id="display-weather-icon"></span>
+                </div>
             </div>
         </div>
 
@@ -1147,24 +1152,46 @@
                             <input type="text" id="new-specialday-end" placeholder="Bitiş (GG.AA - opsiyonel)" class="w-36 bg-slate-900 border border-slate-850 rounded-lg p-2 text-white text-xs text-center font-mono">
                             <button id="specialday-submit-btn" class="flex-1 px-5 py-2 bg-emerald-500 text-white font-bold rounded-lg text-xs hover:bg-emerald-600" onclick="addSpecialDayToList()">Ekle</button>
                         </div>
+                        <div class="flex items-center gap-2 flex-wrap bg-slate-900/60 border border-slate-850 rounded-lg p-2">
+                            <span class="text-[10px] uppercase text-slate-500 font-bold whitespace-nowrap"><i class="fa-solid fa-paintbrush text-yellow-400"></i> Bu Kayda Özel Biçim</span>
+                            <label class="flex items-center gap-1 cursor-pointer" title="Bu kayıt için özel renk kullan">
+                                <input type="checkbox" id="new-specialday-color-enable" class="w-3.5 h-3.5 accent-cyan-500" onchange="document.getElementById('new-specialday-color').disabled = !this.checked">
+                                <span class="text-[10px] text-slate-400">Renk</span>
+                            </label>
+                            <input type="color" id="new-specialday-color" value="#ffb703" disabled class="w-9 h-8 bg-slate-900 border border-slate-800 rounded cursor-pointer disabled:opacity-40">
+                            <select id="new-specialday-font" class="bg-slate-900 border border-slate-800 rounded-lg p-1.5 text-white text-[10px]">
+                                <option value="">Varsayılan Font</option>
+                                <option value="'Rajdhani', sans-serif">Rajdhani</option>
+                                <option value="'Roboto', sans-serif">Roboto</option>
+                                <option value="'Orbitron', sans-serif">Orbitron</option>
+                                <option value="'Exo 2', sans-serif">Exo 2</option>
+                                <option value="'Share Tech Mono', monospace">Share Tech Mono</option>
+                                <option value="'Oswald', sans-serif">Oswald</option>
+                                <option value="'Nunito', sans-serif">Nunito</option>
+                                <option value="Arial, sans-serif">Arial</option>
+                                <option value="'Times New Roman', serif">Times New Roman</option>
+                                <option value="'Courier New', monospace">Courier New</option>
+                            </select>
+                            <input type="number" id="new-specialday-size" min="6" max="48" placeholder="Boyut (px)" class="w-24 bg-slate-900 border border-slate-800 rounded-lg p-1.5 text-white text-[10px] font-mono">
+                            <span class="text-[9px] text-slate-600">Boş bırakılan alanlar aşağıdaki genel biçimi kullanır.</span>
+                        </div>
                         <div class="border border-slate-850 rounded-lg max-h-48 overflow-y-auto" id="admin-specialdays-list-wrapper"></div>
                     </div>
 
                     <!-- Belirli Gün Metni Biçimlendirme -->
                     <div class="bg-slate-950 border border-slate-800 rounded-xl p-5 space-y-4">
-                        <h3 class="text-white font-bold text-sm flex items-center gap-2"><i class="fa-solid fa-font text-yellow-400"></i> Belirli Gün Metni Biçimlendirme</h3>
-                        <div class="grid grid-cols-2 gap-4">
-                            <div class="form-group">
-                                <label class="text-xs text-slate-400 block mb-1">Liste Boşken Gösterilecek Metin</label>
-                                <input type="text" id="input-specialday-empty-text" placeholder="İyi Dersler Dileriz" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2.5 text-white text-xs">
-                            </div>
+                        <h3 class="text-white font-bold text-sm flex items-center gap-2"><i class="fa-solid fa-font text-yellow-400"></i> Belirli Gün Metni Genel Biçimlendirme (Varsayılan)</h3>
+                        <p class="text-[10px] text-slate-500 -mt-2">Yukarıdaki listede özel biçim tanımlanmamış kayıtlar bu ayarları kullanır.</p>
+                        <div class="grid grid-cols-2 gap-4 pt-1 border-t border-slate-800">
                             <div class="form-group">
                                 <label class="text-xs text-slate-400 block mb-1">Metin Rengi</label>
                                 <input type="color" id="input-specialday-color" value="#ffb703" class="w-full h-9 bg-slate-900 border border-slate-800 rounded-lg cursor-pointer">
                             </div>
-                        </div>
-                        <div class="grid grid-cols-2 gap-4 pt-3 border-t border-slate-800">
                             <div class="form-group">
+                                <label class="text-xs text-slate-400 block mb-1">Yazı Boyutu (px)</label>
+                                <input type="number" id="input-specialday-size" min="6" max="48" placeholder="11" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2.5 text-white text-xs font-mono">
+                            </div>
+                            <div class="form-group col-span-2">
                                 <label class="text-xs text-slate-400 block mb-1">Yazı Tipi (Font)</label>
                                 <select id="input-specialday-font" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2.5 text-white text-xs">
                                     <option value="">Varsayılan</option>
@@ -1180,9 +1207,37 @@
                                     <option value="'Courier New', monospace">Courier New</option>
                                 </select>
                             </div>
-                            <div class="form-group">
-                                <label class="text-xs text-slate-400 block mb-1">Yazı Boyutu (px)</label>
-                                <input type="number" id="input-specialday-size" min="6" max="48" placeholder="11" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2.5 text-white text-xs font-mono">
+                        </div>
+                    </div>
+
+                    <!-- Belirli Gün/Hafta Yokken Gösterilecek İçerik -->
+                    <div class="bg-slate-950 border border-slate-800 rounded-xl p-5 space-y-4">
+                        <h3 class="text-white font-bold text-sm flex items-center gap-2"><i class="fa-solid fa-calendar-xmark text-yellow-400"></i> Belirli Gün/Hafta Olmadığı Tarihlerde Gösterilecek</h3>
+                        <p class="text-[10px] text-slate-500 -mt-2">Bugün için aktif bir belirli gün/hafta kaydı yoksa (ve tarihsiz genel bir kayıt da yoksa) bu içerik gösterilir.</p>
+                        <div class="form-group">
+                            <label class="text-xs text-slate-400 block mb-1">Gösterim Türü</label>
+                            <select id="input-specialday-empty-mode" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2.5 text-white text-xs" onchange="toggleSpecialDayEmptyModeUI()">
+                                <option value="text">Metin</option>
+                                <option value="image">Görsel</option>
+                            </select>
+                        </div>
+                        <div id="specialday-empty-text-wrap" class="form-group">
+                            <label class="text-xs text-slate-400 block mb-1">Liste Boşken Gösterilecek Metin</label>
+                            <input type="text" id="input-specialday-empty-text" placeholder="İyi Dersler Dileriz" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2.5 text-white text-xs">
+                        </div>
+                        <div id="specialday-empty-image-wrap" class="hidden">
+                            <div class="flex items-center gap-3 bg-slate-900 border border-slate-800 rounded-xl p-3">
+                                <div id="specialday-empty-img-preview-box" class="rounded-lg border border-slate-700 overflow-hidden flex items-center justify-center bg-slate-950 shrink-0" style="width:90px;height:36px;">
+                                    <img id="specialday-empty-img-preview" class="hidden w-full h-full object-contain" alt="Önizleme">
+                                    <span id="specialday-empty-img-preview-empty" class="text-[9px] text-slate-600">Görsel Yok</span>
+                                </div>
+                                <div class="flex flex-col gap-1.5">
+                                    <label class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-yellow-400 border border-yellow-500/30 font-bold rounded-lg text-[10px] cursor-pointer flex items-center gap-2 w-fit">
+                                        <i class="fa-solid fa-upload"></i> Görsel Yükle
+                                        <input type="file" id="specialday-empty-img-input" accept="image/*" class="hidden" onchange="handleSpecialDayEmptyImageUpload(event)">
+                                    </label>
+                                    <button type="button" class="px-3 py-1.5 bg-red-500/10 hover:bg-red-500/25 text-red-400 rounded-lg text-[10px] font-bold w-fit" onclick="removeSpecialDayEmptyImage()"><i class="fa-solid fa-trash"></i> Görseli Kaldır</button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1194,6 +1249,10 @@
                             <button onclick="fetchLiveWeather()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-cyan-400 border border-cyan-500/20 font-bold rounded-lg text-[10px] flex items-center gap-1.5"><i class="fa-solid fa-rotate"></i> Şimdi Test Et</button>
                         </div>
                         <p class="text-[11px] text-slate-500">Hava durumu, Open-Meteo servisinden şehrin enlem/boylam koordinatlarına göre canlı olarak çekilir.</p>
+                        <div class="bg-cyan-500/5 border border-cyan-500/20 rounded-lg p-2.5 text-[10px] text-cyan-300 flex items-start gap-2">
+                            <i class="fa-solid fa-circle-info mt-0.5"></i>
+                            <span>İkon artık hava durumuna (güneşli/bulutlu/yağmurlu/karlı/fırtınalı vb.) ve gece/gündüze göre <b>otomatik</b> değişir. Aşağıdaki ikon alanları yalnızca hava kodu okunamadığında (yedek) veya bağlantı hatasında kullanılır.</span>
+                        </div>
                         <div class="grid grid-cols-3 gap-4">
                             <div class="form-group">
                                 <label class="text-xs text-slate-400 block mb-1">Şehir Adı</label>
@@ -1209,28 +1268,34 @@
                             </div>
                         </div>
                         <p class="text-[10px] text-slate-500 -mt-1">Koordinatları bilmiyorsanız <a href="https://www.latlong.net/" target="_blank" rel="noopener" class="text-cyan-400 underline">latlong.net</a> gibi bir siteden şehrinizin enlem/boylamını bulabilirsiniz.</p>
-                        <div class="grid grid-cols-4 gap-4 pt-2 border-t border-slate-800">
+                        <div class="grid grid-cols-3 gap-4 pt-2 border-t border-slate-800">
                             <div class="form-group">
                                 <label class="text-xs text-slate-400 block mb-1">"HAVA DURUMU" Etiketi</label>
                                 <input type="text" id="input-weather-label" placeholder="HAVA DURUMU" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2.5 text-white text-xs">
                             </div>
                             <div class="form-group">
-                                <label class="text-xs text-slate-400 block mb-1">Hava Durumu İkonu (Emoji)</label>
+                                <label class="text-xs text-slate-400 block mb-1">Yedek İkon (kod alınamazsa)</label>
                                 <input type="text" id="input-weather-icon" placeholder="🌤️" maxlength="4" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2.5 text-white text-xs text-center">
                             </div>
                             <div class="form-group">
                                 <label class="text-xs text-slate-400 block mb-1">Bağlantı Hatası İkonu</label>
                                 <input type="text" id="input-weather-error-icon" placeholder="⛅" maxlength="4" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2.5 text-white text-xs text-center">
                             </div>
-                            <div class="form-group">
-                                <label class="text-xs text-slate-400 block mb-1">Sıcaklık Yazı Rengi</label>
-                                <input type="color" id="input-weather-color" value="#00b4d8" class="w-full h-9 bg-slate-900 border border-slate-800 rounded-lg cursor-pointer">
-                            </div>
                         </div>
-                        <div class="grid grid-cols-2 gap-4 pt-3 border-t border-slate-800">
-                            <div class="form-group">
-                                <label class="text-xs text-slate-400 block mb-1">Yazı Tipi (Font)</label>
-                                <select id="input-weather-font" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2.5 text-white text-xs">
+
+                        <div class="pt-3 border-t border-slate-800 space-y-2">
+                            <p class="text-[10px] uppercase text-slate-500 font-bold flex items-center gap-1.5"><i class="fa-solid fa-palette text-cyan-400"></i> Ayrı Biçimlendirme (Etiket / Şehir / İkon / Derece)</p>
+                            <div class="hidden md:grid grid-cols-12 gap-2 text-[9px] uppercase text-slate-600 font-bold px-1">
+                                <div class="col-span-2">Öğe</div>
+                                <div class="col-span-2">Renk</div>
+                                <div class="col-span-6">Font</div>
+                                <div class="col-span-2">Boyut</div>
+                            </div>
+
+                            <div class="grid grid-cols-12 gap-2 items-center">
+                                <div class="col-span-12 md:col-span-2 text-xs text-slate-300 font-bold">Etiket</div>
+                                <input type="color" id="input-weather-label-color" value="#94a3b8" class="col-span-3 md:col-span-2 h-9 bg-slate-900 border border-slate-800 rounded-lg cursor-pointer">
+                                <select id="input-weather-label-font" class="col-span-9 md:col-span-6 bg-slate-900 border border-slate-800 rounded-lg p-2 text-white text-xs">
                                     <option value="">Varsayılan</option>
                                     <option value="'Rajdhani', sans-serif">Rajdhani</option>
                                     <option value="'Roboto', sans-serif">Roboto</option>
@@ -1243,10 +1308,65 @@
                                     <option value="'Times New Roman', serif">Times New Roman</option>
                                     <option value="'Courier New', monospace">Courier New</option>
                                 </select>
+                                <input type="number" id="input-weather-label-size" min="6" max="48" placeholder="8" class="col-span-12 md:col-span-2 bg-slate-900 border border-slate-800 rounded-lg p-2 text-white text-xs font-mono">
                             </div>
-                            <div class="form-group">
-                                <label class="text-xs text-slate-400 block mb-1">Yazı Boyutu (px)</label>
-                                <input type="number" id="input-weather-size" min="6" max="48" placeholder="13" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2.5 text-white text-xs font-mono">
+
+                            <div class="grid grid-cols-12 gap-2 items-center">
+                                <div class="col-span-12 md:col-span-2 text-xs text-slate-300 font-bold">Şehir</div>
+                                <input type="color" id="input-weather-city-color" value="#00b4d8" class="col-span-3 md:col-span-2 h-9 bg-slate-900 border border-slate-800 rounded-lg cursor-pointer">
+                                <select id="input-weather-city-font" class="col-span-9 md:col-span-6 bg-slate-900 border border-slate-800 rounded-lg p-2 text-white text-xs">
+                                    <option value="">Varsayılan</option>
+                                    <option value="'Rajdhani', sans-serif">Rajdhani</option>
+                                    <option value="'Roboto', sans-serif">Roboto</option>
+                                    <option value="'Orbitron', sans-serif">Orbitron</option>
+                                    <option value="'Exo 2', sans-serif">Exo 2</option>
+                                    <option value="'Share Tech Mono', monospace">Share Tech Mono</option>
+                                    <option value="'Oswald', sans-serif">Oswald</option>
+                                    <option value="'Nunito', sans-serif">Nunito</option>
+                                    <option value="Arial, sans-serif">Arial</option>
+                                    <option value="'Times New Roman', serif">Times New Roman</option>
+                                    <option value="'Courier New', monospace">Courier New</option>
+                                </select>
+                                <input type="number" id="input-weather-city-size" min="6" max="48" placeholder="13" class="col-span-12 md:col-span-2 bg-slate-900 border border-slate-800 rounded-lg p-2 text-white text-xs font-mono">
+                            </div>
+
+                            <div class="grid grid-cols-12 gap-2 items-center">
+                                <div class="col-span-12 md:col-span-2 text-xs text-slate-300 font-bold">İkon</div>
+                                <input type="color" id="input-weather-icon-color" value="#00b4d8" class="col-span-3 md:col-span-2 h-9 bg-slate-900 border border-slate-800 rounded-lg cursor-pointer">
+                                <select id="input-weather-icon-font" class="col-span-9 md:col-span-6 bg-slate-900 border border-slate-800 rounded-lg p-2 text-white text-xs">
+                                    <option value="">Varsayılan</option>
+                                    <option value="'Rajdhani', sans-serif">Rajdhani</option>
+                                    <option value="'Roboto', sans-serif">Roboto</option>
+                                    <option value="'Orbitron', sans-serif">Orbitron</option>
+                                    <option value="'Exo 2', sans-serif">Exo 2</option>
+                                    <option value="'Share Tech Mono', monospace">Share Tech Mono</option>
+                                    <option value="'Oswald', sans-serif">Oswald</option>
+                                    <option value="'Nunito', sans-serif">Nunito</option>
+                                    <option value="Arial, sans-serif">Arial</option>
+                                    <option value="'Times New Roman', serif">Times New Roman</option>
+                                    <option value="'Courier New', monospace">Courier New</option>
+                                </select>
+                                <input type="number" id="input-weather-icon-size" min="6" max="48" placeholder="13" class="col-span-12 md:col-span-2 bg-slate-900 border border-slate-800 rounded-lg p-2 text-white text-xs font-mono">
+                            </div>
+                            <p class="text-[9px] text-slate-600 -mt-1 ml-1">Not: Renkli emoji ikonlar bazı cihazlarda "Renk" ayarından etkilenmeyebilir; bu durumda sadece boyut değişir.</p>
+
+                            <div class="grid grid-cols-12 gap-2 items-center">
+                                <div class="col-span-12 md:col-span-2 text-xs text-slate-300 font-bold">Derece</div>
+                                <input type="color" id="input-weather-temp-color" value="#00b4d8" class="col-span-3 md:col-span-2 h-9 bg-slate-900 border border-slate-800 rounded-lg cursor-pointer">
+                                <select id="input-weather-temp-font" class="col-span-9 md:col-span-6 bg-slate-900 border border-slate-800 rounded-lg p-2 text-white text-xs">
+                                    <option value="">Varsayılan</option>
+                                    <option value="'Rajdhani', sans-serif">Rajdhani</option>
+                                    <option value="'Roboto', sans-serif">Roboto</option>
+                                    <option value="'Orbitron', sans-serif">Orbitron</option>
+                                    <option value="'Exo 2', sans-serif">Exo 2</option>
+                                    <option value="'Share Tech Mono', monospace">Share Tech Mono</option>
+                                    <option value="'Oswald', sans-serif">Oswald</option>
+                                    <option value="'Nunito', sans-serif">Nunito</option>
+                                    <option value="Arial, sans-serif">Arial</option>
+                                    <option value="'Times New Roman', serif">Times New Roman</option>
+                                    <option value="'Courier New', monospace">Courier New</option>
+                                </select>
+                                <input type="number" id="input-weather-temp-size" min="6" max="48" placeholder="13" class="col-span-12 md:col-span-2 bg-slate-900 border border-slate-800 rounded-lg p-2 text-white text-xs font-mono">
                             </div>
                         </div>
                     </div>

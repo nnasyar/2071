@@ -188,15 +188,36 @@
             /* BELİRLİ GÜN & HAVA DURUMU KARTI: METİN VE HAVA DURUMU BİÇİMLENDİRME AYARLARI */
             specialDayWidget: {
                 emptyText: "İyi Dersler Dileriz",  // Belirli gün/hafta listesi boşken gösterilecek metin
+                emptyMode: "text",                 // 'text' = metin göster, 'image' = görsel göster
+                emptyImage: "",                    // emptyMode 'image' iken gösterilecek görsel (URL veya base64)
                 textColor: "",                     // '' = varsayılan (--neon-yellow)
                 textFont: "",                      // '' = varsayılan font
                 textSize: "11",                    // px cinsinden belirli gün yazı boyutu
                 weatherLabel: "HAVA DURUMU",        // Hava durumu bölümünün küçük başlık etiketi
-                weatherIcon: "🌤️",                  // Hava durumu başarıyla çekildiğinde gösterilecek ikon
+                weatherIcon: "🌤️",                  // Hava kodu okunamazsa kullanılacak yedek ikon
                 weatherErrorIcon: "⛅",              // Bağlantı hatasında gösterilecek ikon
-                weatherColor: "",                  // '' = varsayılan (--neon-blue)
-                weatherFont: "",                   // '' = varsayılan font
-                weatherSize: "13"                  // px cinsinden hava durumu yazı boyutu
+                // Aşağıdaki weatherColor/weatherFont/weatherSize ESKİ (tüm satırı tek biçimde
+                // renklendiren) alanlardır; artık yalnızca aşağıdaki özel alanlardan biri boşsa
+                // GERİYE DÖNÜK UYUMLULUK için yedek olarak kullanılır.
+                weatherColor: "",
+                weatherFont: "",
+                weatherSize: "13",
+                // ETİKET ("HAVA DURUMU" küçük başlığı) biçimi
+                labelColor: "",                    // '' = varsayılan (--text-muted)
+                labelFont: "",
+                labelSize: "8",
+                // ŞEHİR ADI biçimi
+                cityColor: "",                     // '' = varsayılan (--neon-blue)
+                cityFont: "",
+                citySize: "13",
+                // İKON (emoji) biçimi
+                iconColor: "",
+                iconFont: "",
+                iconSize: "13",
+                // DERECE (sıcaklık, ör. "21°C") biçimi
+                tempColor: "",                     // '' = varsayılan (--neon-blue)
+                tempFont: "",
+                tempSize: "13"
             },
             weeklyDuties: {
                 "Pazartesi": { admin: "Nihan Öztürk", canteen: "Ahmet Ak", garden: "Veli Can", floor1: "Zeynep Şen", floor2: "Murat Koç" },
@@ -2036,6 +2057,7 @@
         let tempBirthdays = [...appConfig.birthdays];
         let tempQuotes = [...(appConfig.quotes || [])];
         let tempSpecialDays = [...appConfig.specialDays];
+        let tempSpecialDayEmptyImage = ""; // Admin panelinde düzenlenen "boşken gösterilecek görsel" çalışma kopyası
         let tempMediaPlaylist = [...(appConfig.mediaPlaylist || [])];
 
         window.onload = function() {
@@ -4235,49 +4257,136 @@
             return todayVal >= startVal || todayVal <= endVal;
         }
 
+        // "Boşken gösterilecek içerik" durumunu (metin/görsel) panoda uygular
+        function applySpecialDayEmptyState(sdwSettings) {
+            const textEl = document.getElementById('display-special-day');
+            const imgEl = document.getElementById('display-special-day-img');
+            const useImage = sdwSettings.emptyMode === 'image' && sdwSettings.emptyImage;
+            if (useImage) {
+                if (imgEl) {
+                    imgEl.src = sdwSettings.emptyImage;
+                    imgEl.classList.remove('hidden');
+                }
+                if (textEl) textEl.classList.add('hidden');
+            } else {
+                if (imgEl) {
+                    imgEl.classList.add('hidden');
+                    imgEl.src = '';
+                }
+                if (textEl) {
+                    textEl.classList.remove('hidden');
+                    textEl.style.color = sdwSettings.textColor || '';
+                    textEl.style.fontFamily = sdwSettings.textFont || '';
+                    textEl.style.fontSize = sdwSettings.textSize ? (sdwSettings.textSize + 'px') : '';
+                    textEl.innerText = sdwSettings.emptyText || defaultAppConfig.specialDayWidget.emptyText;
+                }
+            }
+        }
+
         function cycleSpecialDayWidget() {
             const displayEl = document.getElementById('display-special-day');
+            const imgEl = document.getElementById('display-special-day-img');
             const sdwSettings = appConfig.specialDayWidget || defaultAppConfig.specialDayWidget;
-            displayEl.style.color = sdwSettings.textColor || '';
-            displayEl.style.fontFamily = sdwSettings.textFont || '';
-            displayEl.style.fontSize = sdwSettings.textSize ? (sdwSettings.textSize + 'px') : '';
             const specials = appConfig.specialDays || [];
-            if (specials.length === 0) {
-                displayEl.innerText = sdwSettings.emptyText || defaultAppConfig.specialDayWidget.emptyText;
+
+            // Sadece BUGÜN aktif olan tarihli kayıtlar; yoksa tarihsiz (her zaman geçerli) genel kayıtlar.
+            // İkisi de yoksa (bugün için hiçbir belirli gün/hafta yoksa) "boşken gösterilecek içerik" devreye girer
+            // — artık tarihi geçmiş/gelecek kayıtlara geri dönülmüyor.
+            const todaysSpecials = specials.filter(sd => (sd.startDate || sd.endDate) && isSpecialDayActiveToday(sd));
+            const generalSpecials = specials.filter(sd => !sd.startDate && !sd.endDate);
+            const sourceList = todaysSpecials.length > 0 ? todaysSpecials : generalSpecials;
+
+            if (sourceList.length === 0) {
+                applySpecialDayEmptyState(sdwSettings);
                 return;
             }
 
-            const todaysSpecials = specials.filter(sd => (sd.startDate || sd.endDate) && isSpecialDayActiveToday(sd));
-            const generalSpecials = specials.filter(sd => !sd.startDate && !sd.endDate);
-            const sourceList = todaysSpecials.length > 0 ? todaysSpecials : (generalSpecials.length > 0 ? generalSpecials : specials);
+            // Aktif içerik varken görsel gizlenip metin gösterilir
+            if (imgEl) imgEl.classList.add('hidden');
+            if (displayEl) displayEl.classList.remove('hidden');
 
             if (specialDayCycleIndex >= sourceList.length) specialDayCycleIndex = 0;
-            displayEl.innerText = sourceList[specialDayCycleIndex].title || "";
+            const item = sourceList[specialDayCycleIndex];
             specialDayCycleIndex++;
+
+            // Her kayıt kendi renk/font/boyutunu taşıyabilir; boşsa genel (varsayılan) biçim kullanılır.
+            displayEl.style.color = item.color || sdwSettings.textColor || '';
+            displayEl.style.fontFamily = item.font || sdwSettings.textFont || '';
+            displayEl.style.fontSize = (item.size || sdwSettings.textSize) ? ((item.size || sdwSettings.textSize) + 'px') : '';
+            displayEl.innerText = item.title || "";
+        }
+
+        // Open-Meteo "weathercode" (WMO) değerini ve gündüz/gece bilgisini uygun bir emoji ikonuna çevirir.
+        function getWeatherIconByCode(code, isDay) {
+            const day = isDay !== 0; // Open-Meteo: is_day 1 = gündüz, 0 = gece
+            switch (code) {
+                case 0: return day ? '☀️' : '🌙';
+                case 1: return day ? '🌤️' : '🌙';
+                case 2: return day ? '⛅' : '☁️';
+                case 3: return '☁️';
+                case 45: case 48: return '🌫️';
+                case 51: case 53: case 55: return '🌦️';
+                case 56: case 57: return '🌧️';
+                case 61: case 63: case 65: return '🌧️';
+                case 66: case 67: return '🌨️';
+                case 71: case 73: case 75: return '❄️';
+                case 77: return '🌨️';
+                case 80: case 81: case 82: return '🌦️';
+                case 85: case 86: return '🌨️';
+                case 95: return '⛈️';
+                case 96: case 99: return '⛈️';
+                default: return null; // bilinmeyen kod: çağıran taraf yedek ikonu kullanır
+            }
+        }
+
+        // Etiket/Şehir/İkon/Derece öğelerinden birine renk/font/boyut uygular; alan boşsa eski
+        // (tüm satırı tek biçimde ayarlayan) weatherColor/weatherFont/weatherSize alanlarına,
+        // o da boşsa temaya (varsayılana) düşer.
+        function applyWeatherPartStyle(el, sdwSettings, colorKey, fontKey, sizeKey) {
+            if (!el) return;
+            el.style.color = sdwSettings[colorKey] || sdwSettings.weatherColor || '';
+            el.style.fontFamily = sdwSettings[fontKey] || sdwSettings.weatherFont || '';
+            const size = sdwSettings[sizeKey] || sdwSettings.weatherSize;
+            el.style.fontSize = size ? (size + 'px') : '';
         }
 
         async function fetchLiveWeather() {
             const sdwSettings = appConfig.specialDayWidget || defaultAppConfig.specialDayWidget;
             const weatherLabelEl = document.getElementById('display-weather-label');
-            if (weatherLabelEl) weatherLabelEl.innerText = sdwSettings.weatherLabel || defaultAppConfig.specialDayWidget.weatherLabel;
-            const weatherIcon = sdwSettings.weatherIcon || defaultAppConfig.specialDayWidget.weatherIcon;
-            const weatherErrorIcon = sdwSettings.weatherErrorIcon || defaultAppConfig.specialDayWidget.weatherErrorIcon;
-            const weatherEl = document.getElementById('display-weather');
-            if (weatherEl) {
-                weatherEl.style.color = sdwSettings.weatherColor || '';
-                weatherEl.style.fontFamily = sdwSettings.weatherFont || '';
-                weatherEl.style.fontSize = sdwSettings.weatherSize ? (sdwSettings.weatherSize + 'px') : '';
+            if (weatherLabelEl) {
+                weatherLabelEl.innerText = sdwSettings.weatherLabel || defaultAppConfig.specialDayWidget.weatherLabel;
+                weatherLabelEl.style.color = sdwSettings.labelColor || '';
+                weatherLabelEl.style.fontFamily = sdwSettings.labelFont || '';
+                weatherLabelEl.style.fontSize = sdwSettings.labelSize ? (sdwSettings.labelSize + 'px') : '';
             }
+            const fallbackIcon = sdwSettings.weatherIcon || defaultAppConfig.specialDayWidget.weatherIcon;
+            const weatherErrorIcon = sdwSettings.weatherErrorIcon || defaultAppConfig.specialDayWidget.weatherErrorIcon;
+
+            const cityEl = document.getElementById('display-weather-city');
+            const tempEl = document.getElementById('display-weather-temp');
+            const iconEl = document.getElementById('display-weather-icon');
+            applyWeatherPartStyle(cityEl, sdwSettings, 'cityColor', 'cityFont', 'citySize');
+            applyWeatherPartStyle(tempEl, sdwSettings, 'tempColor', 'tempFont', 'tempSize');
+            applyWeatherPartStyle(iconEl, sdwSettings, 'iconColor', 'iconFont', 'iconSize');
+
             try {
                 const response = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${appConfig.weatherLat}&longitude=${appConfig.weatherLng}&current_weather=true`);
                 const data = await response.json();
                 if (data && data.current_weather) {
                     const temp = Math.round(data.current_weather.temperature);
-                    document.getElementById('display-weather').innerHTML = `${appConfig.cityName} ${temp}°C ${weatherIcon}`;
+                    // İkon artık gerçek hava şartına (açık/bulutlu/yağmurlu/karlı/fırtınalı vb.) ve
+                    // gündüz/gece durumuna göre otomatik seçilir; kod okunamazsa yedek ikona düşer.
+                    const autoIcon = getWeatherIconByCode(data.current_weather.weathercode, data.current_weather.is_day);
+                    const weatherIcon = autoIcon || fallbackIcon;
+                    if (cityEl) cityEl.innerText = appConfig.cityName;
+                    if (tempEl) tempEl.innerText = `${temp}°C`;
+                    if (iconEl) iconEl.innerText = weatherIcon;
                     writeCMSLog(`Canlı hava durumu başarıyla çekildi: ${appConfig.cityName} ${temp}°C`);
                 }
             } catch (e) {
-                document.getElementById('display-weather').innerHTML = `${appConfig.cityName} --°C ${weatherErrorIcon}`;
+                if (cityEl) cityEl.innerText = appConfig.cityName;
+                if (tempEl) tempEl.innerText = '--°C';
+                if (iconEl) iconEl.innerText = weatherErrorIcon;
                 writeCMSLog("Hava durumu bağlantı hatası.");
             }
         }
@@ -5147,6 +5256,18 @@
 
             const sdwSettings = appConfig.specialDayWidget || defaultAppConfig.specialDayWidget;
             document.getElementById('input-specialday-empty-text').value = sdwSettings.emptyText || defaultAppConfig.specialDayWidget.emptyText;
+            document.getElementById('input-specialday-empty-mode').value = sdwSettings.emptyMode || 'text';
+            tempSpecialDayEmptyImage = sdwSettings.emptyImage || "";
+            const sdEmptyPreviewImg = document.getElementById('specialday-empty-img-preview');
+            const sdEmptyPreviewEmpty = document.getElementById('specialday-empty-img-preview-empty');
+            if (tempSpecialDayEmptyImage) {
+                if (sdEmptyPreviewImg) { sdEmptyPreviewImg.src = tempSpecialDayEmptyImage; sdEmptyPreviewImg.classList.remove('hidden'); }
+                if (sdEmptyPreviewEmpty) sdEmptyPreviewEmpty.classList.add('hidden');
+            } else {
+                if (sdEmptyPreviewImg) { sdEmptyPreviewImg.classList.add('hidden'); sdEmptyPreviewImg.src = ''; }
+                if (sdEmptyPreviewEmpty) sdEmptyPreviewEmpty.classList.remove('hidden');
+            }
+            toggleSpecialDayEmptyModeUI();
             document.getElementById('input-specialday-color').value = sdwSettings.textColor || '#ffb703';
             document.getElementById('input-specialday-font').value = sdwSettings.textFont || '';
             document.getElementById('input-specialday-size').value = sdwSettings.textSize || defaultAppConfig.specialDayWidget.textSize;
@@ -5156,9 +5277,18 @@
             document.getElementById('input-weather-label').value = sdwSettings.weatherLabel || defaultAppConfig.specialDayWidget.weatherLabel;
             document.getElementById('input-weather-icon').value = sdwSettings.weatherIcon || defaultAppConfig.specialDayWidget.weatherIcon;
             document.getElementById('input-weather-error-icon').value = sdwSettings.weatherErrorIcon || defaultAppConfig.specialDayWidget.weatherErrorIcon;
-            document.getElementById('input-weather-color').value = sdwSettings.weatherColor || '#00b4d8';
-            document.getElementById('input-weather-font').value = sdwSettings.weatherFont || '';
-            document.getElementById('input-weather-size').value = sdwSettings.weatherSize || defaultAppConfig.specialDayWidget.weatherSize;
+            document.getElementById('input-weather-label-color').value = sdwSettings.labelColor || '#94a3b8';
+            document.getElementById('input-weather-label-font').value = sdwSettings.labelFont || '';
+            document.getElementById('input-weather-label-size').value = sdwSettings.labelSize || defaultAppConfig.specialDayWidget.labelSize;
+            document.getElementById('input-weather-city-color').value = sdwSettings.cityColor || sdwSettings.weatherColor || '#00b4d8';
+            document.getElementById('input-weather-city-font').value = sdwSettings.cityFont || sdwSettings.weatherFont || '';
+            document.getElementById('input-weather-city-size').value = sdwSettings.citySize || sdwSettings.weatherSize || defaultAppConfig.specialDayWidget.citySize;
+            document.getElementById('input-weather-icon-color').value = sdwSettings.iconColor || sdwSettings.weatherColor || '#00b4d8';
+            document.getElementById('input-weather-icon-font').value = sdwSettings.iconFont || sdwSettings.weatherFont || '';
+            document.getElementById('input-weather-icon-size').value = sdwSettings.iconSize || sdwSettings.weatherSize || defaultAppConfig.specialDayWidget.iconSize;
+            document.getElementById('input-weather-temp-color').value = sdwSettings.tempColor || sdwSettings.weatherColor || '#00b4d8';
+            document.getElementById('input-weather-temp-font').value = sdwSettings.tempFont || sdwSettings.weatherFont || '';
+            document.getElementById('input-weather-temp-size').value = sdwSettings.tempSize || sdwSettings.weatherSize || defaultAppConfig.specialDayWidget.tempSize;
 
             const aws = appConfig.achievementWidget || defaultAppConfig.achievementWidget;
             document.getElementById('input-ach-layout').value = aws.layout || 'column';
@@ -5267,15 +5397,30 @@
 
             appConfig.specialDayWidget = {
                 emptyText: document.getElementById('input-specialday-empty-text').value.trim() || defaultAppConfig.specialDayWidget.emptyText,
+                emptyMode: document.getElementById('input-specialday-empty-mode').value || 'text',
+                emptyImage: tempSpecialDayEmptyImage || "",
                 textColor: document.getElementById('input-specialday-color').value || '',
                 textFont: document.getElementById('input-specialday-font').value.trim() || '',
                 textSize: document.getElementById('input-specialday-size').value.trim() || defaultAppConfig.specialDayWidget.textSize,
                 weatherLabel: document.getElementById('input-weather-label').value.trim() || defaultAppConfig.specialDayWidget.weatherLabel,
                 weatherIcon: document.getElementById('input-weather-icon').value.trim() || defaultAppConfig.specialDayWidget.weatherIcon,
                 weatherErrorIcon: document.getElementById('input-weather-error-icon').value.trim() || defaultAppConfig.specialDayWidget.weatherErrorIcon,
-                weatherColor: document.getElementById('input-weather-color').value || '',
-                weatherFont: document.getElementById('input-weather-font').value.trim() || '',
-                weatherSize: document.getElementById('input-weather-size').value.trim() || defaultAppConfig.specialDayWidget.weatherSize
+                // Etiket
+                labelColor: document.getElementById('input-weather-label-color').value || '',
+                labelFont: document.getElementById('input-weather-label-font').value.trim() || '',
+                labelSize: document.getElementById('input-weather-label-size').value.trim() || defaultAppConfig.specialDayWidget.labelSize,
+                // Şehir
+                cityColor: document.getElementById('input-weather-city-color').value || '',
+                cityFont: document.getElementById('input-weather-city-font').value.trim() || '',
+                citySize: document.getElementById('input-weather-city-size').value.trim() || defaultAppConfig.specialDayWidget.citySize,
+                // İkon
+                iconColor: document.getElementById('input-weather-icon-color').value || '',
+                iconFont: document.getElementById('input-weather-icon-font').value.trim() || '',
+                iconSize: document.getElementById('input-weather-icon-size').value.trim() || defaultAppConfig.specialDayWidget.iconSize,
+                // Derece
+                tempColor: document.getElementById('input-weather-temp-color').value || '',
+                tempFont: document.getElementById('input-weather-temp-font').value.trim() || '',
+                tempSize: document.getElementById('input-weather-temp-size').value.trim() || defaultAppConfig.specialDayWidget.tempSize
             };
             appConfig.cityName = document.getElementById('input-weather-city').value.trim() || defaultAppConfig.cityName;
             appConfig.weatherLat = document.getElementById('input-weather-lat').value.trim() || defaultAppConfig.weatherLat;
@@ -5737,12 +5882,18 @@
                 const range = (day.startDate || day.endDate)
                     ? `<span class="text-rose-400 font-mono font-bold ml-1">[${day.startDate || '?'} - ${day.endDate || '?'}]</span>`
                     : '';
+                const customFormatBadge = (day.color || day.font || day.size)
+                    ? `<span class="inline-flex items-center gap-1 ml-1.5 px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 shrink-0" title="Bu kayıt için özel biçim tanımlı">
+                         <span class="w-2.5 h-2.5 rounded-full border border-slate-600" style="background:${day.color || '#ffb703'};"></span>
+                         <span class="text-[8px] uppercase text-slate-400 font-bold">Özel</span>
+                       </span>`
+                    : '';
                 const row = document.createElement('div');
                 row.className = 'flex justify-between items-center p-2 border-b border-slate-800/50 text-xs';
                 row.innerHTML = `
                     <label class="flex items-center gap-2 flex-1 min-w-0 cursor-pointer">
                         <input type="checkbox" class="specialday-row-checkbox shrink-0" data-index="${index}" ${selectedSpecialDayIndices.has(index) ? 'checked' : ''} onchange="toggleSpecialDaySelect(${index}, this.checked)">
-                        <span class="text-slate-300 flex-1 truncate"><i class="fa-solid fa-calendar-day text-rose-500 mr-1.5"></i> ${day.title}${range}</span>
+                        <span class="text-slate-300 flex-1 truncate flex items-center"><i class="fa-solid fa-calendar-day text-rose-500 mr-1.5"></i> ${day.title}${range}${customFormatBadge}</span>
                     </label>
                     <div class="flex gap-1 flex-shrink-0">
                         <button class="p-1 hover:bg-cyan-500/20 rounded text-cyan-400" onclick="editSpecialDay(${index})"><i class="fa-solid fa-pen"></i></button>
@@ -5798,21 +5949,32 @@
             const input = document.getElementById('new-specialday-input');
             const startInput = document.getElementById('new-specialday-start');
             const endInput = document.getElementById('new-specialday-end');
+            const colorEnable = document.getElementById('new-specialday-color-enable');
+            const colorInput = document.getElementById('new-specialday-color');
+            const fontInput = document.getElementById('new-specialday-font');
+            const sizeInput = document.getElementById('new-specialday-size');
             const val = input.value.trim();
             const startDate = startInput ? startInput.value.trim() : "";
             const endDate = endInput ? endInput.value.trim() : "";
+            const color = (colorEnable && colorEnable.checked && colorInput) ? colorInput.value : "";
+            const font = fontInput ? fontInput.value : "";
+            const size = (sizeInput && sizeInput.value.trim()) ? sizeInput.value.trim() : "";
             if (val) {
                 if (editingSpecialDayIndex !== -1) {
-                    tempSpecialDays[editingSpecialDayIndex] = { title: val, startDate, endDate };
+                    tempSpecialDays[editingSpecialDayIndex] = { title: val, startDate, endDate, color, font, size };
                     writeCMSLog(`Belirli gün/hafta kaydı güncellendi: ${val}`);
                     cancelEditSpecialDay();
                 } else {
-                    tempSpecialDays.push({ title: val, startDate, endDate });
+                    tempSpecialDays.push({ title: val, startDate, endDate, color, font, size });
                     writeCMSLog(`Belirli gün/hafta kaydı eklendi: ${val}`);
                 }
                 input.value = "";
                 if (startInput) startInput.value = "";
                 if (endInput) endInput.value = "";
+                if (colorEnable) colorEnable.checked = false;
+                if (colorInput) { colorInput.disabled = true; colorInput.value = '#ffb703'; }
+                if (fontInput) fontInput.value = "";
+                if (sizeInput) sizeInput.value = "";
                 renderAdminSpecialDays();
             }
         }
@@ -5826,6 +5988,14 @@
             const endInput = document.getElementById('new-specialday-end');
             if (startInput) startInput.value = day.startDate || "";
             if (endInput) endInput.value = day.endDate || "";
+            const colorEnable = document.getElementById('new-specialday-color-enable');
+            const colorInput = document.getElementById('new-specialday-color');
+            if (colorEnable) colorEnable.checked = !!day.color;
+            if (colorInput) { colorInput.disabled = !day.color; colorInput.value = day.color || '#ffb703'; }
+            const fontInput = document.getElementById('new-specialday-font');
+            if (fontInput) fontInput.value = day.font || "";
+            const sizeInput = document.getElementById('new-specialday-size');
+            if (sizeInput) sizeInput.value = day.size || "";
             const btn = document.getElementById('specialday-submit-btn');
             if (btn) btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i>';
         }
@@ -5834,12 +6004,69 @@
             editingSpecialDayIndex = -1;
             const btn = document.getElementById('specialday-submit-btn');
             if (btn) btn.innerHTML = 'Ekle';
+            const colorEnable = document.getElementById('new-specialday-color-enable');
+            const colorInput = document.getElementById('new-specialday-color');
+            if (colorEnable) colorEnable.checked = false;
+            if (colorInput) { colorInput.disabled = true; colorInput.value = '#ffb703'; }
+            const fontInput = document.getElementById('new-specialday-font');
+            if (fontInput) fontInput.value = "";
+            const sizeInput = document.getElementById('new-specialday-size');
+            if (sizeInput) sizeInput.value = "";
         }
 
         function deleteSpecialDay(index) {
             tempSpecialDays.splice(index, 1);
             if (editingSpecialDayIndex === index) cancelEditSpecialDay();
             renderAdminSpecialDays();
+        }
+
+        // "Belirli Gün/Hafta Olmadığı Tarihlerde Gösterilecek" bölümünde Metin/Görsel seçimine göre ilgili alanı gösterir/gizler
+        function toggleSpecialDayEmptyModeUI() {
+            const mode = document.getElementById('input-specialday-empty-mode').value;
+            const textWrap = document.getElementById('specialday-empty-text-wrap');
+            const imgWrap = document.getElementById('specialday-empty-image-wrap');
+            if (textWrap) textWrap.classList.toggle('hidden', mode === 'image');
+            if (imgWrap) imgWrap.classList.toggle('hidden', mode !== 'image');
+        }
+
+        // "Belirli Gün/Hafta yokken" gösterilecek görseli bilgisayardan seçip önizler ve arka planda buluta yükler
+        function handleSpecialDayEmptyImageUpload(event) {
+            const file = event.target.files && event.target.files[0];
+            if (!file) return;
+            if (file.size > 2 * 1024 * 1024) {
+                showCustomNotification("Dosya Çok Büyük", "Lütfen 2MB'tan küçük bir görsel dosyası seçin.");
+                event.target.value = '';
+                return;
+            }
+            openImageEditor(file, { aspect: 3 }, function (editedDataUrl) {
+                event.target.value = '';
+                if (!editedDataUrl) return; // kullanıcı iptal etti
+                const dataUrl = editedDataUrl;
+                tempSpecialDayEmptyImage = dataUrl;
+                const previewImg = document.getElementById('specialday-empty-img-preview');
+                const previewEmpty = document.getElementById('specialday-empty-img-preview-empty');
+                if (previewImg) { previewImg.src = dataUrl; previewImg.classList.remove('hidden'); }
+                if (previewEmpty) previewEmpty.classList.add('hidden');
+                writeCMSLog("Belirli gün/hafta boş durumu için yeni görsel seçildi (kaydetmeyi unutmayın).");
+
+                const editedFile = dataUrlToFile(dataUrl, 'specialday-empty.jpg');
+                uploadImageFileToCloud(editedFile, 'specialday').then(url => {
+                    if (url && tempSpecialDayEmptyImage === dataUrl) {
+                        tempSpecialDayEmptyImage = url;
+                        writeCMSLog("Belirli gün/hafta boş durum görseli buluta yüklendi (hafif bağlantı olarak kaydedilecek).");
+                    }
+                });
+            });
+        }
+
+        function removeSpecialDayEmptyImage() {
+            tempSpecialDayEmptyImage = "";
+            const previewImg = document.getElementById('specialday-empty-img-preview');
+            const previewEmpty = document.getElementById('specialday-empty-img-preview-empty');
+            if (previewImg) { previewImg.classList.add('hidden'); previewImg.src = ''; }
+            if (previewEmpty) previewEmpty.classList.remove('hidden');
+            const fileInput = document.getElementById('specialday-empty-img-input');
+            if (fileInput) fileInput.value = '';
         }
 
         function renderAdminMediaPlaylist() {

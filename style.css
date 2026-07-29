@@ -415,7 +415,7 @@
         }
 
         .dashboard-card {
-            background-color: var(--card-bg);
+            background: transparent;
             border: 1px solid var(--card-border);
             border-radius: 10px;
             overflow: hidden;
@@ -423,6 +423,27 @@
             flex-direction: column;
             position: relative;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        /* MODÜL SAYDAMLIĞI: kartın arka planı, gerçek bir alt katman (::after) olarak
+           ayrı render edilir ve SADECE bu katmanın opaklığı değişir — böylece "Modül
+           Saydamlığı" düşürüldüğünde metin/başlık/görsel gibi içerik ASLA solmaz, sadece
+           arka plan görünürlüğü azalır (tarayıcının normal "opacity" davranışının aksine,
+           ki o TÜM alt öğeleri birlikte soldurur). --pano-module-bg JS tarafından
+           ayarlanmazsa (varsayılan görünüm) otomatik olarak temanın --card-bg rengine düşer. */
+        .dashboard-card::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none;
+            background: var(--pano-module-bg, var(--card-bg));
+            opacity: var(--pano-module-opacity, 1);
+        }
+
+        .dashboard-card > * {
+            position: relative;
+            z-index: 1;
         }
 
         .card-header {
@@ -1198,9 +1219,15 @@
         /* GENEL MODÜL KARTI — DİKKAT ÇEKME EFEKTLERİ
            (Yönetim Paneli > Modül Ayarları / her modülün "Kart Görünüm & Yayın Ayarları" bölümü)
            Saat, Doğum Günleri ve diğer tüm modül kartlarında kullanılabilir.
-           --pano-fx-intensity: 0.5 (Hafif) - 1 (Normal) - 1.5 (Güçlü) - 2.2 (Çok Güçlü) çarpanı; JS tarafından ayarlanır. */
+           --pano-fx-intensity: 0 (Kapalı) - 0.5 (Hafif) - 1 (Normal) - 1.5 (Güçlü) - 2.2 (Çok Güçlü) çarpanı; JS tarafından ayarlanır.
+           NOT: Bu efektler kasıtlı olarak box-shadow YERİNE filter:drop-shadow / outline kullanır.
+           Sebep: modül kartları (.dashboard-card) köşe yuvarlama + saydamlık katmanı için
+           "overflow: hidden" kullanıyor; box-shadow bir elemanın KENDİ üzerinde overflow:hidden
+           varsa tarayıcı tarafından görünmez şekilde kırpılıyor (klasik bir CSS tuzağı). filter
+           ve outline ise bu kırpmadan etkilenmediği için efekt her zaman görünür kalır. */
         .pano-fx-glow {
-            box-shadow: 0 0 calc(18px * var(--pano-fx-intensity, 1)) 0 var(--pano-fx-color, #00b4d8);
+            filter: drop-shadow(0 0 calc(6px * var(--pano-fx-intensity, 1)) var(--pano-fx-color, #00b4d8))
+                    drop-shadow(0 0 calc(16px * var(--pano-fx-intensity, 1)) var(--pano-fx-color, #00b4d8));
         }
 
         .pano-fx-pulse {
@@ -1208,6 +1235,8 @@
         }
 
         .pano-fx-border {
+            outline: calc(2px * var(--pano-fx-intensity, 1)) solid var(--pano-fx-color, #00b4d8);
+            outline-offset: -2px;
             animation: panoCardBorderPulse 1.8s ease-in-out infinite;
         }
 
@@ -1231,19 +1260,76 @@
             animation: panoCardShineSweep 3s ease-in-out infinite;
         }
 
+        /* YENİ EFEKT: Neon — glow'un daha güçlü/canlı, hafif "nefes alan" iki katmanlı hali */
+        .pano-fx-neon {
+            animation: panoCardNeonCycle 2.6s ease-in-out infinite;
+        }
+
+        /* YENİ EFEKT: Titreşen Işık (Flicker) — eski neon tabela gibi düzensiz titreyen parıltı */
+        .pano-fx-flicker {
+            animation: panoCardFlicker 2.4s linear infinite;
+        }
+
+        /* YENİ EFEKT: Köşe Işıması (Corner) — sadece kartın köşelerinden süzülen ışık hissi */
+        .pano-fx-corner {
+            position: relative;
+        }
+
+        .pano-fx-corner::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 4;
+            border-radius: inherit;
+            background:
+                radial-gradient(circle at 0% 0%, var(--pano-fx-color, #00b4d8) 0%, transparent calc(28% * var(--pano-fx-intensity, 1))),
+                radial-gradient(circle at 100% 100%, var(--pano-fx-color, #00b4d8) 0%, transparent calc(28% * var(--pano-fx-intensity, 1)));
+            opacity: 0.5;
+            mix-blend-mode: screen;
+            animation: panoCardCornerPulse 2.2s ease-in-out infinite;
+        }
+
         @keyframes panoCardPulseGlow {
-            0%, 100% { box-shadow: 0 0 calc(6px * var(--pano-fx-intensity, 1)) calc(-2px * var(--pano-fx-intensity, 1)) var(--pano-fx-color, #00b4d8); }
-            50% { box-shadow: 0 0 calc(22px * var(--pano-fx-intensity, 1)) calc(3px * var(--pano-fx-intensity, 1)) var(--pano-fx-color, #00b4d8); }
+            0%, 100% { filter: drop-shadow(0 0 calc(2px * var(--pano-fx-intensity, 1)) var(--pano-fx-color, #00b4d8)); }
+            50% { filter: drop-shadow(0 0 calc(20px * var(--pano-fx-intensity, 1)) var(--pano-fx-color, #00b4d8)); }
         }
 
         @keyframes panoCardBorderPulse {
-            0%, 100% { box-shadow: inset 0 0 0 0 var(--pano-fx-color, #00b4d8), 0 0 0 0 var(--pano-fx-color, #00b4d8); }
-            50% { box-shadow: inset 0 0 0 calc(2px * var(--pano-fx-intensity, 1)) var(--pano-fx-color, #00b4d8), 0 0 calc(10px * var(--pano-fx-intensity, 1)) calc(1px * var(--pano-fx-intensity, 1)) var(--pano-fx-color, #00b4d8); }
+            0%, 100% { outline-color: color-mix(in srgb, var(--pano-fx-color, #00b4d8) 25%, transparent); filter: drop-shadow(0 0 0 transparent); }
+            50% { outline-color: var(--pano-fx-color, #00b4d8); filter: drop-shadow(0 0 calc(9px * var(--pano-fx-intensity, 1)) var(--pano-fx-color, #00b4d8)); }
         }
 
         @keyframes panoCardShineSweep {
             0% { left: -70%; }
             55%, 100% { left: 130%; }
+        }
+
+        @keyframes panoCardNeonCycle {
+            0%, 100% {
+                filter: drop-shadow(0 0 calc(4px * var(--pano-fx-intensity, 1)) var(--pano-fx-color, #00b4d8))
+                        drop-shadow(0 0 calc(10px * var(--pano-fx-intensity, 1)) var(--pano-fx-color, #00b4d8))
+                        saturate(1);
+            }
+            50% {
+                filter: drop-shadow(0 0 calc(8px * var(--pano-fx-intensity, 1)) var(--pano-fx-color, #00b4d8))
+                        drop-shadow(0 0 calc(26px * var(--pano-fx-intensity, 1)) var(--pano-fx-color, #00b4d8))
+                        saturate(1.6);
+            }
+        }
+
+        @keyframes panoCardFlicker {
+            0%, 18%, 22%, 25%, 53%, 57%, 100% {
+                filter: drop-shadow(0 0 calc(13px * var(--pano-fx-intensity, 1)) var(--pano-fx-color, #00b4d8));
+            }
+            20%, 24%, 55% {
+                filter: drop-shadow(0 0 calc(2px * var(--pano-fx-intensity, 1)) var(--pano-fx-color, #00b4d8));
+            }
+        }
+
+        @keyframes panoCardCornerPulse {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: calc(0.55 * var(--pano-fx-intensity, 1)); }
         }
 
         /* Ayın Enleri alanları arasındaki ayırıcı (çizgi / ikon / desen) */

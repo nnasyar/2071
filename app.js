@@ -59,6 +59,33 @@
             schoolNameFont: "'Rajdhani', sans-serif",
             logoOffsetX: 0,
             nameOffsetX: 0,
+            // Görsel çerçeveleri (saydamlık / kenarlık kalınlığı / en-boy oranı) — GÖRSEL
+            // DÜZENLEYİCİ'deki kırpma/döndürmeden BAĞIMSIZDIR; bu ayarlar görsel zaten
+            // kırpıldıktan SONRA, panoda gösterilirken uygulanan ince görünüm ayarlarıdır.
+            logoFrame: { opacity: 100, borderWidth: 0, borderColor: "#00b4d8", ratio: "auto" },
+            rosterPhotoFrame: { opacity: 100, borderWidth: 0, borderColor: "#00b4d8", ratio: "auto" },
+            // Görsel Oynatma Listesi altyazısının tam özelleştirilebilir görünüm ayarları.
+            mediaCaptionStyle: {
+                template: "classic",
+                bgColor: "#02040a",
+                bgOpacity: 85,
+                textColor: "#cbd5e1",
+                fontFamily: "'Rajdhani', sans-serif",
+                fontSize: 14,
+                fontWeight: 500,
+                textAlign: "center",
+                widthPct: 100,
+                heightMode: "auto", // "auto" | "fixed"
+                heightPct: 20,
+                padding: 8,
+                borderColor: "#00b4d8",
+                borderWidth: 0,
+                cornerRadius: 0,
+                shadow: "none", // "none" | "soft" | "strong"
+                position: "bottom", // "bottom" | "top" | "left" | "right" | "free"
+                posXPct: 50,
+                posYPct: 90
+            },
             brandBorderStyle: "solid",
             brandBorderColor: "#00b4d8",
             brandBorderWidth: 2,
@@ -101,7 +128,7 @@
                     style: {
                         font: "", size: "14", color: "", textAlign: "left", justify: "center",
                         imgPosition: "left", imgSize: 44, imgShape: "rounded",
-                        imgBorderWidth: 1.5, imgBorderColor: "#00b4d8", imgBorderStyle: "solid",
+                        imgBorderWidth: 1.5, imgBorderColor: "#00b4d8", imgBorderStyle: "solid", imgOpacity: 100,
                         cellEffect: "none", cellEffectColor: "#00b4d8", cellEffectIntensity: 100, imgEffect: "none", imgEffectColor: "#00b4d8", imgEffectIntensity: 100
                     }
                 },
@@ -116,7 +143,7 @@
                     style: {
                         font: "", size: "14", color: "", textAlign: "left", justify: "center",
                         imgPosition: "left", imgSize: 44, imgShape: "rounded",
-                        imgBorderWidth: 1.5, imgBorderColor: "#00b4d8", imgBorderStyle: "solid",
+                        imgBorderWidth: 1.5, imgBorderColor: "#00b4d8", imgBorderStyle: "solid", imgOpacity: 100,
                         cellEffect: "none", cellEffectColor: "#00b4d8", cellEffectIntensity: 100, imgEffect: "none", imgEffectColor: "#00b4d8", imgEffectIntensity: 100
                     }
                 }
@@ -666,6 +693,424 @@
                     resultEl.className = 'text-[10px] text-red-400';
                     if (typeof writeCMSLog === 'function') writeCMSLog('Bağlantı testi hatası: ' + (err && err.message ? err.message : err));
                 });
+        }
+
+        // ============================================================================
+        // GÖRSEL DÜZENLEYİCİ (paylaşılan / ortak araç) — Kırpma + Döndürme + Yerleştirme
+        // ----------------------------------------------------------------------------
+        // Panodaki TÜM görsel yükleme noktaları (logo, nöbetçi kadro fotoğrafı, özel
+        // modül görseli, medya slaytı, ayın enleri) bu tek/ortak düzenleyiciden geçer.
+        // Kullanıcı seçtiği dosyayı sürükleyerek konumlandırır, yakınlaştırma ve döndürme
+        // kaydırıcılarıyla ayarlar, istediği çerçeve oranını (1:1, 4:3, 16:9, 3:4, 2:3)
+        // seçer; "Uygula"ya basınca çerçeve içinde görünen kısım GERÇEKTEN kırpılıp
+        // (canvas ile) tek bir görsele dönüştürülür — tıpkı Instagram/Google Fotoğraflar
+        // tarzı düzenleyiciler gibi (serbest dörtgen sürüklemek yerine, sabit bir çerçeve
+        // içinde görseli hareket ettirmek/yakınlaştırmak/döndürmek daha sağlam ve
+        // öngörülebilir sonuç verir).
+        //
+        // Kullanım: openImageEditor(file, {aspect: 1}, function(editedDataUrl) { ... });
+        //   editedDataUrl: kullanıcı "Uygula"ya bastıysa kırpılmış/döndürülmüş görsel
+        //   (data URL), "İptal"e bastıysa null.
+        // ============================================================================
+        let ieState = null;
+
+        function openImageEditor(file, opts, onDone) {
+            const modal = document.getElementById('image-editor-modal');
+            const imgEl = document.getElementById('ie-image');
+            if (!modal || !imgEl) { onDone(null); return; }
+            const reader = new FileReader();
+            reader.onerror = () => onDone(null);
+            reader.onload = (e) => {
+                const tempImg = new Image();
+                tempImg.onerror = () => onDone(null);
+                tempImg.onload = () => {
+                    ieState = {
+                        naturalW: tempImg.width,
+                        naturalH: tempImg.height,
+                        rotate: 0,
+                        offsetX: 0,
+                        offsetY: 0,
+                        zoomPct: 100,
+                        aspect: (opts && opts.aspect) || 1,
+                        onDone: onDone
+                    };
+                    imgEl.src = e.target.result;
+                    // Görselin genişlik/yüksekliği SADECE BURADA, BİR KEZ, doğal piksel boyutuna
+                    // sabitlenir ve bir daha ASLA değiştirilmez. Yakınlaştırma/sürükleme/döndürme
+                    // yalnızca CSS "transform" ile yapılır (bkz. ieRenderTransform) — bu, oranın
+                    // hiçbir koşulda (tarayıcı varsayılanları, Tailwind preflight, yuvarlama
+                    // hataları vb. dahil) bozulamayacağını YAPISAL olarak garanti eder.
+                    imgEl.style.width = tempImg.width + 'px';
+                    imgEl.style.height = tempImg.height + 'px';
+                    const zoomInput = document.getElementById('ie-zoom');
+                    const rotateInput = document.getElementById('ie-rotate');
+                    if (zoomInput) zoomInput.value = 100;
+                    if (rotateInput) rotateInput.value = 0;
+                    document.querySelectorAll('.ie-aspect-btn').forEach(b => {
+                        b.classList.toggle('bg-cyan-700', Math.abs(parseFloat(b.dataset.ratio) - ieState.aspect) < 0.01);
+                        b.classList.toggle('bg-slate-800', Math.abs(parseFloat(b.dataset.ratio) - ieState.aspect) >= 0.01);
+                    });
+                    ieUpdateViewportSize();
+                    ieFitImageToViewport();
+                    ieRenderTransform();
+                    modal.classList.remove('hidden');
+                };
+                tempImg.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function ieUpdateViewportSize() {
+            const viewport = document.getElementById('ie-viewport');
+            if (!viewport || !ieState) return;
+            const base = 340;
+            let w = base, h = base;
+            if (ieState.aspect >= 1) { w = base; h = Math.round(base / ieState.aspect); }
+            else { h = base; w = Math.round(base * ieState.aspect); }
+            viewport.style.width = w + 'px';
+            viewport.style.height = h + 'px';
+            ieState.viewportW = w;
+            ieState.viewportH = h;
+        }
+
+        // Görsel, çerçeveyi (küçük kenarından) tam kaplayacak şekilde ölçeklenir (object-fit:cover mantığı)
+        function ieFitImageToViewport() {
+            if (!ieState) return;
+            const scaleW = ieState.viewportW / ieState.naturalW;
+            const scaleH = ieState.viewportH / ieState.naturalH;
+            ieState.baseScale = Math.max(scaleW, scaleH);
+            ieState.offsetX = 0;
+            ieState.offsetY = 0;
+        }
+
+        // Her pan/zoom/döndürme karesinde SADECE "transform" güncellenir — genişlik/yükseklik
+        // (ve dolayısıyla en-boy oranı) openImageEditor() içinde bir kez ayarlandıktan sonra
+        // ASLA değişmez. Ölçekleme tek bir "scale(S)" ile (X ve Y eksenine EŞİT oranda)
+        // uygulanır; bu, görselin yakınlaştırmada yanlardan sıkışması/esnemesi gibi bir
+        // durumu matematiksel olarak imkansız kılar (tıpkı profesyonel fotoğraf düzenleyicilerdeki
+        // "pan & zoom" mantığı gibi).
+        function ieRenderTransform() {
+            if (!ieState) return;
+            const imgEl = document.getElementById('ie-image');
+            if (!imgEl) return;
+            const scale = ieState.baseScale * (ieState.zoomPct / 100);
+            // translate(calc(-50% + Xpx), calc(-50% + Ypx)): görselin KENDİ merkezini önce
+            // çerçevenin merkezine hizalar (-50%,-50%), ardından kullanıcının sürüklediği
+            // offsetX/offsetY kadar EKRAN PİKSELİ cinsinden kaydırır — ikisi TEK bir translate()
+            // çağrısında birleştirildiği için herhangi bir kompozisyon belirsizliği yoktur.
+            // rotate/scale bu translate'ten SONRA (listede sağda) geldiği için görselin KENDİ
+            // merkezi etrafında uygulanır; closeImageEditor() içindeki canvas hesabıyla birebir
+            // aynı pivot noktasını kullanır.
+            imgEl.style.transform =
+                `translate(calc(-50% + ${ieState.offsetX}px), calc(-50% + ${ieState.offsetY}px)) rotate(${ieState.rotate}deg) scale(${scale})`;
+        }
+
+        function ieOnZoomChange(val) {
+            if (!ieState) return;
+            ieState.zoomPct = parseFloat(val) || 100;
+            ieRenderTransform();
+        }
+        function ieOnRotateChange(val) {
+            if (!ieState) return;
+            ieState.rotate = parseFloat(val) || 0;
+            ieRenderTransform();
+        }
+        function ieRotate90() {
+            if (!ieState) return;
+            ieState.rotate = ((ieState.rotate + 90 + 180) % 360) - 180;
+            const rotateInput = document.getElementById('ie-rotate');
+            if (rotateInput) rotateInput.value = ieState.rotate;
+            ieRenderTransform();
+        }
+        function ieSetAspect(ratio, btnEl) {
+            if (!ieState) return;
+            ieState.aspect = ratio || 1;
+            document.querySelectorAll('.ie-aspect-btn').forEach(b => b.classList.remove('bg-cyan-700'));
+            if (btnEl) btnEl.classList.add('bg-cyan-700');
+            ieUpdateViewportSize();
+            ieFitImageToViewport();
+            ieRenderTransform();
+        }
+
+        // Görseli çerçeve içinde fare/parmakla sürükleyerek konumlandırma (yerleştirme).
+        function ieDragStart(x, y) {
+            if (!ieState) return;
+            ieState.dragging = true;
+            ieState.dragStartX = x;
+            ieState.dragStartY = y;
+            ieState.dragStartOffX = ieState.offsetX;
+            ieState.dragStartOffY = ieState.offsetY;
+            const viewport = document.getElementById('ie-viewport');
+            if (viewport) viewport.style.cursor = 'grabbing';
+        }
+        function ieDragMove(x, y) {
+            if (!ieState || !ieState.dragging) return;
+            ieState.offsetX = ieState.dragStartOffX + (x - ieState.dragStartX);
+            ieState.offsetY = ieState.dragStartOffY + (y - ieState.dragStartY);
+            ieRenderTransform();
+        }
+        function ieDragEnd() {
+            if (!ieState) return;
+            ieState.dragging = false;
+            const viewport = document.getElementById('ie-viewport');
+            if (viewport) viewport.style.cursor = 'grab';
+        }
+        // Sürükleme olay dinleyicileri sayfa açılışında BİR KEZ bağlanır (modal her açılışta yeniden değil).
+        function ieInitDragHandlers() {
+            const viewport = document.getElementById('ie-viewport');
+            if (!viewport || viewport.dataset.ieBound) return;
+            viewport.dataset.ieBound = '1';
+            viewport.addEventListener('mousedown', e => { e.preventDefault(); ieDragStart(e.clientX, e.clientY); });
+            window.addEventListener('mousemove', e => ieDragMove(e.clientX, e.clientY));
+            window.addEventListener('mouseup', ieDragEnd);
+            viewport.addEventListener('touchstart', e => { const t = e.touches[0]; ieDragStart(t.clientX, t.clientY); }, { passive: true });
+            viewport.addEventListener('touchmove', e => { const t = e.touches[0]; ieDragMove(t.clientX, t.clientY); e.preventDefault(); }, { passive: false });
+            viewport.addEventListener('touchend', ieDragEnd);
+        }
+
+        // "Uygula"ya basıldığında, o an çerçeve içinde GÖRÜNEN kısmı gerçek bir kırpılmış
+        // görsele (canvas) dönüştürür ve callback'e data URL olarak döner.
+        function closeImageEditor(apply) {
+            const modal = document.getElementById('image-editor-modal');
+            if (!modal) return;
+            if (!apply || !ieState) {
+                modal.classList.add('hidden');
+                const cb0 = ieState && ieState.onDone;
+                ieState = null;
+                if (cb0) cb0(null);
+                return;
+            }
+            const outW = 900;
+            const outH = Math.round(outW * (ieState.viewportH / ieState.viewportW));
+            const canvas = document.createElement('canvas');
+            canvas.width = outW;
+            canvas.height = outH;
+            const ctx = canvas.getContext('2d');
+            const imgEl = document.getElementById('ie-image');
+
+            const renderScale = outW / ieState.viewportW;
+            const scale = ieState.baseScale * (ieState.zoomPct / 100) * renderScale;
+            const cx = (ieState.viewportW / 2 + ieState.offsetX) * renderScale;
+            const cy = (ieState.viewportH / 2 + ieState.offsetY) * renderScale;
+
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.rotate(ieState.rotate * Math.PI / 180);
+            ctx.drawImage(imgEl, -(ieState.naturalW * scale) / 2, -(ieState.naturalH * scale) / 2, ieState.naturalW * scale, ieState.naturalH * scale);
+            ctx.restore();
+
+            const resultDataUrl = canvas.toDataURL('image/jpeg', 0.9);
+            modal.classList.add('hidden');
+            const cb = ieState.onDone;
+            ieState = null;
+            if (cb) cb(resultDataUrl);
+        }
+
+        // Bir data URL'yi, buluta yüklemede kullanılan diğer fonksiyonların (uploadImageFileToCloud
+        // vb.) beklediği File nesnesine çevirir.
+        function dataUrlToFile(dataUrl, filename) {
+            const arr = dataUrl.split(',');
+            const mimeMatch = arr[0].match(/:(.*?);/);
+            const mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+            const bstr = atob(arr[1]);
+            let n = bstr.length;
+            const u8arr = new Uint8Array(n);
+            while (n--) u8arr[n] = bstr.charCodeAt(n);
+            return new File([u8arr], filename || 'gorsel.jpg', { type: mime });
+        }
+        // ============================================================================
+
+        // ── ÇERÇEVE STİLİ (saydamlık / kenarlık kalınlığı / en-boy oranı) ──────────────
+        // Kırpma/döndürmeden BAĞIMSIZ, panoda gösterim anında uygulanan görünüm ayarı.
+        // el: görselin KENDİSİ (img) ya da onu saran çerçeve (wrapper) elementi olabilir.
+        // cfg: {opacity: 0-100, borderWidth: px, borderColor: hex, ratio: 'auto'|'1/1'|'4/3'|'16/9'|'3/4'|'2/3'}
+        function applyImageFrameStyle(el, cfg) {
+            if (!el) return;
+            const c = Object.assign({ opacity: 100, borderWidth: 0, borderColor: '#00b4d8', ratio: 'auto' }, cfg || {});
+            el.style.opacity = (typeof c.opacity === 'number' ? c.opacity : 100) / 100;
+            const bw = parseFloat(c.borderWidth) || 0;
+            el.style.borderWidth = bw + 'px';
+            el.style.borderStyle = bw > 0 ? 'solid' : 'none';
+            el.style.borderColor = c.borderColor || '#00b4d8';
+            el.style.aspectRatio = (c.ratio && c.ratio !== 'auto') ? c.ratio.replace('/', ' / ') : '';
+        }
+
+        // applyImageFrameStyle'ın aynısı ama doğrudan bir DOM elementi yerine, HTML şablonu
+        // (template string) içine gömülecek bir "style" metni üretir (ör. getRosterAvatarHtml).
+        function imageFrameStyleString(cfg) {
+            const c = Object.assign({ opacity: 100, borderWidth: 0, borderColor: '#00b4d8', ratio: 'auto' }, cfg || {});
+            const bw = parseFloat(c.borderWidth) || 0;
+            const ratioCss = (c.ratio && c.ratio !== 'auto') ? `aspect-ratio:${c.ratio.replace('/', ' / ')};` : '';
+            return `opacity:${(typeof c.opacity === 'number' ? c.opacity : 100) / 100};border-width:${bw}px;border-style:${bw > 0 ? 'solid' : 'none'};border-color:${c.borderColor || '#00b4d8'};${ratioCss}`;
+        }
+
+        // Bir "çerçeve ayarları" mini panelinin (saydamlık + kalınlık + oran) HTML'ini
+        // üretir. idPrefix: bu kontrollerin id'lerinde kullanılacak benzersiz ön ek.
+        function frameControlsHtml(idPrefix, cfg) {
+            const c = Object.assign({ opacity: 100, borderWidth: 0, borderColor: '#00b4d8', ratio: 'auto' }, cfg || {});
+            const ratios = [['auto', 'Serbest'], ['1/1', '1:1'], ['4/3', '4:3'], ['16/9', '16:9'], ['3/4', '3:4'], ['2/3', '2:3']];
+            return `
+                <div class="grid grid-cols-3 gap-3 bg-slate-900/60 border border-slate-800 rounded-lg p-3">
+                    <div>
+                        <label class="text-[10px] text-slate-500 block mb-1">Saydamlık: <span id="${idPrefix}-opacity-val">${c.opacity}</span>%</label>
+                        <input type="range" id="${idPrefix}-opacity" min="10" max="100" value="${c.opacity}" oninput="document.getElementById('${idPrefix}-opacity-val').innerText=this.value; frameControlsOnChange('${idPrefix}')" class="w-full accent-cyan-500">
+                    </div>
+                    <div>
+                        <label class="text-[10px] text-slate-500 block mb-1">Kalınlık: <span id="${idPrefix}-border-val">${c.borderWidth}</span>px</label>
+                        <div class="flex items-center gap-1.5">
+                            <input type="range" id="${idPrefix}-border" min="0" max="10" value="${c.borderWidth}" oninput="document.getElementById('${idPrefix}-border-val').innerText=this.value; frameControlsOnChange('${idPrefix}')" class="w-full accent-cyan-500">
+                            <input type="color" id="${idPrefix}-border-color" value="${c.borderColor}" oninput="frameControlsOnChange('${idPrefix}')" class="w-7 h-7 bg-slate-900 border border-slate-800 rounded cursor-pointer shrink-0">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-[10px] text-slate-500 block mb-1">Çerçeve Oranı</label>
+                        <select id="${idPrefix}-ratio" onchange="frameControlsOnChange('${idPrefix}')" class="w-full bg-slate-900 border border-slate-800 rounded px-1.5 py-1.5 text-[10px] text-slate-200">
+                            ${ratios.map(r => `<option value="${r[0]}" ${c.ratio === r[0] ? 'selected' : ''}>${r[1]}</option>`).join('')}
+                        </select>
+                    </div>
+                </div>`;
+        }
+
+        // frameControlsHtml ile üretilen kontrollerden güncel değerleri okur.
+        function readFrameControls(idPrefix) {
+            const opacityEl = document.getElementById(`${idPrefix}-opacity`);
+            const borderEl = document.getElementById(`${idPrefix}-border`);
+            const colorEl = document.getElementById(`${idPrefix}-border-color`);
+            const ratioEl = document.getElementById(`${idPrefix}-ratio`);
+            if (!opacityEl || !borderEl || !colorEl || !ratioEl) return null;
+            return {
+                opacity: parseInt(opacityEl.value, 10) || 100,
+                borderWidth: parseInt(borderEl.value, 10) || 0,
+                borderColor: colorEl.value,
+                ratio: ratioEl.value
+            };
+        }
+
+        // idPrefix -> hangi appConfig alanına ve hangi canlı önizleme fonksiyonuna
+        // bağlanacağının haritası. Yeni bir çerçeve kontrolü eklerken sadece bu haritaya
+        // bir satır eklemeniz yeterlidir.
+        const FRAME_CONTROL_MAP = {
+            'logo-frame': { configKey: 'logoFrame', apply: () => renderPanoData() },
+            'roster-frame': { configKey: 'rosterPhotoFrame', apply: () => { renderActiveDuties(); renderRosterList(); } }
+        };
+        function frameControlsOnChange(idPrefix) {
+            const map = FRAME_CONTROL_MAP[idPrefix];
+            const values = readFrameControls(idPrefix);
+            if (!map || !values) return;
+            appConfig[map.configKey] = values;
+            map.apply();
+            panoPersist();
+        }
+
+        // ── GÖRSEL OYNATMA LİSTESİ ALTYAZI STİLİ ───────────────────────────────────────
+        // Hazır şablonlar: her biri, tüm alanları tek tıkla makul bir görünüme ayarlar;
+        // kullanıcı sonrasında istediği tekil alanı yine de değiştirebilir.
+        const MEDIA_CAPTION_TEMPLATES = {
+            classic: { bgColor: "#02040a", bgOpacity: 85, textColor: "#cbd5e1", fontFamily: "'Rajdhani', sans-serif", fontSize: 14, fontWeight: 500, textAlign: "center", widthPct: 100, heightMode: "auto", heightPct: 20, padding: 8, borderColor: "#00b4d8", borderWidth: 0, cornerRadius: 0, shadow: "none", position: "bottom", posXPct: 50, posYPct: 90 },
+            glass: { bgColor: "#0d1b35", bgOpacity: 35, textColor: "#ffffff", fontFamily: "'Rajdhani', sans-serif", fontSize: 15, fontWeight: 600, textAlign: "center", widthPct: 88, heightMode: "auto", heightPct: 20, padding: 12, borderColor: "#ffffff", borderWidth: 1, cornerRadius: 14, shadow: "soft", position: "bottom", posXPct: 50, posYPct: 88 },
+            banner: { bgColor: "#00b4d8", bgOpacity: 100, textColor: "#02040a", fontFamily: "'Rajdhani', sans-serif", fontSize: 16, fontWeight: 800, textAlign: "center", widthPct: 100, heightMode: "auto", heightPct: 20, padding: 10, borderColor: "#00b4d8", borderWidth: 0, cornerRadius: 0, shadow: "none", position: "top", posXPct: 50, posYPct: 10 },
+            outline: { bgColor: "#000000", bgOpacity: 15, textColor: "#ffffff", fontFamily: "'Rajdhani', sans-serif", fontSize: 14, fontWeight: 600, textAlign: "center", widthPct: 80, heightMode: "auto", heightPct: 20, padding: 10, borderColor: "#00b4d8", borderWidth: 2, cornerRadius: 10, shadow: "strong", position: "free", posXPct: 50, posYPct: 92 }
+        };
+
+        // appConfig.mediaCaptionStyle ayarlarını panodaki gerçek altyazı elementine uygular.
+        // Elementin kendisi doğrudan güncellendiği için Yönetim Paneli açıkken bile arkadaki
+        // pano canlı olarak değişikliği anında gösterir (ekstra bir "önizleme" kopyasına gerek yok).
+        function applyMediaCaptionStyle() {
+            const el = document.getElementById('display-media-caption');
+            if (!el) return;
+            const c = Object.assign({}, defaultAppConfig.mediaCaptionStyle, appConfig.mediaCaptionStyle || {});
+
+            el.style.background = hexToRgba(c.bgColor, (parseInt(c.bgOpacity, 10) || 0) / 100);
+            el.style.color = c.textColor;
+            el.style.fontFamily = c.fontFamily;
+            el.style.fontSize = (parseInt(c.fontSize, 10) || 14) + 'px';
+            el.style.fontWeight = c.fontWeight;
+            el.style.textAlign = c.textAlign;
+            el.style.padding = (parseInt(c.padding, 10) || 0) + 'px';
+            el.style.borderRadius = (parseInt(c.cornerRadius, 10) || 0) + 'px';
+            const bw = parseInt(c.borderWidth, 10) || 0;
+            el.style.borderStyle = bw > 0 ? 'solid' : 'none';
+            el.style.borderWidth = bw + 'px';
+            el.style.borderColor = c.borderColor;
+            el.style.borderTop = ''; // .media-caption CSS sınıfındaki eski üst-kenarlığı geçersiz kılar
+            el.style.boxShadow = c.shadow === 'strong' ? '0 6px 24px rgba(0,0,0,0.6)' : (c.shadow === 'soft' ? '0 2px 12px rgba(0,0,0,0.35)' : 'none');
+            el.style.boxSizing = 'border-box';
+            el.style.margin = '0';
+
+            // Konum: taşıyıcı (.media-slider) zaten position:relative, overflow:hidden.
+            el.style.top = el.style.bottom = el.style.left = el.style.right = 'auto';
+            el.style.transform = '';
+            const heightCss = c.heightMode === 'fixed' ? (parseInt(c.heightPct, 10) || 20) + '%' : 'auto';
+            el.style.height = heightCss;
+            const widthPct = parseInt(c.widthPct, 10) || 100;
+
+            if (c.position === 'top' || c.position === 'bottom') {
+                el.style.width = widthPct + '%';
+                el.style.left = '50%';
+                el.style.transform = 'translateX(-50%)';
+                if (c.position === 'top') el.style.top = '0'; else el.style.bottom = '0';
+            } else if (c.position === 'left' || c.position === 'right') {
+                el.style.width = widthPct + '%';
+                el.style.top = '0';
+                el.style.height = c.heightMode === 'fixed' ? heightCss : '100%';
+                if (c.position === 'left') el.style.left = '0'; else el.style.right = '0';
+            } else { // "free": posXPct/posYPct, kutunun MERKEZİ o noktaya gelecek şekilde
+                el.style.width = widthPct + '%';
+                el.style.left = (parseInt(c.posXPct, 10) || 50) + '%';
+                el.style.top = (parseInt(c.posYPct, 10) || 90) + '%';
+                el.style.transform = 'translate(-50%, -50%)';
+            }
+        }
+
+        // Bir hazır şablonu appConfig.mediaCaptionStyle üzerine uygular, admin formundaki
+        // tüm alanları günceller, panoda anında gösterir ve kaydeder.
+        function applyMediaCaptionTemplate(name) {
+            const preset = MEDIA_CAPTION_TEMPLATES[name];
+            if (!preset) return;
+            appConfig.mediaCaptionStyle = Object.assign({ template: name }, preset);
+            renderMediaCaptionStyleForm();
+            applyMediaCaptionStyle();
+            panoPersist();
+        }
+
+        // Tek bir alanı günceller (kaydırıcı/renk/seçim değiştiğinde admin formundan çağrılır).
+        function mediaCaptionStyleOnChange(field, value) {
+            if (!appConfig.mediaCaptionStyle) appConfig.mediaCaptionStyle = Object.assign({}, defaultAppConfig.mediaCaptionStyle);
+            appConfig.mediaCaptionStyle[field] = value;
+            appConfig.mediaCaptionStyle.template = 'custom';
+            applyMediaCaptionStyle();
+            panoPersist();
+        }
+
+        // Admin formundaki tüm giriş elemanlarını (id'leri "mcs-" ile başlar) güncel
+        // appConfig.mediaCaptionStyle değerleriyle senkronlar (panel açılışında ve şablon
+        // uygulandığında çağrılır).
+        function renderMediaCaptionStyleForm() {
+            const c = Object.assign({}, defaultAppConfig.mediaCaptionStyle, appConfig.mediaCaptionStyle || {});
+            const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+            const setTxt = (id, val) => { const el = document.getElementById(id); if (el) el.innerText = val; };
+            setVal('mcs-bgcolor', c.bgColor);
+            setVal('mcs-bgopacity', c.bgOpacity); setTxt('mcs-bgopacity-val', c.bgOpacity);
+            setVal('mcs-textcolor', c.textColor);
+            setVal('mcs-font', c.fontFamily);
+            setVal('mcs-fontsize', c.fontSize); setTxt('mcs-fontsize-val', c.fontSize);
+            setVal('mcs-fontweight', c.fontWeight);
+            setVal('mcs-align', c.textAlign);
+            setVal('mcs-widthpct', c.widthPct); setTxt('mcs-widthpct-val', c.widthPct);
+            setVal('mcs-heightmode', c.heightMode);
+            setVal('mcs-heightpct', c.heightPct); setTxt('mcs-heightpct-val', c.heightPct);
+            setVal('mcs-padding', c.padding); setTxt('mcs-padding-val', c.padding);
+            setVal('mcs-bordercolor', c.borderColor);
+            setVal('mcs-borderwidth', c.borderWidth); setTxt('mcs-borderwidth-val', c.borderWidth);
+            setVal('mcs-radius', c.cornerRadius); setTxt('mcs-radius-val', c.cornerRadius);
+            setVal('mcs-shadow', c.shadow);
+            setVal('mcs-position', c.position);
+            setVal('mcs-posx', c.posXPct); setTxt('mcs-posx-val', c.posXPct);
+            setVal('mcs-posy', c.posYPct); setTxt('mcs-posy-val', c.posYPct);
+            const freeRow = document.getElementById('mcs-free-position-row');
+            if (freeRow) freeRow.classList.toggle('hidden', c.position !== 'free');
+            const heightPctRow = document.getElementById('mcs-heightpct-row');
+            if (heightPctRow) heightPctRow.classList.toggle('hidden', c.heightMode !== 'fixed');
         }
 
         // Büyük/orijinal boyutlu fotoğrafları hem hızlı yüklenmesi hem de depo şişmemesi için
@@ -1348,7 +1793,7 @@
                         font: legacyAw.cleanFont || "", size: legacyAw.cleanSize || "14", color: legacyAw.cleanColor || "",
                         textAlign: legacyAw.cleanTextAlign || "left", justify: legacyAw.cleanJustify || "center",
                         imgPosition: legacyAw.cleanImgPosition || "left", imgSize: 44, imgShape: "rounded",
-                        imgBorderWidth: 1.5, imgBorderColor: "#00b4d8", imgBorderStyle: "solid",
+                        imgBorderWidth: 1.5, imgBorderColor: "#00b4d8", imgBorderStyle: "solid", imgOpacity: 100,
                         cellEffect: "none", cellEffectColor: "#00b4d8", cellEffectIntensity: 100, imgEffect: "none", imgEffectColor: "#00b4d8", imgEffectIntensity: 100
                     }
                 },
@@ -1361,7 +1806,7 @@
                         font: legacyAw.studentFont || "", size: legacyAw.studentSize || "14", color: legacyAw.studentColor || "",
                         textAlign: legacyAw.studentTextAlign || "left", justify: legacyAw.studentJustify || "center",
                         imgPosition: legacyAw.studentImgPosition || "left", imgSize: 44, imgShape: "rounded",
-                        imgBorderWidth: 1.5, imgBorderColor: "#00b4d8", imgBorderStyle: "solid",
+                        imgBorderWidth: 1.5, imgBorderColor: "#00b4d8", imgBorderStyle: "solid", imgOpacity: 100,
                         cellEffect: "none", cellEffectColor: "#00b4d8", cellEffectIntensity: 100, imgEffect: "none", imgEffectColor: "#00b4d8", imgEffectIntensity: 100
                     }
                 }
@@ -1377,7 +1822,7 @@
             style: {
                 font: "", size: "14", color: "", textAlign: "left", justify: "center",
                 imgPosition: "left", imgSize: 44, imgShape: "rounded",
-                imgBorderWidth: 1.5, imgBorderColor: "#00b4d8", imgBorderStyle: "solid",
+                imgBorderWidth: 1.5, imgBorderColor: "#00b4d8", imgBorderStyle: "solid", imgOpacity: 100,
                 cellEffect: "none", cellEffectColor: "#00b4d8", cellEffectIntensity: 100, imgEffect: "none", imgEffectColor: "#00b4d8", imgEffectIntensity: 100,
                 ...(cat.style || {})
             }
@@ -1496,7 +1941,7 @@
             if (!appConfig.customModuleDefs) appConfig.customModuleDefs = [];
             appConfig.customModuleDefs.push(newDef);
             if (!appConfig.moduleSettings) appConfig.moduleSettings = {};
-            appConfig.moduleSettings[newId] = { title: 'Yeni Modül Başlığı', content: 'Bu alana metin yazabilirsiniz.', image: '', color: '', bgType: '', bgColor1: '', bgColor2: '', titleBgType: '', titleBgColor1: '', titleBgColor2: '', titleColor: '', font: '', size: 'normal', active: true, titleActive: true, cellEffect: 'none', cellEffectColor: '#00b4d8', cellEffectIntensity: 100 };
+            appConfig.moduleSettings[newId] = { title: 'Yeni Modül Başlığı', content: 'Bu alana metin yazabilirsiniz.', image: '', color: '', bgType: '', bgColor1: '', bgColor2: '', titleBgType: '', titleBgColor1: '', titleBgColor2: '', titleColor: '', font: '', size: 'normal', active: true, titleActive: true, cellEffect: 'none', cellEffectColor: '#00b4d8', moduleOpacity: 100, effectIntensity: 100, borderWidth: 1, cornerRadius: '', imgOpacity: 100, imgBorderWidth: 0, imgBorderColor: '#00b4d8', imgRatio: 'auto' };
             _rebuildModuleDefs();
             ensureCustomModuleCard(newDef);
             appConfig.panoLayout = panoFillMissingModules(panoGetLayoutState());
@@ -1594,6 +2039,7 @@
         let tempMediaPlaylist = [...(appConfig.mediaPlaylist || [])];
 
         window.onload = function() {
+            ieInitDragHandlers();
             writeCMSLog("Pano sistemi başarıyla başlatıldı.");
             appConfig.theme = appConfig.theme || 'standard';
             appConfig.themeMode = appConfig.themeMode || 'dark';
@@ -1601,6 +2047,7 @@
             renderThemeClasses();
             applyModuleSettingsToDashboard();
             renderPanoData();
+            applyMediaCaptionStyle();
             startPanoClocksAndIntervals();
             fetchLiveWeather();
             buildAdminClassSelector();
@@ -1696,6 +2143,7 @@
                 logoImg.classList.remove('hidden');
                 logoText.classList.add('hidden');
                 logoBox.classList.add('has-image');
+                applyImageFrameStyle(logoImg, appConfig.logoFrame || defaultAppConfig.logoFrame);
             } else {
                 logoImg.classList.add('hidden');
                 logoImg.src = '';
@@ -1818,28 +2266,30 @@
                 event.target.value = '';
                 return;
             }
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const dataUrl = e.target.result;
+            openImageEditor(file, { aspect: 1 }, function (editedDataUrl) {
+                event.target.value = '';
+                if (!editedDataUrl) return; // kullanıcı iptal etti
+                const dataUrl = editedDataUrl;
                 tempSchoolLogo = dataUrl;
                 const previewImg = document.getElementById('logo-preview-img');
                 const previewText = document.getElementById('logo-preview-text');
                 previewImg.src = tempSchoolLogo;
                 previewImg.classList.remove('hidden');
                 previewText.classList.add('hidden');
-                writeCMSLog("Yeni okul logosu seçildi (kaydetmeyi unutmayın).");
+                writeCMSLog("Yeni okul logosu düzenlendi/seçildi (kaydetmeyi unutmayın).");
 
                 // Arka planda buluta yükle: bitince (hâlâ aynı görsel seçiliyse) küçük bir
                 // bağlantıyla (URL) değiştirilir, böylece kaydedilen veri hafif kalır.
-                uploadImageFileToCloud(file, 'logo').then(url => {
+                const editedFile = dataUrlToFile(dataUrl, 'logo.jpg');
+                uploadImageFileToCloud(editedFile, 'logo').then(url => {
                     if (url && tempSchoolLogo === dataUrl) {
                         tempSchoolLogo = url;
                         writeCMSLog("Logo buluta yüklendi (hafif bağlantı olarak kaydedilecek).");
                     }
                 });
-            };
-            reader.readAsDataURL(file);
+            });
         }
+
 
         function removeSchoolLogo() {
             tempSchoolLogo = "";
@@ -1961,7 +2411,8 @@
             const key = (name || '').trim();
             const entry = key && appConfig.teacherRoster ? appConfig.teacherRoster[key] : null;
             if (entry && entry.photo) {
-                return `<img src="${entry.photo}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;">`;
+                const frameStyle = imageFrameStyleString(appConfig.rosterPhotoFrame || defaultAppConfig.rosterPhotoFrame);
+                return `<img src="${entry.photo}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;${frameStyle}">`;
             }
             if (entry && entry.icon) {
                 return `<span style="font-size:22px;line-height:1;">${entry.icon}</span>`;
@@ -2190,25 +2641,26 @@
                 event.target.value = '';
                 return;
             }
-            const reader = new FileReader();
-            reader.onload = function (e) {
-                const dataUrl = e.target.result;
+            openImageEditor(file, { aspect: 1 }, function (editedDataUrl) {
+                event.target.value = '';
+                if (!editedDataUrl) return; // kullanıcı iptal etti
+                const dataUrl = editedDataUrl;
                 if (!appConfig.teacherRoster[name]) appConfig.teacherRoster[name] = { photo: '', icon: '' };
                 appConfig.teacherRoster[name].photo = dataUrl;
                 appConfig.teacherRoster[name].icon = ''; // fotoğraf yüklenince ikon önceliğini bırak
                 renderRosterList();
-                writeCMSLog(`"${name}" için fotoğraf seçildi (kaydetmeyi unutmayın).`);
+                writeCMSLog(`"${name}" için fotoğraf düzenlendi/seçildi (kaydetmeyi unutmayın).`);
 
                 // Arka planda buluta yükle: bitince (hâlâ aynı fotoğraf seçiliyse) küçük bir
                 // bağlantıyla (URL) değiştirilir, böylece kaydedilen veri hafif kalır.
-                uploadImageFileToCloud(file, 'nobetci-kadro').then(url => {
+                const editedFile = dataUrlToFile(dataUrl, 'nobetci.jpg');
+                uploadImageFileToCloud(editedFile, 'nobetci-kadro').then(url => {
                     if (url && appConfig.teacherRoster[name] && appConfig.teacherRoster[name].photo === dataUrl) {
                         appConfig.teacherRoster[name].photo = url;
                         writeCMSLog(`"${name}" fotoğrafı buluta yüklendi (hafif bağlantı olarak kaydedilecek).`);
                     }
                 });
-            };
-            reader.readAsDataURL(file);
+            });
         }
 
         // Haftalık ve aylık nöbet çizelgelerinde geçen tüm isimleri tarar,
@@ -3333,6 +3785,8 @@
                 const bStyle = st.imgBorderStyle || 'solid';
                 const bColor = st.imgBorderColor || '#00b4d8';
                 imgEl.style.border = (bStyle === 'none' || bw === 0) ? 'none' : `${bw}px ${bStyle} ${bColor}`;
+                const imgOp = (st.imgOpacity === 0 || st.imgOpacity) ? parseFloat(st.imgOpacity) : 100;
+                imgEl.style.opacity = imgOp / 100;
 
                 // DİKKAT ÇEKME EFEKTİ: sadece görselin çevresine uygulanan animasyonlu vurgu (glow/pulse/border)
                 imgEl.classList.remove('ach-img-fx-glow', 'ach-img-fx-pulse', 'ach-img-fx-border');
@@ -3834,6 +4288,10 @@
         // kenarlık rengi, kart arka planı ve başlık arka planı için HTML içinde tanımlı
         // ORİJİNAL/VARSAYILAN değerlerini bir kereliğine yakalar. "Varsayılana Dön" seçeneği
         // bu yakalanan gerçek özgün değerlere geri döner (boş bırakmak yerine).
+        // NOT: "Okul Marka Alanı" (brand) kartının çerçeve/arkaplan/efekti, "Kimlik & Güvenlik"
+        // sekmesindeki "Çerçeve, Arkaplan & Efekt" bölümünden ayrıca (iç .school-brand kutusuna)
+        // uygulanır; buradaki genel modül ayarları ise dış kart sarmalayıcısına (#brand-dashboard-card)
+        // uygulanır — diğer tüm modüllerle aynı şekilde.
         let panoModuleDefaultAppearance = null;
         function captureModuleDefaultAppearance() {
             if (panoModuleDefaultAppearance) return;
@@ -3861,15 +4319,11 @@
                 const s = (appConfig.moduleSettings && appConfig.moduleSettings[def.id]) || {};
                 const dflt = panoModuleDefaultAppearance[def.id] || { borderColor: '', cardBg: '', headerBg: '', headerColor: '' };
 
-                // Brand (header-bar) için sadece renk/arka plan ayarı yap,
-                // zoom ve display değiştirme — bozulmasını önler
-                const isBrand = def.id === 'brand';
-
                 // Yayında / Yayın Dışı
-                if (!isBrand) card.style.display = (s.active === false) ? 'none' : '';
+                card.style.display = (s.active === false) ? 'none' : '';
 
-                // Ebat (Kart İçeriği Ölçeklendirme) — brand için uygulanmaz
-                if (!isBrand) card.style.zoom = zoomMap[s.size] || 1;
+                // Ebat (Kart İçeriği Ölçeklendirme)
+                card.style.zoom = zoomMap[s.size] || 1;
 
                 // Kenarlık Rengi (özel seçilmemişse özgün varsayılana döner)
                 if (s.color) {
@@ -3880,26 +4334,44 @@
                     card.style.boxShadow = '';
                 }
 
-                // Modül Arka Planı (düz renk / degrade / varsayılan)
+                // Modül Saydamlığı, Kenarlık Kalınlığı, Köşe Oranı — marka (üst logo) kartında uygulanmaz.
+                // NOT: "Modül Saydamlığı" artık kartın TÜMÜNÜ (metin dahil) soldurmuyor — sadece
+                // arka plan katmanının (bkz. style.css .dashboard-card::after) opaklığını
+                // değiştiriyor; böylece yazı/görsel her zaman net kalır. Kenarlık kalınlığı için
+                // "1" nötr/varsayılan değer kabul edilir (tema kendi kenarlığını kullanmaya
+                // devam eder); sadece kullanıcı bilinçli olarak farklı bir değer seçtiğinde
+                // (0 dahil) gerçek bir geçersiz kılma uygulanır.
+                const moduleOpacity = (typeof s.moduleOpacity === 'number' ? s.moduleOpacity : 100) / 100;
+                card.style.setProperty('--pano-module-opacity', moduleOpacity);
+                card.style.borderWidth = (typeof s.borderWidth === 'number' && s.borderWidth !== 1) ? s.borderWidth + 'px' : '';
+                card.style.borderRadius = s.cornerRadius ? (s.cornerRadius + 'px') : '';
+
+                // Modül Arka Planı (düz renk / degrade / varsayılan) — arka plan artık doğrudan
+                // kartın kendi "background"ı değil, --pano-module-bg CSS değişkeni üzerinden
+                // ::after katmanına aktarılıyor (Modül Saydamlığı'nın SADECE bu katmanı
+                // etkileyebilmesi için).
                 if (s.bgType === 'gradient' && s.bgColor1 && s.bgColor2) {
-                    card.style.background = `linear-gradient(135deg, ${s.bgColor1}, ${s.bgColor2})`;
+                    card.style.setProperty('--pano-module-bg', `linear-gradient(135deg, ${s.bgColor1}, ${s.bgColor2})`);
                 } else if (s.bgType === 'solid' && s.bgColor1) {
-                    card.style.background = s.bgColor1;
+                    card.style.setProperty('--pano-module-bg', s.bgColor1);
                 } else {
-                    card.style.background = dflt.cardBg;
+                    card.style.removeProperty('--pano-module-bg'); // temanın --card-bg varsayılanına düşer
                 }
 
                 // KART EFEKTİ: dikkat çekmesi istenen modülleri (ör. Saat, Doğum Günleri) vurgulayan
-                // animasyonlu efekt (glow/pulse/border/shine). Marka (üst logo) kartında uygulanmaz.
-                card.classList.remove('pano-fx-glow', 'pano-fx-pulse', 'pano-fx-border', 'pano-fx-shine');
-                if (!isBrand) {
-                    const cellFx = s.cellEffect || 'none';
-                    if (cellFx !== 'none') {
-                        card.classList.add('pano-fx-' + cellFx);
-                        card.style.setProperty('--pano-fx-color', s.cellEffectColor || '#00b4d8');
-                    } else {
-                        card.style.removeProperty('--pano-fx-color');
-                    }
+                // animasyonlu efekt (glow/pulse/border/shine).
+                // "Efekt Işıma Oranı", efektin GÜCÜNÜ (--pano-fx-intensity çarpanı; bkz. style.css)
+                // ayarlar — ör. 0 = efekt yok, 1 = normal, 2.2 = çok güçlü ışıma.
+                card.classList.remove('pano-fx-glow', 'pano-fx-pulse', 'pano-fx-border', 'pano-fx-shine', 'pano-fx-neon', 'pano-fx-flicker', 'pano-fx-corner');
+                const cellFx = s.cellEffect || 'none';
+                if (cellFx !== 'none') {
+                    card.classList.add('pano-fx-' + cellFx);
+                    card.style.setProperty('--pano-fx-color', s.cellEffectColor || '#00b4d8');
+                    const intensity = (parseInt(s.effectIntensity, 10) || 100) / 100;
+                    card.style.setProperty('--pano-fx-intensity', intensity);
+                } else {
+                    card.style.removeProperty('--pano-fx-color');
+                    card.style.removeProperty('--pano-fx-intensity');
                 }
 
                 // Başlık Arka Planı (düz renk / degrade / varsayılan) + Başlık Yazı Rengi
@@ -3929,7 +4401,8 @@
                 if (!def.builtIn) {
                     const bodyEl = card.querySelector(':scope > .card-body');
                     if (bodyEl) {
-                        const imgHtml = s.image ? `<img src="${s.image.replace(/"/g, '&quot;')}" style="max-width:100%;max-height:65%;object-fit:contain;border-radius:8px;margin:0 auto 6px auto;display:block;">` : '';
+                        const imgFrameStyle = imageFrameStyleString({ opacity: s.imgOpacity, borderWidth: s.imgBorderWidth, borderColor: s.imgBorderColor, ratio: s.imgRatio });
+                        const imgHtml = s.image ? `<img src="${s.image.replace(/"/g, '&quot;')}" style="max-width:100%;max-height:65%;object-fit:contain;border-radius:8px;margin:0 auto 6px auto;display:block;${imgFrameStyle}">` : '';
                         const textHtml = (s.content || '').replace(/</g, '&lt;').replace(/\n/g, '<br>');
                         bodyEl.innerHTML = imgHtml + textHtml;
                     }
@@ -4054,6 +4527,33 @@
                                 <i class="fa-solid fa-trash"></i>
                             </button>
                             <input type="hidden" id="mod-image-${def.id}" value="${(s.image || '').replace(/"/g, '&quot;')}">
+                        </div>
+                    </div>
+                    <div class="col-span-12 flex items-center gap-3 flex-wrap pb-1 border-b border-slate-800/50">
+                        <span class="text-[10px] uppercase text-slate-500 font-bold whitespace-nowrap">Görsel Çerçevesi</span>
+                        <div class="flex items-center gap-1.5">
+                            <label class="text-[10px] text-slate-500">Saydamlık</label>
+                            <input type="range" id="mod-img-opacity-${def.id}" min="20" max="100" value="${s.imgOpacity ?? 100}"
+                                oninput="document.getElementById('mod-img-opacity-val-${def.id}').innerText=this.value; moduleSettingsOnChange('${def.id}')" class="w-20 accent-cyan-500">
+                            <span id="mod-img-opacity-val-${def.id}" class="text-[10px] text-slate-400 w-7">${s.imgOpacity ?? 100}</span>%
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <label class="text-[10px] text-slate-500">Kalınlık</label>
+                            <input type="range" id="mod-img-border-${def.id}" min="0" max="8" value="${s.imgBorderWidth ?? 0}"
+                                oninput="document.getElementById('mod-img-border-val-${def.id}').innerText=this.value; moduleSettingsOnChange('${def.id}')" class="w-20 accent-cyan-500">
+                            <span id="mod-img-border-val-${def.id}" class="text-[10px] text-slate-400 w-5">${s.imgBorderWidth ?? 0}</span>px
+                            <input type="color" id="mod-img-bordercolor-${def.id}" value="${s.imgBorderColor || '#00b4d8'}"
+                                oninput="moduleSettingsOnChange('${def.id}')" class="w-7 h-7 bg-slate-900 border border-slate-800 rounded cursor-pointer">
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <label class="text-[10px] text-slate-500">Oran</label>
+                            <select id="mod-img-ratio-${def.id}" onchange="moduleSettingsOnChange('${def.id}')" class="bg-slate-900 border border-slate-800 rounded px-1.5 py-1 text-[10px] text-slate-200">
+                                <option value="auto" ${(!s.imgRatio || s.imgRatio === 'auto') ? 'selected' : ''}>Serbest</option>
+                                <option value="1/1" ${s.imgRatio === '1/1' ? 'selected' : ''}>1:1</option>
+                                <option value="4/3" ${s.imgRatio === '4/3' ? 'selected' : ''}>4:3</option>
+                                <option value="16/9" ${s.imgRatio === '16/9' ? 'selected' : ''}>16:9</option>
+                                <option value="3/4" ${s.imgRatio === '3/4' ? 'selected' : ''}>3:4</option>
+                            </select>
                         </div>
                     </div>
                     <details class="col-span-12">
@@ -4187,10 +4687,38 @@
                                 <option value="pulse" ${s.cellEffect === 'pulse' ? 'selected' : ''}>Nabız Gibi Parıltı</option>
                                 <option value="border" ${s.cellEffect === 'border' ? 'selected' : ''}>Yanıp Sönen Çerçeve</option>
                                 <option value="shine" ${s.cellEffect === 'shine' ? 'selected' : ''}>Kayan Işık (Shine)</option>
+                                <option value="neon" ${s.cellEffect === 'neon' ? 'selected' : ''}>Neon (Güçlü Çift Katman)</option>
+                                <option value="flicker" ${s.cellEffect === 'flicker' ? 'selected' : ''}>Titreşen Işık (Flicker)</option>
+                                <option value="corner" ${s.cellEffect === 'corner' ? 'selected' : ''}>Köşe Işıması</option>
                             </select>
                             <input type="color" id="mod-cellfxcolor-${def.id}" value="${s.cellEffectColor || '#00b4d8'}"
                                 onchange="moduleSettingsOnChange('${def.id}')" title="Efekt Rengi" class="w-9 h-8 bg-slate-900 border border-slate-800 rounded cursor-pointer">
                             <span class="text-[9px] text-slate-600">Panoda dikkat çekmesini istediğiniz kartlarda (ör. Saat, Doğum Günleri) kullanın.</span>
+                        </div>
+                        <div class="flex flex-wrap items-end gap-4 pt-2 border-t border-slate-800/50">
+                            <div class="w-32">
+                                <label class="text-[10px] uppercase text-slate-500 font-bold block mb-1">Modül Saydamlığı: <span id="mod-opacity-val-${def.id}">${s.moduleOpacity ?? 100}</span>%</label>
+                                <input type="range" id="mod-opacity-${def.id}" min="20" max="100" value="${s.moduleOpacity ?? 100}"
+                                    oninput="document.getElementById('mod-opacity-val-${def.id}').innerText=this.value; moduleSettingsOnChange('${def.id}')" class="w-full accent-cyan-500">
+                                <p class="text-[9px] text-slate-600 mt-0.5">Sadece arka planı saydamlaştırır; yazı/görsel her zaman net kalır.</p>
+                            </div>
+                            <div class="w-32">
+                                <label class="text-[10px] uppercase text-slate-500 font-bold block mb-1">Efekt Işıma Oranı: <span id="mod-fxintensity-val-${def.id}">${s.effectIntensity ?? 100}</span>%</label>
+                                <input type="range" id="mod-fxintensity-${def.id}" min="0" max="250" value="${s.effectIntensity ?? 100}"
+                                    oninput="document.getElementById('mod-fxintensity-val-${def.id}').innerText=this.value; moduleSettingsOnChange('${def.id}')" class="w-full accent-cyan-500">
+                                <p class="text-[9px] text-slate-600 mt-0.5">Yukarıdaki "Kart Efekti" (Glow/Pulse/Kenarlık/Işık/Neon/Titreşen/Köşe) seçiliyken ışımanın gücünü ayarlar.</p>
+                            </div>
+                            <div class="w-32">
+                                <label class="text-[10px] uppercase text-slate-500 font-bold block mb-1">Kenarlık Kalınlığı: <span id="mod-borderw-val-${def.id}">${s.borderWidth ?? 1}</span>px</label>
+                                <input type="range" id="mod-borderw-${def.id}" min="0" max="20" value="${s.borderWidth ?? 1}"
+                                    oninput="document.getElementById('mod-borderw-val-${def.id}').innerText=this.value; moduleSettingsOnChange('${def.id}')" class="w-full accent-cyan-500">
+                            </div>
+                            <div class="w-32">
+                                <label class="text-[10px] uppercase text-slate-500 font-bold block mb-1">Köşe Yuvarlama: <span id="mod-radius-val-${def.id}">${s.cornerRadius ?? 0}</span>px</label>
+                                <input type="range" id="mod-radius-${def.id}" min="0" max="50" value="${s.cornerRadius || 0}"
+                                    oninput="document.getElementById('mod-radius-val-${def.id}').innerText=this.value; moduleSettingsOnChange('${def.id}')" class="w-full accent-cyan-500">
+                                <p class="text-[9px] text-slate-600 mt-0.5">Küçük kartlarda üst değerde tam yuvarlak (hap) görünür.</p>
+                            </div>
                         </div>
                     </div>
                 `;
@@ -4220,9 +4748,10 @@
         function handleCustomModuleImageSelect(id, inputEl) {
             const file = inputEl.files && inputEl.files[0];
             if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function (e) {
-                const dataUrl = e.target.result;
+            openImageEditor(file, { aspect: 16 / 9 }, function (editedDataUrl) {
+                inputEl.value = '';
+                if (!editedDataUrl) return; // kullanıcı iptal etti
+                const dataUrl = editedDataUrl;
                 const hidden = document.getElementById(`mod-image-${id}`);
                 const preview = document.getElementById(`mod-image-preview-${id}`);
                 const removeBtn = document.getElementById(`mod-image-remove-${id}`);
@@ -4231,15 +4760,15 @@
                 if (removeBtn) removeBtn.classList.remove('hidden');
                 moduleSettingsOnChange(id);
 
-                uploadImageFileToCloud(file, 'ozel-modul').then(url => {
+                const editedFile = dataUrlToFile(dataUrl, 'ozel-modul.jpg');
+                uploadImageFileToCloud(editedFile, 'ozel-modul').then(url => {
                     if (url && hidden && hidden.value === dataUrl) {
                         hidden.value = url;
                         moduleSettingsOnChange(id);
                         writeCMSLog("Modül görseli buluta yüklendi (hafif bağlantı olarak kaydedilecek).");
                     }
                 });
-            };
-            reader.readAsDataURL(file);
+            });
         }
 
         function removeCustomModuleImage(id) {
@@ -4317,6 +4846,23 @@
             if (cellFxSel) cellFxSel.value = 'none';
             const cellFxColor = document.getElementById(`mod-cellfxcolor-${id}`);
             if (cellFxColor) cellFxColor.value = '#00b4d8';
+
+            const opacitySlider = document.getElementById(`mod-opacity-${id}`);
+            const opacityVal = document.getElementById(`mod-opacity-val-${id}`);
+            if (opacitySlider) opacitySlider.value = 100;
+            if (opacityVal) opacityVal.innerText = 100;
+            const blurSlider = document.getElementById(`mod-fxintensity-${id}`);
+            const blurVal = document.getElementById(`mod-fxintensity-val-${id}`);
+            if (blurSlider) blurSlider.value = 100;
+            if (blurVal) blurVal.innerText = 100;
+            const borderWSlider = document.getElementById(`mod-borderw-${id}`);
+            const borderWVal = document.getElementById(`mod-borderw-val-${id}`);
+            if (borderWSlider) borderWSlider.value = 1;
+            if (borderWVal) borderWVal.innerText = 1;
+            const radiusSlider = document.getElementById(`mod-radius-${id}`);
+            const radiusVal = document.getElementById(`mod-radius-val-${id}`);
+            if (radiusSlider) radiusSlider.value = 0;
+            if (radiusVal) radiusVal.innerText = 0;
         }
 
         function collectModuleSettingsFromAdmin() {
@@ -4341,6 +4887,14 @@
                 const titleBgColor2Input = document.getElementById(`mod-titlebgcolor2-${def.id}`);
                 const cellFxInput = document.getElementById(`mod-cellfx-${def.id}`);
                 const cellFxColorInput = document.getElementById(`mod-cellfxcolor-${def.id}`);
+                const opacityInput = document.getElementById(`mod-opacity-${def.id}`);
+                const fxIntensityInput = document.getElementById(`mod-fxintensity-${def.id}`);
+                const borderWInput = document.getElementById(`mod-borderw-${def.id}`);
+                const radiusInput = document.getElementById(`mod-radius-${def.id}`);
+                const imgOpacityInput = document.getElementById(`mod-img-opacity-${def.id}`);
+                const imgBorderInput = document.getElementById(`mod-img-border-${def.id}`);
+                const imgBorderColorInput = document.getElementById(`mod-img-bordercolor-${def.id}`);
+                const imgRatioInput = document.getElementById(`mod-img-ratio-${def.id}`);
                 const fontInput = document.getElementById(`mod-font-${def.id}`);
                 const titleActiveInput = document.getElementById(`mod-title-active-${def.id}`);
                 const sizeInput = document.getElementById(`mod-size-${def.id}`);
@@ -4362,6 +4916,14 @@
                     titleBgColor2: titleBgColor2Input ? titleBgColor2Input.value : "",
                     cellEffect: cellFxInput ? cellFxInput.value : "none",
                     cellEffectColor: cellFxColorInput ? cellFxColorInput.value : "#00b4d8",
+                    moduleOpacity: opacityInput ? parseInt(opacityInput.value, 10) : 100,
+                    effectIntensity: fxIntensityInput ? parseInt(fxIntensityInput.value, 10) : 100,
+                    borderWidth: borderWInput ? parseInt(borderWInput.value, 10) : 1,
+                    cornerRadius: radiusInput ? radiusInput.value : "",
+                    imgOpacity: imgOpacityInput ? parseInt(imgOpacityInput.value, 10) : ((appConfig.moduleSettings[def.id] || {}).imgOpacity ?? 100),
+                    imgBorderWidth: imgBorderInput ? parseInt(imgBorderInput.value, 10) : ((appConfig.moduleSettings[def.id] || {}).imgBorderWidth ?? 0),
+                    imgBorderColor: imgBorderColorInput ? imgBorderColorInput.value : ((appConfig.moduleSettings[def.id] || {}).imgBorderColor || '#00b4d8'),
+                    imgRatio: imgRatioInput ? imgRatioInput.value : ((appConfig.moduleSettings[def.id] || {}).imgRatio || 'auto'),
                     font: fontInput ? fontInput.value : "",
                     active: activeInput ? activeInput.checked : ((appConfig.moduleSettings[def.id] || {}).active !== false),
                     titleActive: titleActiveInput ? titleActiveInput.checked : true,
@@ -4520,6 +5082,18 @@
             document.getElementById('input-name-font').value = appConfig.schoolNameFont || defaultAppConfig.schoolNameFont;
             document.getElementById('input-logo-offset').value = appConfig.logoOffsetX || 0;
             document.getElementById('input-name-offset').value = appConfig.nameOffsetX || 0;
+
+            // Görsel çerçeveleri (saydamlık / kenarlık kalınlığı / oran) — logo, nöbetçi kadro
+            // fotoğrafları ve medya slaytı için. Her panel açılışında güncel appConfig
+            // değerleriyle yeniden üretilir (placeholder container'lar index.html'de).
+            ['logo-frame', 'roster-frame'].forEach(prefix => {
+                const container = document.getElementById(`${prefix}-controls`);
+                const map = FRAME_CONTROL_MAP[prefix];
+                if (container && map) {
+                    container.innerHTML = frameControlsHtml(prefix, appConfig[map.configKey] || defaultAppConfig[map.configKey]);
+                }
+            });
+            renderMediaCaptionStyleForm();
             document.getElementById('input-brand-border-style').value = appConfig.brandBorderStyle || defaultAppConfig.brandBorderStyle;
             document.getElementById('input-brand-border-color').value = appConfig.brandBorderColor || defaultAppConfig.brandBorderColor;
             document.getElementById('input-brand-border-width').value = (appConfig.brandBorderWidth !== undefined && appConfig.brandBorderWidth !== null) ? appConfig.brandBorderWidth : defaultAppConfig.brandBorderWidth;
@@ -5296,21 +5870,22 @@
         function handleMediaFileSelect(inputEl) {
             const file = inputEl.files && inputEl.files[0];
             if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function (e) {
-                const dataUrl = e.target.result;
+            openImageEditor(file, { aspect: 16 / 9 }, function (editedDataUrl) {
+                inputEl.value = '';
+                if (!editedDataUrl) return; // kullanıcı iptal etti
+                const dataUrl = editedDataUrl;
                 const urlInput = document.getElementById('input-media-url');
                 if (urlInput) urlInput.value = dataUrl;
-                writeCMSLog("Medya için bilgisayardan fotoğraf seçildi (Slayda Ekle'ye basmayı unutmayın).");
+                writeCMSLog("Medya için fotoğraf düzenlendi/seçildi (Slayda Ekle'ye basmayı unutmayın).");
 
-                uploadImageFileToCloud(file, 'medya-slayt').then(url => {
+                const editedFile = dataUrlToFile(dataUrl, 'medya.jpg');
+                uploadImageFileToCloud(editedFile, 'medya-slayt').then(url => {
                     if (url && urlInput && urlInput.value === dataUrl) {
                         urlInput.value = url;
                         writeCMSLog("Medya fotoğrafı buluta yüklendi (hafif bağlantı olarak kaydedilecek).");
                     }
                 });
-            };
-            reader.readAsDataURL(file);
+            });
         }
 
         function addMediaSlide() {
@@ -5419,7 +5994,7 @@
                 style: {
                     font: "", size: "14", color: "", textAlign: "left", justify: "center",
                     imgPosition: "left", imgSize: 44, imgShape: "rounded",
-                    imgBorderWidth: 1.5, imgBorderColor: "#00b4d8", imgBorderStyle: "solid",
+                    imgBorderWidth: 1.5, imgBorderColor: "#00b4d8", imgBorderStyle: "solid", imgOpacity: 100,
                     cellEffect: "none", cellEffectColor: "#00b4d8", cellEffectIntensity: 100, imgEffect: "none", imgEffectColor: "#00b4d8", imgEffectIntensity: 100
                 }
             };
@@ -5460,22 +6035,23 @@
         function handleAchievementFileSelect(catId, inputEl) {
             const file = inputEl.files && inputEl.files[0];
             if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function (e) {
-                const dataUrl = e.target.result;
+            openImageEditor(file, { aspect: 1 }, function (editedDataUrl) {
+                inputEl.value = '';
+                if (!editedDataUrl) return; // kullanıcı iptal etti
+                const dataUrl = editedDataUrl;
                 achievementPendingFile[catId] = dataUrl;
                 updateAchRecordPreview(catId);
 
                 // Arka planda buluta yükle: bitince (hâlâ aynı görsel seçiliyse) küçük bir
                 // bağlantıyla (URL) değiştirilir, böylece kaydedilen veri hafif kalır.
-                uploadImageFileToCloud(file, 'ayin-enleri').then(url => {
+                const editedFile = dataUrlToFile(dataUrl, 'ayin-enleri.jpg');
+                uploadImageFileToCloud(editedFile, 'ayin-enleri').then(url => {
                     if (url && achievementPendingFile[catId] === dataUrl) {
                         achievementPendingFile[catId] = url;
                         writeCMSLog("Görsel buluta yüklendi (hafif bağlantı olarak kaydedilecek).");
                     }
                 });
-            };
-            reader.readAsDataURL(file);
+            });
         }
 
         // URL alanına yazılan adresi veya seçilen dosyayı küçük önizlemede gösterir
@@ -5672,6 +6248,11 @@
                             <label class="text-xs text-slate-400 block mb-1">Kenarlık Rengi</label>
                             <input type="color" value="${st.imgBorderColor || '#00b4d8'}" class="w-full h-9 bg-slate-900 border border-slate-800 rounded-lg cursor-pointer"
                                 oninput="updateAchievementCategoryStyleField('${cat.id}', 'imgBorderColor', this.value)">
+                        </div>
+                        <div class="form-group">
+                            <label class="text-xs text-slate-400 block mb-1">Saydamlık: <span id="ach-img-opacity-val-${cat.id}">${st.imgOpacity ?? 100}</span>%</label>
+                            <input type="range" min="20" max="100" value="${st.imgOpacity ?? 100}" class="w-full accent-cyan-500"
+                                oninput="document.getElementById('ach-img-opacity-val-${cat.id}').innerText=this.value; updateAchievementCategoryStyleField('${cat.id}', 'imgOpacity', this.value)">
                         </div>
                     </div>
 

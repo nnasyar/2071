@@ -1044,6 +1044,80 @@
             /* Konum/ebat artık panoInitLayout() tarafından dinamik olarak uygulanır. */
         }
 
+        /* ==========================================================================
+           KAYAN YAZI (MARQUEE) MODÜLÜ
+           Sürekli/kesintisiz kayan bir bant elde etmek için içerik iki kez art arda
+           basılır (.marquee-seg x2) ve track, translateX(0) -> translateX(-50%)
+           arasında animasyonla kaydırılır; ikinci kopyanın başladığı an ilk kopyanın
+           bittiği ana denk geldiği için göz, dikişsiz/kesintisiz bir döngü görür.
+           Süre (animation-duration), gerçek segment genişliğine ve seçilen "hız"a
+           göre JS tarafından (renderMarqueeWidget) anlık hesaplanır.
+           ========================================================================== */
+        .marquee-box .card-body {
+            padding: 0;
+            overflow: hidden;
+        }
+
+        .marquee-viewport {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            position: relative;
+            white-space: nowrap;
+        }
+
+        .marquee-viewport.marquee-paused-hover:hover .marquee-track {
+            animation-play-state: paused;
+        }
+
+        .marquee-track {
+            display: inline-flex;
+            align-items: center;
+            white-space: nowrap;
+            will-change: transform;
+            animation-name: marqueeScroll;
+            animation-timing-function: linear;
+            animation-iteration-count: infinite;
+            color: var(--text-main, #f1f5f9);
+        }
+
+        .marquee-seg {
+            display: inline-flex;
+            align-items: center;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .marquee-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+        }
+
+        .marquee-item i { font-size: 0.85em; }
+
+        .marquee-sep {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0.55;
+            flex-shrink: 0;
+            margin: 0 22px;
+            font-size: 0.75em;
+        }
+
+        .marquee-glow-text {
+            text-shadow: 0 0 6px var(--marquee-glow-color, #00e5ff), 0 0 16px var(--marquee-glow-color, #00e5ff);
+        }
+
+        @keyframes marqueeScroll {
+            from { transform: translateX(0); }
+            to { transform: translateX(-50%); }
+        }
+
         .ann-list {
             display: flex;
             flex-direction: column;
@@ -1375,6 +1449,86 @@
         }
 
         .achievement-separator.ach-sep-icon {
+            width: auto !important;
+            height: auto !important;
+            padding: 0 4px;
+        }
+
+        /* BELİRLİ GÜN & HAVA DURUMU — iki bağımsız alan (hücre) + aralarındaki ayırıcı.
+           "Ayın Enleri" kartındaki .achievements-flex / .achievement-separator düzeniyle
+           birebir aynı mantık: yerleşim (dikey/yatay) ve ayırıcı türü (çizgi/noktalı/simge/yok)
+           appConfig.specialDayWidget ayarlarına göre renderSpecialDayWeatherLayout() ile uygulanır. */
+        .specialday-flex {
+            display: flex;
+            flex: 1;
+            width: 100%;
+            min-height: 0;
+            min-width: 0;
+            gap: 6px;
+        }
+
+        .specialday-flex.sdw-layout-column {
+            flex-direction: column;
+            justify-content: space-around;
+        }
+
+        .specialday-flex.sdw-layout-row {
+            flex-direction: row;
+            align-items: center;
+        }
+
+        .sdw-area {
+            min-width: 0;
+            min-height: 0;
+        }
+
+        .specialday-flex.sdw-layout-row .sdw-area {
+            flex: 1 1 0;
+            min-width: 0;
+        }
+
+        .sdw-separator {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: rgba(0, 180, 216, 0.75);
+            font-size: 12px;
+        }
+
+        .sdw-layout-row .sdw-separator {
+            width: 1px;
+            align-self: stretch;
+        }
+
+        .sdw-layout-column .sdw-separator {
+            height: 1px;
+            width: 100%;
+        }
+
+        .sdw-separator.sdw-sep-none {
+            display: none;
+        }
+
+        .sdw-layout-row .sdw-separator.sdw-sep-line {
+            background: linear-gradient(to bottom, transparent, rgba(0, 180, 216, 0.6), transparent);
+        }
+
+        .sdw-layout-column .sdw-separator.sdw-sep-line {
+            background: linear-gradient(to right, transparent, rgba(0, 180, 216, 0.6), transparent);
+        }
+
+        .sdw-layout-row .sdw-separator.sdw-sep-dots {
+            width: 2px;
+            background-image: repeating-linear-gradient(to bottom, rgba(0, 180, 216, 0.7) 0 3px, transparent 3px 8px);
+        }
+
+        .sdw-layout-column .sdw-separator.sdw-sep-dots {
+            height: 2px;
+            background-image: repeating-linear-gradient(to right, rgba(0, 180, 216, 0.7) 0 3px, transparent 3px 8px);
+        }
+
+        .sdw-separator.sdw-sep-icon {
             width: auto !important;
             height: auto !important;
             padding: 0 4px;

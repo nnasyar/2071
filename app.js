@@ -110,7 +110,8 @@
                 clock: { title: "", color: "", bgType: "", bgColor1: "", bgColor2: "", titleBgType: "", titleBgColor1: "", titleBgColor2: "", titleColor: "", font: "", size: "normal", active: true, titleActive: true, cellEffect: "none", cellEffectColor: "#00b4d8", cellEffectIntensity: 100 },
                 achievements: { title: "AYIN ENLERİ", color: "", bgType: "", bgColor1: "", bgColor2: "", titleBgType: "", titleBgColor1: "", titleBgColor2: "", titleColor: "", font: "", size: "normal", active: true, titleActive: true, cellEffect: "none", cellEffectColor: "#00b4d8", cellEffectIntensity: 100, interval: 7 },
                 duty: { title: "BUGÜN GÖREVLİ NÖBETÇİ ÖĞRETMENLER", color: "", bgType: "", bgColor1: "", bgColor2: "", titleBgType: "", titleBgColor1: "", titleBgColor2: "", titleColor: "", font: "", size: "normal", active: true, titleActive: true, cellEffect: "none", cellEffectColor: "#00b4d8", cellEffectIntensity: 100 },
-                media: { title: "", color: "", bgType: "", bgColor1: "", bgColor2: "", titleBgType: "", titleBgColor1: "", titleBgColor2: "", titleColor: "", font: "", size: "normal", active: true, titleActive: true, cellEffect: "none", cellEffectColor: "#00b4d8", cellEffectIntensity: 100, interval: 10 }
+                media: { title: "", color: "", bgType: "", bgColor1: "", bgColor2: "", titleBgType: "", titleBgColor1: "", titleBgColor2: "", titleColor: "", font: "", size: "normal", active: true, titleActive: true, cellEffect: "none", cellEffectColor: "#00b4d8", cellEffectIntensity: 100, interval: 10 },
+                marquee: { title: "KAYAN YAZI", color: "", bgType: "", bgColor1: "", bgColor2: "", titleBgType: "", titleBgColor1: "", titleBgColor2: "", titleColor: "", font: "", size: "normal", active: true, titleActive: true, cellEffect: "none", cellEffectColor: "#00b4d8", cellEffectIntensity: 100 }
             },
             /* AYIN ENLERİ: DİNAMİK ALAN (HÜCRE) LİSTESİ
                Her alan; kendi başlığı, ikonu, kayıt listesi (URL veya manuel/dosya yüklenmiş görsel)
@@ -166,6 +167,26 @@
                 { text: "Sevgili Çocuklar, Okulumuzu temiz tutalım.", color: "", bgColor: "", font: "", fontSize: 11, bold: false },
                 { text: "Değerli velilerimiz, ders esnasında öğretmenlerimizle koridorlarda görüşmeyelim.", color: "", bgColor: "", font: "", fontSize: 11, bold: false }
             ],
+            marqueeItems: [
+                { text: "Okulumuza hoş geldiniz!", color: "", bold: false, italic: false, icon: "fa-bullhorn" },
+                { text: "Bilgiyle dolu, güzel bir gün geçirmenizi dileriz.", color: "", bold: false, italic: false, icon: "" }
+            ],
+            marqueeWidget: {
+                direction: "left",       // left (sağdan sola) | right (soldan sağa)
+                speed: 60,                // px/saniye
+                gap: 60,                  // tekrarlar arası boşluk (px)
+                pauseOnHover: true,
+                separator: "dot",         // dot | pipe | star | icon | none
+                separatorIcon: "fa-star",
+                textColor: "",
+                fontSize: 16,
+                letterSpacing: 0,
+                bold: false,
+                italic: false,
+                uppercase: false,
+                glowEnabled: false,
+                glowColor: "#00e5ff"
+            },
             birthdays: [
                 { class: "2/B", name: "Beyza KIZILŞARA", date: "24.11" },
                 { class: "3/C", name: "Enes DEMİR", date: "15.05" },
@@ -217,7 +238,22 @@
                 // DERECE (sıcaklık, ör. "21°C") biçimi
                 tempColor: "",                     // '' = varsayılan (--neon-blue)
                 tempFont: "",
-                tempSize: "13"
+                tempSize: "13",
+                // ALAN YERLEŞİMİ & AYIRICI: Belirli Gün ve Hava Durumu iki ayrı alan (hücre)
+                // olarak "Ayın Enleri" kartındaki gibi yönetilir.
+                layout: "column",                  // 'column' = üst üste (dikey), 'row' = yan yana (yatay)
+                separator: "line",                  // 'line' | 'dots' | 'icon' | 'none'
+                separatorIcon: "fa-star",           // separator 'icon' iken kullanılacak Font Awesome sınıfı
+                separatorThickness: 1,               // px cinsinden çizgi/nokta kalınlığı
+                // ALAN HİZALAMA: her iki alanın içeriği de bu ayara göre hizalanır.
+                alignH: "left",                      // 'left' | 'center' | 'right' — yatay (metin) hizalama
+                alignV: "center",                     // 'top' | 'center' | 'bottom' — dikey hizalama
+                // ALAN EFEKTLERİ: her alana ayrı ayrı uygulanabilen dikkat çekme efekti — "Ayın
+                // Enleri" hücreleriyle AYNI box-shadow tabanlı sistem (kırpılma sorunu yaşamaz)
+                specialdayEffect: "none",             // 'none' | 'glow' | 'pulse' | 'border' | 'shine'
+                specialdayEffectColor: "#00b4d8",
+                weatherEffect: "none",
+                weatherEffectColor: "#00b4d8"
             },
             weeklyDuties: {
                 "Pazartesi": { admin: "Nihan Öztürk", canteen: "Ahmet Ak", garden: "Veli Can", floor1: "Zeynep Şen", floor2: "Murat Koç" },
@@ -364,7 +400,7 @@
         const PANO_GRID_COLS = 96;
         const PANO_GRID_ROWS = 64;
 
-        const PANO_MODULE_IDS = ['brand', 'media', 'birthday', 'schedule', 'quote', 'specialday', 'bellhours', 'announcements', 'clock', 'achievements', 'duty'];
+        const PANO_MODULE_IDS = ['brand', 'media', 'birthday', 'schedule', 'quote', 'specialday', 'bellhours', 'announcements', 'clock', 'achievements', 'duty', 'marquee'];
 
         const PANO_MODULE_LABELS = {
             brand: 'Okul Marka Alanı',
@@ -377,7 +413,8 @@
             announcements: 'Duyurular',
             clock: 'Saat / Geri Sayım',
             achievements: 'Ayın Enleri',
-            duty: 'Nöbetçi Öğretmenler'
+            duty: 'Nöbetçi Öğretmenler',
+            marquee: 'Kayan Yazı'
         };
 
         // Hazır yerleşim şablonları. Her şablon 11 modülün tamamını, boşluk bırakmadan
@@ -477,12 +514,18 @@
 
         // localStorage'dan gelen eski/eksik bir yerleşimde kayıp modül varsa klasik şablondan tamamlar.
         // Özel modüller için klasik şablonda tanım olmadığından, uygun bir varsayılan konum üretilir.
+        // Yeni eklenen "Kayan Yazı" modülü için, hazır şablonlarda henüz yeri
+        // tanımlanmadığından, panonun en altında tam genişlikte ince bir bant olarak
+        // makul bir varsayılan konum kullanılır (kullanıcı dilerse Yerleşim
+        // Düzenleyici'den istediği yere taşıyıp boyutlandırabilir).
+        const MARQUEE_DEFAULT_POS = { c: 1, cs: 96, r: 59, rs: 6, fs: 100 };
+
         function panoFillMissingModules(layout) {
             const merged = { ...layout };
             const fallback = PANO_LAYOUT_TEMPLATES.klasik;
             panoAllModuleIds().forEach((id, idx) => {
                 const isBuiltIn = PANO_MODULE_IDS.includes(id);
-                const def = fallback[id] || { c: 1, cs: 24, r: 1 + ((idx * 8) % 56), rs: 8, fs: 100 };
+                const def = fallback[id] || (id === 'marquee' ? MARQUEE_DEFAULT_POS : { c: 1, cs: 24, r: 1 + ((idx * 8) % 56), rs: 8, fs: 100 });
                 if (!merged[id]) merged[id] = { ...def };
                 else merged[id] = { c: 1, cs: 12, r: 1, rs: 4, fs: 100, ...def, ...merged[id] };
             });
@@ -615,6 +658,80 @@
         // Okuma da yazma da SUPABASE_CONFIG dolu olduğu an otomatik aktif olur; token
         // girişine hiç gerek yoktur (GitHub sürümünden farkı budur).
         const CLOUD_SYNC_ENABLED = !!(SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey);
+
+        // ============================================================================
+        // EKRAN GEÇİŞİ (Pano49 ↔ Duyuru Panosu) — panox49 ile duyuru panosu editörü
+        // AYNI Supabase projesindeki küçük ve bağımsız "display_control" tablosunu
+        // (tek satır, id=1, "active" sütunu "pano" ya da "duyuru") paylaşır. Bu tabloya
+        // dokunmak appConfig'i (pano_config tablosu) HİÇ etkilemez — kasıtlı olarak ayrı
+        // tutuldu ki bir tarafın ekran geçişi diğer tarafın tüm ayarlarının üzerine
+        // yazma riski taşımasın.
+        //
+        // DUYURU_PANOSU_URL: duyuru panosu HTML dosyasının, bu index.html'e göre GÖRECELİ
+        // (relative) yolu. İkisini AYNI klasöre/repoya yüklerseniz aşağıdaki varsayılan
+        // dosya adı doğrudan çalışır; farklı bir isim/konum kullanırsanız burayı güncelleyin.
+        // ============================================================================
+        const DISPLAY_CONTROL_TABLE = 'display_control';
+        const DUYURU_PANOSU_URL = 'gelismis-dijital-duyuru-panosu.html';
+        let displayControlPollTimer = null;
+        let displayControlSwitching = false; // yönlendirme sırasında ikinci bir tetiklenmeyi önler
+
+        function setActiveDisplay(target) {
+            if (!supabaseClient) {
+                showCustomNotification('Bulut Bağlı Değil', 'Ekran geçişi için Supabase bağlantısı gerekli.');
+                return;
+            }
+            displayControlSwitching = true;
+            supabaseClient
+                .from(DISPLAY_CONTROL_TABLE)
+                .update({ active: target, updated_at: new Date().toISOString() })
+                .eq('id', 1)
+                .then(({ error }) => {
+                    if (error) {
+                        console.warn('Ekran geçişi yazılamadı:', error);
+                        showCustomNotification('Hata', 'Ekran geçişi kaydedilemedi: ' + error.message);
+                        displayControlSwitching = false;
+                        return;
+                    }
+                    if (target === 'duyuru') {
+                        writeCMSLog('Ekran, Duyuru Panosu\'na geçiriliyor...');
+                        const sep = DUYURU_PANOSU_URL.includes('?') ? '&' : '?';
+                        window.location.href = DUYURU_PANOSU_URL + sep + 'ekran=1';
+                    }
+                });
+        }
+
+        // Anında (sayfa açılır açılmaz) ve ardından periyodik olarak kontrol eder;
+        // başka bir cihazdan (ör. duyuru panosu üzerinden) "duyuru" seçilmişse bu
+        // ekranı da otomatik olarak duyuru panosuna yönlendirir.
+        function displayControlCheckOnce() {
+            if (!supabaseClient || displayControlSwitching) return;
+            const adminPanel = document.getElementById('admin-panel');
+            const isAdminOpen = adminPanel && !adminPanel.classList.contains('hidden');
+            if (isAdminOpen) return; // aktif düzenlemeyi bozma; panel kapanınca zaten normal akışla tekrar kontrol edilecek
+            supabaseClient
+                .from(DISPLAY_CONTROL_TABLE)
+                .select('active')
+                .eq('id', 1)
+                .maybeSingle()
+                .then(({ data, error }) => {
+                    if (error || !data) return;
+                    if (data.active === 'duyuru') {
+                        displayControlSwitching = true;
+                        const sep = DUYURU_PANOSU_URL.includes('?') ? '&' : '?';
+                        window.location.href = DUYURU_PANOSU_URL + sep + 'ekran=1';
+                    }
+                })
+                .catch(() => {});
+        }
+
+        function displayControlStartPolling() {
+            if (!supabaseClient) return;
+            if (displayControlPollTimer) clearInterval(displayControlPollTimer);
+            displayControlCheckOnce();
+            displayControlPollTimer = setInterval(displayControlCheckOnce, 5000);
+        }
+        // ============================================================================
 
         let supabaseClient = null;
         if (CLOUD_SYNC_ENABLED) {
@@ -1549,7 +1666,7 @@
         function panoApplyTemplate(templateKey) {
             const tpl = PANO_LAYOUT_TEMPLATES[templateKey];
             if (!tpl) return;
-            appConfig.panoLayout = JSON.parse(JSON.stringify(tpl));
+            appConfig.panoLayout = panoFillMissingModules(JSON.parse(JSON.stringify(tpl)));
             panoPersist();
             applyPanoLayout(appConfig.panoLayout);
             panoRenderModuleSizeList();
@@ -1708,6 +1825,27 @@
             appConfig.announcements = appConfig.announcements.map(normalizeAnnouncement);
         }
 
+        // KAYAN YAZI: eski kayıtlarda bu alan hiç yoktu; yoksa varsayılan mesajları,
+        // varsa da eksik alanları (icon/bold/italic vb.) tamamlayarak normalize ediyoruz.
+        function normalizeMarqueeItem(m) {
+            if (typeof m === 'string') {
+                return { text: m, color: '', bold: false, italic: false, icon: '' };
+            }
+            return {
+                text: (m && m.text) || '',
+                color: (m && m.color) || '',
+                bold: !!(m && m.bold),
+                italic: !!(m && m.italic),
+                icon: (m && m.icon) || ''
+            };
+        }
+        if (!Array.isArray(appConfig.marqueeItems)) {
+            appConfig.marqueeItems = JSON.parse(JSON.stringify(defaultAppConfig.marqueeItems));
+        } else {
+            appConfig.marqueeItems = appConfig.marqueeItems.map(normalizeMarqueeItem);
+        }
+        appConfig.marqueeWidget = { ...defaultAppConfig.marqueeWidget, ...(appConfig.marqueeWidget || {}) };
+
         // IZGARA SÜRÜM GEÇMİŞİ: v1 = 24x16, v2 = 48x32, v3 = 96x64
         // Daha önceki bir sürümde tarayıcıya kaydedilmiş özel bir pano düzeni varsa,
         // koordinatları eski ızgaraya göredir. Görünüm bozulmasın diye bu düzeni
@@ -1770,7 +1908,7 @@
         }
         appConfig.scheduleBoardStyle = { ...JSON.parse(JSON.stringify(defaultAppConfig.scheduleBoardStyle)), ...(appConfig.scheduleBoardStyle || {}) };
         appConfig.clockStyle = { ...JSON.parse(JSON.stringify(defaultAppConfig.clockStyle)), ...(appConfig.clockStyle || {}) };
-        if (!appConfig.panoLayout) appConfig.panoLayout = JSON.parse(JSON.stringify(PANO_LAYOUT_TEMPLATES['klasik']));
+        if (!appConfig.panoLayout) appConfig.panoLayout = panoFillMissingModules(JSON.parse(JSON.stringify(PANO_LAYOUT_TEMPLATES['klasik'])));
         else appConfig.panoLayout = panoFillMissingModules(appConfig.panoLayout);
         if (!appConfig.savedLayouts) appConfig.savedLayouts = {};
         if (!appConfig.quotes || appConfig.quotes.length === 0) {
@@ -1886,7 +2024,8 @@
             { id: 'clock',         label: 'Saat / Geri Sayım',        cardSel: '#clock-dashboard-card',         titleSel: null,                            hasTitle: false, hasInterval: false, builtIn: true },
             { id: 'achievements',  label: 'Ayın Enleri',              cardSel: '#achievements-dashboard-card',  titleSel: '#display-achievements-title',   hasTitle: true,  hasInterval: true,  defaultInterval: 7,  builtIn: true },
             { id: 'duty',          label: 'Nöbetçi Öğretmenler',      cardSel: '#duty-dashboard-card',          titleSel: '#display-duty-title-text',      hasTitle: true,  hasInterval: false, builtIn: true },
-            { id: 'media',         label: 'Görsel Slayt Alanı',       cardSel: '#media-dashboard-card',         titleSel: null,                            hasTitle: false, hasInterval: true,  defaultInterval: 10, builtIn: true }
+            { id: 'media',         label: 'Görsel Slayt Alanı',       cardSel: '#media-dashboard-card',         titleSel: null,                            hasTitle: false, hasInterval: true,  defaultInterval: 10, builtIn: true },
+            { id: 'marquee',       label: 'Kayan Yazı',               cardSel: '#marquee-dashboard-card',       titleSel: '#display-marquee-title',        hasTitle: true,  hasInterval: false, builtIn: true }
         ];
 
         // Çalışma zamanında kullanılan birleşik modül listesi (yerleşik + kullanıcı eklentileri)
@@ -2031,6 +2170,7 @@
 
         let editingBirthdayIndex = -1;
         let editingAnnouncementIndex = -1;
+        let editingMarqueeIndex = -1;
         let selectedBirthdayIndices = new Set(); // Toplu silme için seçilen doğum günü satır indeksleri
         let selectedSpecialDayIndices = new Set(); // Toplu silme için seçilen belirli gün/hafta satır indeksleri
         let selectedQuoteIndices = new Set(); // Toplu silme için seçilen söz satır indeksleri
@@ -2054,6 +2194,7 @@
         let tempAchievementCategories = []; // Admin panelinde düzenlenen çalışma kopyası
 
         let tempAnnouncements = [...appConfig.announcements];
+        let tempMarqueeItems = [...(appConfig.marqueeItems || [])];
         let tempBirthdays = [...appConfig.birthdays];
         let tempQuotes = [...(appConfig.quotes || [])];
         let tempSpecialDays = [...appConfig.specialDays];
@@ -2085,6 +2226,7 @@
                 writeCMSLog("Bulut senkronizasyonu etkin, buluttaki veriler kontrol ediliyor...");
                 cloudSyncPullOnce();
                 cloudSyncStartListening();
+                displayControlStartPolling();
             }
 
             document.addEventListener('keydown', function(e) {
@@ -2094,6 +2236,16 @@
                     if (!isModalOpen) tryOpenAdminPanel();
                 }
             });
+
+            // Kayan yazının hız hesaplaması gerçek piksel genişliğine dayandığından,
+            // pencere/ekran boyutu değiştiğinde (ör. tam ekrana geçiş) yeniden çizilmesi gerekir.
+            let marqueeResizeTimer = null;
+            window.addEventListener('resize', function() {
+                clearTimeout(marqueeResizeTimer);
+                marqueeResizeTimer = setTimeout(renderMarqueeWidget, 200);
+            });
+            document.addEventListener('fullscreenchange', function() { setTimeout(renderMarqueeWidget, 250); });
+            document.addEventListener('webkitfullscreenchange', function() { setTimeout(renderMarqueeWidget, 250); });
         };
 
         function writeCMSLog(message) {
@@ -2141,6 +2293,98 @@
             if (confirmCallback) confirmCallback();
             confirmCallback = null;
         };
+
+        // ==========================================================================
+        // KAYAN YAZI (MARQUEE) — RENDER MOTORU
+        // ==========================================================================
+
+        // Mesajlar arasına konacak ayırıcının HTML'ini üretir (nokta/çizgi/yıldız/özel ikon/yok)
+        // ÖNEMLİ: Öğeler arası boşluk (mw.gap) burada, ayırıcının kendi margin'i olarak
+        // uygulanır — track'e (üst kapsayıcıya) column-gap olarak DEĞİL. Çünkü track'in
+        // doğrudan çocukları sadece 2 tane (.marquee-seg x2, bkz. buildMarqueeTrack) ve
+        // aralarına column-gap koymak yalnızca o TEK sınırda ekstra boşluk yaratır; döngü
+        // (son öğeden ilk öğeye dönüş) noktasında ise bu boşluk olmadığından iki kopya
+        // arasında genişlik uyuşmazlığı oluşur ve kayan yazı her turda "sıçrayarak" /
+        // aniden atlayarak görünür. Boşluğu her ayırıcıya (dolayısıyla her öğe arasına,
+        // döngü noktası dahil) eşit şekilde uygulamak bu sıçramayı ortadan kaldırır.
+        function marqueeSeparatorHtml(mw) {
+            const gap = (mw && mw.gap != null) ? mw.gap : 60;
+            const half = gap / 2;
+            const sep = (mw && mw.separator) || 'dot';
+            if (sep === 'none') return `<span class="marquee-sep" style="margin:0 ${half}px;"></span>`;
+            if (sep === 'pipe') return `<span class="marquee-sep" style="margin:0 ${half}px;">|</span>`;
+            if (sep === 'star') return `<span class="marquee-sep" style="margin:0 ${half}px;"><i class="fa-solid fa-star"></i></span>`;
+            if (sep === 'icon') return `<span class="marquee-sep" style="margin:0 ${half}px;"><i class="fa-solid ${(mw.separatorIcon || 'fa-circle').replace(/"/g, '')}"></i></span>`;
+            return `<span class="marquee-sep" style="margin:0 ${half}px;">•</span>`;
+        }
+
+        // Tek bir kayan yazı mesajının HTML'ini üretir (kendi rengi/kalın/italik/ikonu ile)
+        function renderMarqueeItemHtml(item) {
+            const styleParts = [];
+            if (item.color) styleParts.push(`color:${item.color}`);
+            if (item.bold) styleParts.push('font-weight:700');
+            if (item.italic) styleParts.push('font-style:italic');
+            const iconHtml = item.icon ? `<i class="fa-solid ${item.icon.replace(/"/g, '')}"></i>` : '';
+            return `<span class="marquee-item" style="${styleParts.join(';')}">${iconHtml}<span>${escapeHtml(item.text)}</span></span>`;
+        }
+
+        // Verilen mesaj listesi + ayarlara göre bir marquee-track içeriğini kurar ve
+        // hıza göre animasyon süresini hesaplayıp verilen track/viewport elemanlarına uygular.
+        // trackEl/viewportEl parametreleri sayesinde hem gerçek pano kartında hem de
+        // yönetim panelindeki canlı önizlemede aynı fonksiyon kullanılabilir.
+        function buildMarqueeTrack(trackEl, viewportEl, items, mw) {
+            if (!trackEl) return;
+            const list = (items && items.length > 0) ? items : [{ text: 'Kayan yazı için mesaj ekleyin.', color: '', bold: false, italic: false, icon: '' }];
+            const sepHtml = marqueeSeparatorHtml(mw);
+            const itemsHtml = list.map(renderMarqueeItemHtml).join(sepHtml);
+            const segHtml = itemsHtml + sepHtml;
+
+            trackEl.innerHTML = `<span class="marquee-seg">${segHtml}</span><span class="marquee-seg" aria-hidden="true">${segHtml}</span>`;
+
+            trackEl.style.fontSize = (mw.fontSize || 16) + 'px';
+            trackEl.style.fontWeight = mw.bold ? '700' : '400';
+            trackEl.style.fontStyle = mw.italic ? 'italic' : 'normal';
+            trackEl.style.color = mw.textColor || '';
+            trackEl.style.textTransform = mw.uppercase ? 'uppercase' : 'none';
+            trackEl.style.letterSpacing = (mw.letterSpacing || 0) + 'px';
+            // Not: Öğeler arası boşluk artık marqueeSeparatorHtml() içinde her ayırıcının
+            // kendi margin'i olarak veriliyor (bkz. yukarıdaki not). Track'e column-gap
+            // uygulanmıyor; aksi halde iki .marquee-seg kopyası arasındaki tek sınırda
+            // fazladan boşluk oluşup döngü noktasında sıçramaya (aniden atlamaya) yol açar.
+
+            if (mw.glowEnabled) {
+                trackEl.classList.add('marquee-glow-text');
+                trackEl.style.setProperty('--marquee-glow-color', mw.glowColor || '#00e5ff');
+            } else {
+                trackEl.classList.remove('marquee-glow-text');
+                trackEl.style.removeProperty('--marquee-glow-color');
+            }
+
+            if (viewportEl) viewportEl.classList.toggle('marquee-paused-hover', mw.pauseOnHover !== false);
+
+            // Hıza göre animasyon süresini gerçek (render edilmiş) genişliğe bakarak hesapla.
+            // Bir sonraki animasyon karesinde ölçmek, tarayıcının layout'u oturtmuş
+            // olmasını garanti eder (0 genişlik okuma riskini önler).
+            requestAnimationFrame(() => {
+                const segEl = trackEl.querySelector('.marquee-seg');
+                const segWidth = segEl ? segEl.getBoundingClientRect().width : 400;
+                const speed = Math.max(5, mw.speed || 60);
+                const duration = Math.max(3, segWidth / speed);
+                trackEl.style.animationDuration = duration + 's';
+                trackEl.style.animationDirection = (mw.direction === 'right') ? 'reverse' : 'normal';
+                trackEl.style.animationPlayState = 'running';
+            });
+        }
+
+        // Panodaki gerçek Kayan Yazı kartını, appConfig'teki güncel veriyle çizer.
+        function renderMarqueeWidget() {
+            const track = document.getElementById('marquee-track');
+            const viewport = document.getElementById('marquee-viewport');
+            if (!track) return;
+            const mw = appConfig.marqueeWidget || defaultAppConfig.marqueeWidget;
+            const items = (appConfig.marqueeItems && appConfig.marqueeItems.length > 0) ? appConfig.marqueeItems : defaultAppConfig.marqueeItems;
+            buildMarqueeTrack(track, viewport, items, mw);
+        }
 
         function renderPanoData() {
             applyBrandPositions();
@@ -2199,10 +2443,12 @@
 
             cycleBirthdayWidget();
             cycleQuoteWidget();
+            renderSpecialDayWeatherLayout();
             cycleSpecialDayWidget();
             applyScheduleBoardStyle();
             applyClockStyle();
             renderActiveScheduleGroup();
+            renderMarqueeWidget();
         }
 
         function applyBrandPositions() {
@@ -3845,6 +4091,88 @@
             return sep;
         }
 
+        // Bir alana (hücreye), "Ayın Enleri" hücrelerindeki İLE AYNI box-shadow tabanlı
+        // dikkat çekme efektini uygular/kaldırır (ach-cell-fx-* sınıfları + --ach-cell-fx-color
+        // değişkeni). Kart düzeyindeki pano-fx-* (filter/outline tabanlı) sistemin AKSİNE bu
+        // sistem bilinçli olarak tercih edildi: bu alanlar kartın (overflow:hidden + dar iç
+        // boşluk) İÇİNDE yer aldığından, filter/outline efektleri kart kenarında kırpılabiliyor;
+        // box-shadow ise "Ayın Enleri" hücrelerinde zaten kanıtlanmış şekilde sorunsuz görünüyor.
+        function applyCellFxEffect(el, effectType, color) {
+            if (!el) return;
+            el.classList.remove('ach-cell-fx-glow', 'ach-cell-fx-pulse', 'ach-cell-fx-border', 'ach-cell-fx-shine');
+            const fx = effectType || 'none';
+            if (fx !== 'none') {
+                el.classList.add('ach-cell-fx-' + fx);
+                el.style.setProperty('--ach-cell-fx-color', color || '#00b4d8');
+            } else {
+                el.style.removeProperty('--ach-cell-fx-color');
+            }
+        }
+
+        // BELİRLİ GÜN & HAVA DURUMU: iki alanın (hücrenin) yerleşimini (dikey/yatay), hizalamasını
+        // (yatay/dikey ortalama) ve aralarındaki ayırıcıyı (çizgi/noktalı desen/simge/yok)
+        // appConfig.specialDayWidget ayarlarına göre uygular. "Ayın Enleri" kartındaki
+        // buildAchievementSeparator() ile aynı mantık, tek farkla: burada hücre sayısı sabit (2)
+        // olduğundan tek bir ayırıcı öğesi baştan yaratmak yerine mevcut öğe güncellenir.
+        function renderSpecialDayWeatherLayout() {
+            const flex = document.getElementById('specialday-weather-flex');
+            const sep = document.getElementById('specialday-separator');
+            const sdAreaEl = document.getElementById('specialday-area');
+            const weatherAreaEl = document.getElementById('weather-area');
+            if (!flex || !sep) return;
+            const sdw = appConfig.specialDayWidget || defaultAppConfig.specialDayWidget;
+            const layout = sdw.layout === 'row' ? 'row' : 'column';
+            const type = sdw.separator || 'line';
+            const thickness = Math.min(20, Math.max(1, parseInt(sdw.separatorThickness, 10) || 1));
+
+            flex.classList.remove('sdw-layout-row', 'sdw-layout-column');
+            flex.classList.add('sdw-layout-' + layout);
+
+            // HİZALAMA: dikey (alanların kart içindeki konumu) = ana eksen (column'da dikey,
+            // row'da yatay); yatay (metin hizalama) = çapraz eksen + her alanın kendi text-align'i.
+            // NOT: alignH='left' iken column düzeninde çapraz eksende "stretch" kullanılır ki
+            // alanlar eskisi gibi tam genişlikte kalsın (geriye dönük uyumluluk).
+            const alignH = sdw.alignH || 'left';
+            const alignV = sdw.alignV || 'center';
+            const crossAlignMapH = { left: 'stretch', center: 'center', right: 'flex-end' };
+            const mainAlignMapH = { left: 'flex-start', center: 'center', right: 'flex-end' };
+            const alignMapV = { top: 'flex-start', center: 'center', bottom: 'flex-end' };
+            if (layout === 'column') {
+                flex.style.justifyContent = alignMapV[alignV] || 'center';
+                flex.style.alignItems = crossAlignMapH[alignH] || 'stretch';
+            } else {
+                flex.style.justifyContent = mainAlignMapH[alignH] || 'flex-start';
+                flex.style.alignItems = alignMapV[alignV] || 'center';
+            }
+            [sdAreaEl, weatherAreaEl].forEach(areaEl => {
+                if (!areaEl) return;
+                areaEl.style.textAlign = alignH === 'center' ? 'center' : (alignH === 'right' ? 'right' : 'left');
+            });
+
+            sep.style.width = '';
+            sep.style.height = '';
+            sep.innerHTML = '';
+
+            if (type === 'none') {
+                sep.className = 'sdw-separator sdw-sep-none';
+            } else if (type === 'icon') {
+                sep.className = 'sdw-separator sdw-sep-icon';
+                sep.innerHTML = `<i class="fa-solid ${sdw.separatorIcon || 'fa-star'}"></i>`;
+            } else if (type === 'dots') {
+                sep.className = 'sdw-separator sdw-sep-dots';
+                if (layout === 'row') sep.style.width = thickness + 'px';
+                else sep.style.height = thickness + 'px';
+            } else {
+                sep.className = 'sdw-separator sdw-sep-line';
+                if (layout === 'row') sep.style.width = thickness + 'px';
+                else sep.style.height = thickness + 'px';
+            }
+
+            // ALAN EFEKTLERİ: her alana ayrı ayrı, kart efektleriyle aynı sistemle uygulanır
+            applyCellFxEffect(sdAreaEl, sdw.specialdayEffect, sdw.specialdayEffectColor);
+            applyCellFxEffect(weatherAreaEl, sdw.weatherEffect, sdw.weatherEffectColor);
+        }
+
         // AYIN ENLERİ: appConfig.achievementCategories listesine göre panodaki kartın içini
         // (istenen sayıda hücre + aralarında ayırıcı ile) baştan üretir.
         function renderAchievementsCard() {
@@ -4557,7 +4885,8 @@
             clock: 'module-embed-clock',
             achievements: 'module-embed-achievements',
             duty: 'module-embed-duty',
-            media: 'module-embed-media'
+            media: 'module-embed-media',
+            marquee: 'module-embed-marquee'
         };
 
         function renderAdminModuleSettings() {
@@ -5142,6 +5471,36 @@
             document.getElementById('custom-color-bgdark').value = colors.bgdark || defaults.bgdark;
         }
 
+        // SAAT MODÜLÜNE TIKLAYINCA TAM EKRAN AÇ/KAPAT — panonun TV'de tam ekran (kiosk)
+        // olarak sorunsuz gösterilmesi için pratik bir yöntem: bir kumanda/uzaktan işaretçiyle
+        // saatin üzerine tıklamak yeterli. Standart Fullscreen API + eski tarayıcı önekleri
+        // (webkit/moz/ms) birlikte desteklenir, TV tarayıcıları arasındaki farklılıklar için.
+        // Düzenleme (sürükle/boyutlandır) modundayken modül seçimiyle çakışmaması için o
+        // modda devre dışı bırakılır.
+        function toggleFullscreenMode() {
+            if (document.body.classList.contains('pano-edit-mode')) return;
+            const doc = document;
+            const isFullscreen = !!(doc.fullscreenElement || doc.webkitFullscreenElement || doc.mozFullScreenElement || doc.msFullscreenElement);
+            if (!isFullscreen) {
+                const el = doc.documentElement;
+                const req = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
+                if (req) {
+                    try {
+                        const result = req.call(el);
+                        if (result && typeof result.catch === 'function') result.catch(() => {});
+                    } catch (err) { /* bazı eski TV tarayıcıları sessizce yoksayılabilir */ }
+                }
+            } else {
+                const exit = doc.exitFullscreen || doc.webkitExitFullscreen || doc.mozCancelFullScreen || doc.msExitFullscreen;
+                if (exit) {
+                    try {
+                        const result = exit.call(doc);
+                        if (result && typeof result.catch === 'function') result.catch(() => {});
+                    } catch (err) { /* bazı eski TV tarayıcıları sessizce yoksayılabilir */ }
+                }
+            }
+        }
+
         function tryOpenAdminPanel() {
             if (appConfig.adminPin && appConfig.adminPin.trim() !== "") {
                 document.getElementById('pin-prompt-input').value = "";
@@ -5226,6 +5585,7 @@
             renderThemeClasses();
 
             tempAnnouncements = appConfig.announcements.map(a => ({ ...a }));
+            tempMarqueeItems = (appConfig.marqueeItems || []).map(a => ({ ...a }));
             tempBirthdays = [...appConfig.birthdays];
             selectedBirthdayIndices.clear();
             tempQuotes = [...(appConfig.quotes || [])];
@@ -5235,6 +5595,7 @@
 
             cancelEditBirthday();
             cancelEditAnnouncement();
+            cancelEditMarqueeItem();
             cancelEditQuote();
             cancelEditSpecialDay();
             achievementEditing = { catId: null, index: -1 };
@@ -5289,6 +5650,17 @@
             document.getElementById('input-weather-temp-color').value = sdwSettings.tempColor || sdwSettings.weatherColor || '#00b4d8';
             document.getElementById('input-weather-temp-font').value = sdwSettings.tempFont || sdwSettings.weatherFont || '';
             document.getElementById('input-weather-temp-size').value = sdwSettings.tempSize || sdwSettings.weatherSize || defaultAppConfig.specialDayWidget.tempSize;
+            document.getElementById('input-sdw-layout').value = sdwSettings.layout || defaultAppConfig.specialDayWidget.layout;
+            document.getElementById('input-sdw-separator').value = sdwSettings.separator || defaultAppConfig.specialDayWidget.separator;
+            document.getElementById('input-sdw-separator-icon').value = sdwSettings.separatorIcon || defaultAppConfig.specialDayWidget.separatorIcon;
+            document.getElementById('input-sdw-separator-thickness').value = (sdwSettings.separatorThickness !== undefined && sdwSettings.separatorThickness !== null) ? sdwSettings.separatorThickness : defaultAppConfig.specialDayWidget.separatorThickness;
+            toggleSdwSeparatorIconField();
+            document.getElementById('input-sdw-align-h').value = sdwSettings.alignH || defaultAppConfig.specialDayWidget.alignH;
+            document.getElementById('input-sdw-align-v').value = sdwSettings.alignV || defaultAppConfig.specialDayWidget.alignV;
+            document.getElementById('input-sdw-fx-specialday').value = sdwSettings.specialdayEffect || 'none';
+            document.getElementById('input-sdw-fx-specialday-color').value = sdwSettings.specialdayEffectColor || '#00b4d8';
+            document.getElementById('input-sdw-fx-weather').value = sdwSettings.weatherEffect || 'none';
+            document.getElementById('input-sdw-fx-weather-color').value = sdwSettings.weatherEffectColor || '#00b4d8';
 
             const aws = appConfig.achievementWidget || defaultAppConfig.achievementWidget;
             document.getElementById('input-ach-layout').value = aws.layout || 'column';
@@ -5299,6 +5671,7 @@
             toggleAchSeparatorIconField();
 
             renderAdminAnnouncements();
+            loadMarqueeSettingsIntoForm();
             renderAdminBirthdays();
             renderAdminQuotes();
             renderAdminSpecialDays();
@@ -5372,6 +5745,8 @@
             };
 
             appConfig.announcements = [...tempAnnouncements];
+            appConfig.marqueeItems = tempMarqueeItems.length > 0 ? [...tempMarqueeItems] : JSON.parse(JSON.stringify(defaultAppConfig.marqueeItems));
+            appConfig.marqueeWidget = readMarqueeWidgetFromForm();
             appConfig.birthdays = [...tempBirthdays];
             appConfig.quotes = tempQuotes.length > 0 ? [...tempQuotes] : [...defaultAppConfig.quotes];
             appConfig.quote = appConfig.quotes[0].text;
@@ -5420,8 +5795,20 @@
                 // Derece
                 tempColor: document.getElementById('input-weather-temp-color').value || '',
                 tempFont: document.getElementById('input-weather-temp-font').value.trim() || '',
-                tempSize: document.getElementById('input-weather-temp-size').value.trim() || defaultAppConfig.specialDayWidget.tempSize
+                tempSize: document.getElementById('input-weather-temp-size').value.trim() || defaultAppConfig.specialDayWidget.tempSize,
+                // Alan yerleşimi & ayırıcı
+                layout: document.getElementById('input-sdw-layout').value || 'column',
+                separator: document.getElementById('input-sdw-separator').value || 'line',
+                separatorIcon: document.getElementById('input-sdw-separator-icon').value.trim() || 'fa-star',
+                separatorThickness: Math.min(20, Math.max(1, parseInt(document.getElementById('input-sdw-separator-thickness').value, 10) || 1)),
+                alignH: document.getElementById('input-sdw-align-h').value || 'left',
+                alignV: document.getElementById('input-sdw-align-v').value || 'center',
+                specialdayEffect: document.getElementById('input-sdw-fx-specialday').value || 'none',
+                specialdayEffectColor: document.getElementById('input-sdw-fx-specialday-color').value || '#00b4d8',
+                weatherEffect: document.getElementById('input-sdw-fx-weather').value || 'none',
+                weatherEffectColor: document.getElementById('input-sdw-fx-weather-color').value || '#00b4d8'
             };
+            renderSpecialDayWeatherLayout();
             appConfig.cityName = document.getElementById('input-weather-city').value.trim() || defaultAppConfig.cityName;
             appConfig.weatherLat = document.getElementById('input-weather-lat').value.trim() || defaultAppConfig.weatherLat;
             appConfig.weatherLng = document.getElementById('input-weather-lng').value.trim() || defaultAppConfig.weatherLng;
@@ -5623,9 +6010,221 @@
             }
         }
 
+        // ==========================================================================
+        // KAYAN YAZI (MARQUEE) — YÖNETİM PANELİ MESAJ LİSTESİ (ekle/düzenle/sil/sırala)
+        // ==========================================================================
+
+        function readMarqueeItemFormatFromForm() {
+            const colorEnabled = document.getElementById('new-marquee-color-enabled').checked;
+            return {
+                color: colorEnabled ? document.getElementById('new-marquee-color').value : '',
+                icon: document.getElementById('new-marquee-icon').value || '',
+                bold: document.getElementById('new-marquee-bold').checked,
+                italic: document.getElementById('new-marquee-italic').checked
+            };
+        }
+
+        function writeMarqueeItemFormatToForm(item) {
+            const colorEnabled = !!item.color;
+            document.getElementById('new-marquee-color-enabled').checked = colorEnabled;
+            document.getElementById('new-marquee-color').value = item.color || '#f1f5f9';
+            document.getElementById('new-marquee-icon').value = item.icon || '';
+            document.getElementById('new-marquee-bold').checked = !!item.bold;
+            document.getElementById('new-marquee-italic').checked = !!item.italic;
+        }
+
+        // Tek mesaj formundaki ayarlara göre küçük canlı önizlemeyi günceller
+        function updateMarqueeItemLivePreview() {
+            const preview = document.getElementById('marquee-item-live-preview');
+            const previewText = document.getElementById('marquee-item-live-preview-text');
+            if (!preview || !previewText) return;
+            const fmt = readMarqueeItemFormatFromForm();
+            const text = document.getElementById('new-marquee-input').value.trim();
+            previewText.innerText = text || 'Yeni bir mesaj yazın...';
+            preview.style.color = fmt.color || '';
+            preview.style.fontWeight = fmt.bold ? '700' : '';
+            preview.style.fontStyle = fmt.italic ? 'italic' : '';
+            let iconEl = preview.querySelector('i');
+            if (fmt.icon) {
+                if (!iconEl) { iconEl = document.createElement('i'); preview.insertBefore(iconEl, previewText); }
+                iconEl.className = 'fa-solid ' + fmt.icon;
+            } else if (iconEl) {
+                iconEl.remove();
+            }
+            updateMarqueeLivePreview();
+        }
+
+        function renderAdminMarqueeItems() {
+            const wrapper = document.getElementById('admin-marquee-list-wrapper');
+            if (!wrapper) return;
+            wrapper.innerHTML = "";
+            tempMarqueeItems.forEach((item, index) => {
+                const row = document.createElement('div');
+                row.className = 'flex justify-between items-center p-2 border-b border-slate-800/50 text-xs gap-2';
+                const previewStyle = [
+                    item.color ? `color:${item.color}` : '',
+                    item.bold ? 'font-weight:700' : '',
+                    item.italic ? 'font-style:italic' : ''
+                ].filter(Boolean).join(';');
+                const iconHtml = item.icon ? `<i class="fa-solid ${item.icon}"></i> ` : '';
+                row.innerHTML = `
+                    <span class="text-slate-300 truncate max-w-xs" style="${previewStyle}">${index + 1}. ${iconHtml}${escapeHtml(item.text)}</span>
+                    <div class="flex gap-1 shrink-0">
+                        <button class="p-1 hover:bg-slate-800 rounded text-slate-400 hover:text-white" onclick="moveMarqueeItem(${index}, -1)"><i class="fa-solid fa-arrow-up"></i></button>
+                        <button class="p-1 hover:bg-slate-800 rounded text-slate-400 hover:text-white" onclick="moveMarqueeItem(${index}, 1)"><i class="fa-solid fa-arrow-down"></i></button>
+                        <button class="p-1 hover:bg-cyan-500/20 rounded text-cyan-400" onclick="editMarqueeItem(${index})"><i class="fa-solid fa-pen"></i></button>
+                        <button class="p-1 hover:bg-red-500/20 rounded text-red-400" onclick="deleteMarqueeItem(${index})"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                `;
+                wrapper.appendChild(row);
+            });
+            updateMarqueeLivePreview();
+        }
+
+        function addMarqueeItemToList() {
+            const input = document.getElementById('new-marquee-input');
+            const val = input.value.trim();
+            if (!val) return;
+
+            const fmt = readMarqueeItemFormatFromForm();
+            const itemObj = { text: val, ...fmt };
+
+            if (editingMarqueeIndex !== -1) {
+                tempMarqueeItems[editingMarqueeIndex] = itemObj;
+                writeCMSLog(`Kayan yazı mesajı güncellendi: ${val}`);
+                cancelEditMarqueeItem();
+            } else {
+                tempMarqueeItems.push(itemObj);
+                writeCMSLog(`Yeni kayan yazı mesajı eklendi: ${val}`);
+                input.value = "";
+                document.getElementById('new-marquee-color-enabled').checked = false;
+                document.getElementById('new-marquee-icon').value = '';
+                document.getElementById('new-marquee-bold').checked = false;
+                document.getElementById('new-marquee-italic').checked = false;
+                updateMarqueeItemLivePreview();
+            }
+            renderAdminMarqueeItems();
+        }
+
+        function editMarqueeItem(index) {
+            editingMarqueeIndex = index;
+            const item = tempMarqueeItems[index];
+            const input = document.getElementById('new-marquee-input');
+            input.value = item.text;
+            input.focus();
+            writeMarqueeItemFormatToForm(item);
+            updateMarqueeItemLivePreview();
+            const btn = document.getElementById('marquee-submit-btn');
+            if (btn) btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i>';
+            const title = document.getElementById('marquee-form-title');
+            if (title) title.innerHTML = '<i class="fa-solid fa-pen text-cyan-400"></i> Mesajı Düzenle';
+            const cancelBtn = document.getElementById('marquee-cancel-edit-btn');
+            if (cancelBtn) cancelBtn.classList.remove('hidden');
+        }
+
+        function cancelEditMarqueeItem() {
+            editingMarqueeIndex = -1;
+            const input = document.getElementById('new-marquee-input');
+            if (input) input.value = "";
+            document.getElementById('new-marquee-color-enabled').checked = false;
+            document.getElementById('new-marquee-icon').value = '';
+            document.getElementById('new-marquee-bold').checked = false;
+            document.getElementById('new-marquee-italic').checked = false;
+            updateMarqueeItemLivePreview();
+            const btn = document.getElementById('marquee-submit-btn');
+            if (btn) btn.innerHTML = '<i class="fa-solid fa-plus"></i>';
+            const title = document.getElementById('marquee-form-title');
+            if (title) title.innerHTML = '<i class="fa-solid fa-align-left text-cyan-400"></i> Kayan Yazı Mesajları';
+            const cancelBtn = document.getElementById('marquee-cancel-edit-btn');
+            if (cancelBtn) cancelBtn.classList.add('hidden');
+        }
+
+        function deleteMarqueeItem(index) {
+            tempMarqueeItems.splice(index, 1);
+            if (editingMarqueeIndex === index) cancelEditMarqueeItem();
+            renderAdminMarqueeItems();
+        }
+
+        function moveMarqueeItem(index, direction) {
+            const targetIndex = index + direction;
+            if (targetIndex >= 0 && targetIndex < tempMarqueeItems.length) {
+                const temp = tempMarqueeItems[index];
+                tempMarqueeItems[index] = tempMarqueeItems[targetIndex];
+                tempMarqueeItems[targetIndex] = temp;
+                renderAdminMarqueeItems();
+            }
+        }
+
+        // Ayırıcı "Özel İkon" seçiliyken ikon sınıfı giriş alanını gösterir/gizler
+        function toggleMarqSeparatorIconField() {
+            const sel = document.getElementById('marq-separator');
+            const wrap = document.getElementById('marq-separator-icon-wrap');
+            if (!sel || !wrap) return;
+            wrap.style.display = (sel.value === 'icon') ? '' : 'none';
+        }
+
+        // Bant/animasyon + genel metin biçimi formundaki güncel değerleri appConfig
+        // formatında bir marqueeWidget nesnesi olarak okur (canlı önizleme ve kaydetme
+        // fonksiyonları tarafından ortak kullanılır).
+        function readMarqueeWidgetFromForm() {
+            return {
+                direction: document.getElementById('marq-direction').value || 'left',
+                speed: parseInt(document.getElementById('marq-speed').value, 10) || 60,
+                gap: parseInt(document.getElementById('marq-gap').value, 10) || 60,
+                pauseOnHover: document.getElementById('marq-pause-hover').checked,
+                separator: document.getElementById('marq-separator').value || 'dot',
+                separatorIcon: document.getElementById('marq-separator-icon').value.trim() || 'fa-star',
+                textColor: document.getElementById('marq-textcolor-enabled').checked ? document.getElementById('marq-textcolor').value : '',
+                fontSize: parseInt(document.getElementById('marq-fontsize').value, 10) || 16,
+                letterSpacing: parseFloat(document.getElementById('marq-letterspacing').value) || 0,
+                bold: document.getElementById('marq-bold').checked,
+                italic: document.getElementById('marq-italic').checked,
+                uppercase: document.getElementById('marq-uppercase').checked,
+                glowEnabled: document.getElementById('marq-glow-enabled').checked,
+                glowColor: document.getElementById('marq-glow-color').value || '#00e5ff'
+            };
+        }
+
+        // Formdaki (henüz kaydedilmemiş) bant + mesaj ayarlarını admin panelindeki büyük
+        // canlı önizlemede anında gösterir.
+        function updateMarqueeLivePreview() {
+            const track = document.getElementById('marq-live-preview-track');
+            const viewport = document.getElementById('marq-live-preview-viewport');
+            if (!track) return;
+            const mw = readMarqueeWidgetFromForm();
+            const items = tempMarqueeItems.length > 0 ? tempMarqueeItems : [{ text: 'Kayan yazı için mesaj ekleyin.', color: '', bold: false, italic: false, icon: '' }];
+            buildMarqueeTrack(track, viewport, items, mw);
+        }
+
+        // Yönetim paneli açılırken formu appConfig'teki güncel marquee ayarlarıyla doldurur
+        function loadMarqueeSettingsIntoForm() {
+            const mw = appConfig.marqueeWidget || defaultAppConfig.marqueeWidget;
+            document.getElementById('marq-direction').value = mw.direction || 'left';
+            document.getElementById('marq-speed').value = mw.speed || 60;
+            document.getElementById('marq-speed-val').innerText = mw.speed || 60;
+            document.getElementById('marq-gap').value = mw.gap ?? 60;
+            document.getElementById('marq-gap-val').innerText = mw.gap ?? 60;
+            document.getElementById('marq-pause-hover').checked = mw.pauseOnHover !== false;
+            document.getElementById('marq-separator').value = mw.separator || 'dot';
+            document.getElementById('marq-separator-icon').value = mw.separatorIcon || 'fa-star';
+            toggleMarqSeparatorIconField();
+            document.getElementById('marq-textcolor-enabled').checked = !!mw.textColor;
+            document.getElementById('marq-textcolor').value = mw.textColor || '#f1f5f9';
+            document.getElementById('marq-fontsize').value = mw.fontSize || 16;
+            document.getElementById('marq-letterspacing').value = mw.letterSpacing || 0;
+            document.getElementById('marq-bold').checked = !!mw.bold;
+            document.getElementById('marq-italic').checked = !!mw.italic;
+            document.getElementById('marq-uppercase').checked = !!mw.uppercase;
+            document.getElementById('marq-glow-enabled').checked = !!mw.glowEnabled;
+            document.getElementById('marq-glow-color').value = mw.glowColor || '#00e5ff';
+            renderAdminMarqueeItems();
+            updateMarqueeLivePreview();
+        }
+
         function renderAdminBirthdays() {
             const wrapper = document.getElementById('admin-birthdays-list-wrapper');
             wrapper.innerHTML = "";
+
             // Artık geçerli olmayan (silinmiş) indeksleri seçim kümesinden temizle
             selectedBirthdayIndices.forEach(i => { if (i >= tempBirthdays.length) selectedBirthdayIndices.delete(i); });
 
@@ -6207,6 +6806,17 @@
             const wrapper = document.getElementById('ach-separator-icon-wrapper');
             if (wrapper) wrapper.style.display = sepType === 'icon' ? '' : 'none';
             const thicknessWrapper = document.getElementById('ach-separator-thickness-wrapper');
+            if (thicknessWrapper) thicknessWrapper.style.display = (sepType === 'line' || sepType === 'dots') ? '' : 'none';
+        }
+
+        // BELİRLİ GÜN & HAVA DURUMU: ayırıcı türüne göre simge/kalınlık alanlarını göster-gizle
+        function toggleSdwSeparatorIconField() {
+            const sepEl = document.getElementById('input-sdw-separator');
+            if (!sepEl) return;
+            const sepType = sepEl.value;
+            const wrapper = document.getElementById('sdw-separator-icon-wrapper');
+            if (wrapper) wrapper.style.display = sepType === 'icon' ? '' : 'none';
+            const thicknessWrapper = document.getElementById('sdw-separator-thickness-wrapper');
             if (thicknessWrapper) thicknessWrapper.style.display = (sepType === 'line' || sepType === 'dots') ? '' : 'none';
         }
 

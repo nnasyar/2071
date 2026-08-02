@@ -660,6 +660,17 @@
         const CLOUD_SYNC_ENABLED = !!(SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey);
 
         // ============================================================================
+        // GERÇEK GİRİŞ (Supabase Auth) — YAZMA işlemleri artık veritabanı seviyesinde
+        // (RLS ile) SADECE oturum açmış kullanıcıya izin veriyor. ADMIN_EMAIL gizli
+        // DEĞİLDİR (kaynak kodda görünür) — sorun değil, çünkü tek başına giriş
+        // yapmaya yetmez. Gerçek gizli bilgi, Supabase panelinde
+        // Authentication > Users kısmında SİZİN oluşturduğunuz ŞİFREDİR ve hiçbir
+        // yerde (kod, veritabanı) düz metin olarak saklanmaz. Yönetim Paneli'ndeki
+        // "Yönetici Şifresi" alanından bu şifreyi değiştirebilirsiniz.
+        // ============================================================================
+        const ADMIN_EMAIL = "admin@pano.local";
+
+        // ============================================================================
         // EKRAN GEÇİŞİ (Pano49 ↔ Duyuru Panosu) — panox49 ile duyuru panosu editörü
         // AYNI Supabase projesindeki küçük ve bağımsız "display_control" tablosunu
         // (tek satır, id=1, "active" sütunu "pano" ya da "duyuru") paylaşır. Bu tabloya
@@ -667,12 +678,12 @@
         // tutuldu ki bir tarafın ekran geçişi diğer tarafın tüm ayarlarının üzerine
         // yazma riski taşımasın.
         //
-        // DUYURU_PANOSU_URL: duyuru panosu HTML dosyasının, bu index.html'e göre GÖRECELİ
+        // DUYURU_PANOSU_URL: duyuru panosu HTML dosyasının, bu pano49.html'e göre GÖRECELİ
         // (relative) yolu. İkisini AYNI klasöre/repoya yüklerseniz aşağıdaki varsayılan
         // dosya adı doğrudan çalışır; farklı bir isim/konum kullanırsanız burayı güncelleyin.
         // ============================================================================
         const DISPLAY_CONTROL_TABLE = 'display_control';
-        const DUYURU_PANOSU_URL = 'gelismis-dijital-duyuru-panosu.html';
+        const DUYURU_PANOSU_URL = 'pano99.html';
         let displayControlPollTimer = null;
         let displayControlSwitching = false; // yönlendirme sırasında ikinci bir tetiklenmeyi önler
 
@@ -5501,14 +5512,22 @@
             }
         }
 
+        let pendingPinAction = 'panel'; // 'panel' -> Yönetim Paneli aç, 'switchDisplay' -> gizli geçiş butonu
+
         function tryOpenAdminPanel() {
-            if (appConfig.adminPin && appConfig.adminPin.trim() !== "") {
-                document.getElementById('pin-prompt-input').value = "";
-                document.getElementById('pin-prompt-modal').classList.remove('hidden');
-                document.getElementById('pin-prompt-input').focus();
-            } else {
-                openAdminPanel();
-            }
+            pendingPinAction = 'panel';
+            document.getElementById('pin-prompt-input').value = "";
+            document.getElementById('pin-prompt-modal').classList.remove('hidden');
+            document.getElementById('pin-prompt-input').focus();
+        }
+
+        // Ekranın bir köşesindeki görünmez butona (bkz. index.html #hidden-switch-trigger)
+        // tıklanınca çağrılır. Panel girişiyle AYNI Supabase Auth hesabını kullanır.
+        function tryHiddenDisplaySwitch() {
+            pendingPinAction = 'switchDisplay';
+            document.getElementById('pin-prompt-input').value = "";
+            document.getElementById('pin-prompt-modal').classList.remove('hidden');
+            document.getElementById('pin-prompt-input').focus();
         }
 
         function closePinPrompt() {
@@ -5519,16 +5538,55 @@
             if (e.key === 'Enter') checkAdminPinCode();
         }
 
-        function checkAdminPinCode() {
-            const entered = document.getElementById('pin-prompt-input').value.trim();
-            if (entered === appConfig.adminPin) {
-                closePinPrompt();
-                openAdminPanel();
-                writeCMSLog("Güvenlik PIN geçidi başarıyla aşıldı.");
-            } else {
-                showCustomNotification("Hatalı Giriş", "Girdiğiniz PIN kodu yanlıştır.");
+        // Art arda yanlış PIN denemelerine karşı kademeli bekleme (basit kaba-kuvvet
+        // koruması). Sunucu tarafı olmadığı için mükemmel bir koruma değildir, ama
+        // bir öğrencinin PIN'i art arda deneyerek bulmasını pratik olarak imkansız
+        // hale getirir.
+        let pinWrongAttempts = 0;
+        let pinLockedUntil = 0;
+        const PIN_LOCK_STEPS_MS = [0, 0, 0, 10000, 30000, 60000, 120000]; // ilk 3 hak serbest
+
+        // Girilen şifreyi Supabase Auth'a (gerçek sunucu tarafı doğrulama) gönderir.
+        // Başarılı olursa bu tarayıcı, veritabanına yazma izni olan gerçek bir oturum
+        // kazanır (RLS politikaları artık SADECE bu oturuma izin veriyor).
+        async function checkAdminPinCode() {
+            const now = Date.now();
+            if (now < pinLockedUntil) {
+                const secs = Math.ceil((pinLockedUntil - now) / 1000);
+                showCustomNotification("Kilitli", `Çok fazla hatalı deneme. ${secs} sn sonra tekrar deneyin.`);
                 document.getElementById('pin-prompt-input').value = "";
-                document.getElementById('pin-prompt-input').focus();
+                return;
+            }
+            if (!supabaseClient) {
+                showCustomNotification("Bağlantı Yok", "Giriş yapmak için internet/Supabase bağlantısı gerekli.");
+                return;
+            }
+            const entered = document.getElementById('pin-prompt-input').value.trim();
+            document.getElementById('pin-prompt-input').value = "";
+            try {
+                const { error } = await supabaseClient.auth.signInWithPassword({ email: ADMIN_EMAIL, password: entered });
+                if (!error) {
+                    pinWrongAttempts = 0;
+                    closePinPrompt();
+                    writeCMSLog("Güvenlik girişi başarılı (Supabase Auth).");
+                    if (pendingPinAction === 'switchDisplay') {
+                        setActiveDisplay('duyuru');
+                    } else {
+                        openAdminPanel();
+                    }
+                } else {
+                    pinWrongAttempts++;
+                    const waitMs = PIN_LOCK_STEPS_MS[Math.min(pinWrongAttempts, PIN_LOCK_STEPS_MS.length - 1)];
+                    if (waitMs > 0) {
+                        pinLockedUntil = now + waitMs;
+                        showCustomNotification("Hatalı Giriş", `Girdiğiniz şifre yanlış. ${waitMs / 1000} sn boyunca kilitlendi.`);
+                    } else {
+                        showCustomNotification("Hatalı Giriş", "Girdiğiniz şifre yanlıştır.");
+                    }
+                    document.getElementById('pin-prompt-input').focus();
+                }
+            } catch (e) {
+                showCustomNotification("Hata", "Giriş doğrulanamadı, tekrar deneyin.");
             }
         }
 
@@ -5540,7 +5598,7 @@
             document.getElementById('input-school-name').value = appConfig.schoolName;
             document.getElementById('input-brand-sub').value = appConfig.brandSubText || defaultAppConfig.brandSubText;
             document.getElementById('input-brand-sub-visible').checked = appConfig.brandSubVisible !== false;
-            document.getElementById('input-admin-pin').value = appConfig.adminPin || "";
+            document.getElementById('input-admin-pin').value = "";
 
             tempSchoolLogo = appConfig.schoolLogo || "";
             document.getElementById('input-logo-size').value = appConfig.logoSize || 54;
@@ -5705,7 +5763,33 @@
 
         function closeAdminPanelWithoutSaving() {
             document.getElementById('admin-panel').classList.add('hidden');
+            if (supabaseClient) supabaseClient.auth.signOut();
             writeCMSLog("Yönetim Paneli kaydetmeden kapatıldı.");
+        }
+
+        // Ayarlar panelindeki "Yönetici Şifresi" alanı artık düz metin bir PIN
+        // KAYDETMİYOR — bu, doğrudan Supabase Auth hesabınızın gerçek şifresini
+        // değiştiriyor (RLS bu şifreyle korunuyor). En az 6 karakter gerekir.
+        // Bu işlem ayrı tutuldu (genel "Kaydet" ile birleştirilmedi) çünkü hassas
+        // bir işlem; yanlışlıkla boş kaydedip şifreyi bozmamak için kullanıcı
+        // bilerek bu butona basmalı.
+        async function updateAdminPassword() {
+            const val = document.getElementById('input-admin-pin').value.trim();
+            if (!val) { showCustomNotification("Boş Bırakılamaz", "Yeni şifreyi girin (en az 6 karakter)."); return; }
+            if (val.length < 6) { showCustomNotification("Çok Kısa", "Şifre en az 6 karakter olmalı."); return; }
+            if (!supabaseClient) { showCustomNotification("Bağlantı Yok", "Şifre güncellemek için Supabase bağlantısı gerekli."); return; }
+            try {
+                const { error } = await supabaseClient.auth.updateUser({ password: val });
+                if (error) {
+                    showCustomNotification("Hata", "Şifre güncellenemedi: " + error.message);
+                    return;
+                }
+                document.getElementById('input-admin-pin').value = "";
+                showCustomNotification("Başarılı", "Yönetici şifresi güncellendi.");
+                writeCMSLog("Yönetici şifresi değiştirildi.");
+            } catch (e) {
+                showCustomNotification("Hata", "Şifre güncellenemedi, tekrar deneyin.");
+            }
         }
 
         function saveAdminChanges() {
@@ -5716,7 +5800,6 @@
             appConfig.schoolName = document.getElementById('input-school-name').value.trim() || defaultAppConfig.schoolName;
             appConfig.brandSubText = document.getElementById('input-brand-sub').value.trim() || defaultAppConfig.brandSubText;
             appConfig.brandSubVisible = document.getElementById('input-brand-sub-visible').checked;
-            appConfig.adminPin = document.getElementById('input-admin-pin').value.trim();
             appConfig.schoolLogo = tempSchoolLogo !== null ? tempSchoolLogo : (appConfig.schoolLogo || "");
             appConfig.logoSize = parseInt(document.getElementById('input-logo-size').value, 10) || 54;
             appConfig.schoolNameSize = parseInt(document.getElementById('input-school-name-size').value, 10) || 24;
@@ -5832,6 +5915,7 @@
             fetchLiveWeather();
 
             document.getElementById('admin-panel').classList.add('hidden');
+            if (supabaseClient) supabaseClient.auth.signOut();
             showCustomNotification("Başarılı", "Tüm sistem değişiklikleri başarıyla kaydedildi ve pano güncellendi.");
             writeCMSLog("Tüm pano değişiklikleri başarıyla kaydedildi.");
         }
@@ -5848,6 +5932,7 @@
                 startCyclingModuleIntervals();
                 renderPanoData();
                 document.getElementById('admin-panel').classList.add('hidden');
+                if (supabaseClient) supabaseClient.auth.signOut();
                 showCustomNotification("Sıfırlandı", "Pano varsayılan ayarlara başarıyla döndürüldü.");
                 writeCMSLog("Sistem fabrika ayarlarına sıfırlandı.");
             });

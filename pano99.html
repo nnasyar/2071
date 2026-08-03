@@ -323,7 +323,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--cb);color:v
       <div class="modal-header md-header"><h5 class="modal-title" id="switchPinModalTitle">Pano49'a Dön</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
       <div class="modal-body">
         <label class="pl">Yönetici PIN'ini girin</label>
-        <input type="password" maxlength="4" class="pi" id="switchPinInput" placeholder="••••" onkeydown="if(event.key==='Enter') app.confirmSwitchPin()">
+        <input type="password" class="pi" id="switchPinInput" placeholder="Şifre" onkeydown="if(event.key==='Enter') app.confirmSwitchPin()">
       </div>
       <div class="modal-footer md-footer">
         <button type="button" class="btn-sec" data-bs-dismiss="modal">İptal</button>
@@ -341,6 +341,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--cb);color:v
         <div class="ptab a" id="setTabPano" onclick="app.switchSettingsTab('pano')">Pano</div>
         <div class="ptab" id="setTabEkran" onclick="app.switchSettingsTab('ekran')">Ekran</div>
         <div class="ptab" id="setTabGorunum" onclick="app.switchSettingsTab('gorunum')">Görünüm</div>
+        <div class="ptab" id="setTabGuvenlik" onclick="app.switchSettingsTab('guvenlik')">Güvenlik</div>
       </div>
       <div class="modal-body">
         <div id="setPano">
@@ -392,6 +393,17 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--cb);color:v
           </div>
           <button type="button" class="btn-sec" style="width:100%" onclick="app.resetEditorTheme()"><i class="fas fa-rotate-left"></i> Varsayılana Dön</button>
           <div class="help-note">Bu renkler yalnızca düzenleme arayüzünü (üst bar, paneller, düğmeler) etkiler; panonun kendi tasarımını değiştirmez.</div>
+        </div>
+        <div id="setGuvenlik" style="display:none">
+          <div class="mb-3">
+            <label class="pl">Yönetici Şifresi (en az 6 karakter)</label>
+            <p class="help-note" style="margin-top:-4px;margin-bottom:8px">Bu, Pano49 ile AYNI hesabın gerçek şifresidir — burada değiştirirseniz Pano49'daki giriş de otomatik olarak yeni şifreyle çalışır (ayrı ayrı yönetmenize gerek yok).</p>
+            <div style="display:flex;gap:8px;align-items:flex-end">
+              <input type="password" class="pi" id="setAdminPassword" placeholder="Yeni şifre girin" style="flex:1">
+              <button type="button" class="btn-sec" onclick="app.updateAdminPassword()"><i class="fas fa-rotate"></i> Şifreyi Güncelle</button>
+            </div>
+          </div>
+          <div class="help-note">Bu alan "Uygula" butonuna dahil DEĞİLDİR — şifreyi değiştirmek için yukarıdaki "Şifreyi Güncelle" butonuna ayrıca basmanız gerekir.</div>
         </div>
       </div>
       <div class="modal-footer md-footer">
@@ -2401,6 +2413,26 @@ class App {
       const r = req.call(el);
       if (r && r.catch) r.catch(() => {}); // izin verilmeyen ortamlarda (ör. iframe) sessizce yedek moda düş
     }
+    this._armFullscreenOnFirstInteraction();
+  }
+
+  // Tarayıcılar requestFullscreen()'i SADECE bir kullanıcı etkileşimi sırasında/
+  // hemen sonrasında kabul eder; sayfa yeni yüklendiğinde (ör. Pano49'dan geçiş
+  // sonrası) otomatik çağrı çoğu tarayıcıda sessizce reddedilir. Bu yüzden
+  // kullanıcının sayfadaki İLK tıklamasında/tuşuna otomatik olarak tekrar
+  // denenir — pratikte geçiş sonrası ilk dokunuşta tam ekrana geçilmiş olur.
+  _armFullscreenOnFirstInteraction() {
+    if (this._isFullscreen() || this._fsArmed) return;
+    this._fsArmed = true;
+    const p = document.getElementById("fsPreview");
+    const handler = () => {
+      this._fsArmed = false;
+      if (!this._isFullscreen()) this._requestRealFullscreen(p);
+      document.removeEventListener("click", handler);
+      document.removeEventListener("keydown", handler);
+    };
+    document.addEventListener("click", handler, { once: true });
+    document.addEventListener("keydown", handler, { once: true });
   }
 
   _exitRealFullscreen() {
@@ -2509,9 +2541,29 @@ class App {
     document.getElementById("setTabPano").classList.toggle("a", tab === "pano");
     document.getElementById("setTabEkran").classList.toggle("a", tab === "ekran");
     document.getElementById("setTabGorunum").classList.toggle("a", tab === "gorunum");
+    document.getElementById("setTabGuvenlik").classList.toggle("a", tab === "guvenlik");
     document.getElementById("setPano").style.display = tab === "pano" ? "block" : "none";
     document.getElementById("setEkran").style.display = tab === "ekran" ? "block" : "none";
     document.getElementById("setGorunum").style.display = tab === "gorunum" ? "block" : "none";
+    document.getElementById("setGuvenlik").style.display = tab === "guvenlik" ? "block" : "none";
+  }
+
+  // Pano49'daki "Şifreyi Güncelle" ile birebir aynı işi yapar (aynı Supabase Auth
+  // hesabı). Bu alan, düzenleme ekranına zaten PIN ile girmiş (dolayısıyla
+  // oturumu açık) birinin kullanabileceği ayrı ve bilinçli bir işlemdir.
+  async updateAdminPassword() {
+    const val = document.getElementById("setAdminPassword").value.trim();
+    if (!val) { this.toast("Yeni şifreyi girin (en az 6 karakter)"); return; }
+    if (val.length < 6) { this.toast("Şifre en az 6 karakter olmalı"); return; }
+    if (!supabaseClient) { alert("Şifre güncellemek için Supabase bağlantısı gerekli."); return; }
+    try {
+      const { error } = await supabaseClient.auth.updateUser({ password: val });
+      if (error) { alert("Şifre güncellenemedi: " + error.message); return; }
+      document.getElementById("setAdminPassword").value = "";
+      this.toast("Yönetici şifresi güncellendi");
+    } catch (e) {
+      alert("Şifre güncellenemedi, tekrar deneyin.");
+    }
   }
 
   onResPresetChange() {

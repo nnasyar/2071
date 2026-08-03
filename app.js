@@ -2212,6 +2212,35 @@
         let tempSpecialDayEmptyImage = ""; // Admin panelinde düzenlenen "boşken gösterilecek görsel" çalışma kopyası
         let tempMediaPlaylist = [...(appConfig.mediaPlaylist || [])];
 
+        // İki pano arasında geçiş yapıldığında hedef ekranın da gerçek (OS düzeyinde)
+        // tam ekranda açılmasını sağlar. Tarayıcılar requestFullscreen()'i SADECE bir
+        // kullanıcı etkileşimi (tıklama/tuş) sırasında/hemen sonrasında kabul eder;
+        // sayfa yeni yüklendiğinde otomatik çağrı çoğu tarayıcıda sessizce reddedilir.
+        // Bu yüzden hem yükleme anında bir deneme yapılır, hem de kullanıcının
+        // sayfadaki İLK tıklamasında/tuşuna otomatik olarak tekrar denenir — böylece
+        // pratikte geçiş sonrası ilk dokunuşta/tıklamada tam ekrana geçilmiş olur.
+        function isRealFullscreen() {
+            return !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
+        }
+        function requestRealFullscreen() {
+            if (isRealFullscreen()) return;
+            const el = document.documentElement;
+            const req = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
+            if (req) {
+                const r = req.call(el);
+                if (r && r.catch) r.catch(() => {});
+            }
+        }
+        function armFullscreenOnFirstInteraction() {
+            const handler = () => {
+                requestRealFullscreen();
+                document.removeEventListener('click', handler);
+                document.removeEventListener('keydown', handler);
+            };
+            document.addEventListener('click', handler, { once: true });
+            document.addEventListener('keydown', handler, { once: true });
+        }
+
         window.onload = function() {
             ieInitDragHandlers();
             writeCMSLog("Pano sistemi başarıyla başlatıldı.");
@@ -2229,6 +2258,9 @@
             panoRenderTemplateList();
             panoRenderSavedLayoutsList();
             panoRenderModuleSizeList();
+
+            requestRealFullscreen();
+            armFullscreenOnFirstInteraction();
 
             // BULUT SENKRONİZASYONU: önce mevcut yerel veriyle yukarıda ANINDA çizim yapıldı;
             // SUPABASE_CONFIG doldurulmuşsa, arka planda buluttan daha güncel bir kayıt olup

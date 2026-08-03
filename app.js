@@ -668,7 +668,7 @@
         // yerde (kod, veritabanı) düz metin olarak saklanmaz. Yönetim Paneli'ndeki
         // "Yönetici Şifresi" alanından bu şifreyi değiştirebilirsiniz.
         // ============================================================================
-        const ADMIN_EMAIL = "admin@pano.local";
+        const ADMIN_EMAIL = "nasyar@cozgen.com";
 
         // ============================================================================
         // EKRAN GEÇİŞİ (Pano49 ↔ Duyuru Panosu) — panox49 ile duyuru panosu editörü

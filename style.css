@@ -1,0 +1,1545 @@
+        :root {
+            --bg-dark: #02040a;
+            --card-bg: #070b13;
+            --card-border: #111b2d;
+            --neon-blue: #00b4d8;
+            --neon-red: #d90429;
+            --neon-yellow: #ffb703;
+            --neon-green: #38b000;
+            --neon-purple: #9d4edd;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --title-gradient-start: #6b1111;
+            --title-gradient-end: #300a0a;
+        }
+
+        .theme-cyberpunk {
+            --neon-blue: #ff007f;
+            --neon-red: #39ff14;
+            --neon-yellow: #f5ed12;
+            --title-gradient-start: #11001c;
+            --title-gradient-end: #2d004d;
+        }
+
+        .theme-emerald {
+            --neon-blue: #06d6a0;
+            --neon-red: #118ab2;
+            --neon-yellow: #ffd166;
+            --title-gradient-start: #064e3b;
+            --title-gradient-end: #022c22;
+        }
+
+        .theme-purple {
+            --neon-blue: #a855f7;
+            --neon-red: #ec4899;
+            --neon-yellow: #eab308;
+            --title-gradient-start: #3b0764;
+            --title-gradient-end: #1e1b4b;
+        }
+
+        /* ===== AÇIK / KOYU MOD (dark & light mode, orthogonal to renk temaları) ===== */
+        .mode-light {
+            --bg-dark: #eef1f6;
+            --card-bg: #ffffff;
+            --card-border: #d7dee8;
+            --text-main: #182430;
+            --text-muted: #5b6b80;
+        }
+
+        .mode-light .dashboard-container {
+            background: radial-gradient(circle at top, #ffffff 0%, #eef1f6 100%);
+        }
+
+        .mode-light .school-brand {
+            background: linear-gradient(135deg, #ffffff 0%, #eef1f6 100%);
+        }
+
+        .mode-light .brand-name {
+            color: #182430;
+            text-shadow: none;
+        }
+
+        .mode-light .card-header {
+            color: #fff;
+        }
+
+        .mode-light .b-name {
+            text-shadow: none;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 10px;
+            transition: all 0.5s ease;
+        }
+
+        .dashboard-container {
+            width: 100%;
+            height: 100%;
+            max-width: 1920px;
+            max-height: 1080px;
+            background: radial-gradient(circle at top, #091122 0%, #02040a 100%);
+            border: 2px solid var(--card-border);
+            border-radius: 12px;
+            display: grid;
+            grid-template-columns: repeat(96, 1fr);
+            grid-template-rows: repeat(64, 1fr);
+            gap: var(--pano-gap, 8px);
+            padding: var(--pano-padding, 8px);
+            position: relative;
+        }
+
+        /* Modüller artık serbest ızgara (24x16) üzerinde konumlanır; konum/ebat
+           bilgisi panoInitLayout() tarafından her modüle satır içi stil olarak uygulanır. */
+        .pano-module {
+            min-width: 0;
+            min-height: 0;
+            position: relative;
+        }
+
+        /* ===== YERLEŞİM DÜZENLEYİCİ (SÜRÜKLE / BOYUTLANDIR) ===== */
+        .pano-edit-mode .dashboard-container {
+            background-image:
+                repeating-linear-gradient(to right, rgba(0, 180, 216, 0.10) 0, rgba(0, 180, 216, 0.10) 1px, transparent 1px, transparent calc(100% / 96)),
+                repeating-linear-gradient(to bottom, rgba(0, 180, 216, 0.10) 0, rgba(0, 180, 216, 0.10) 1px, transparent 1px, transparent calc(100% / 64));
+        }
+
+        .pano-edit-mode .pano-module {
+            outline: 2px dashed rgba(0, 180, 216, 0.55);
+            outline-offset: -2px;
+            cursor: grab;
+            user-select: none;
+        }
+
+        .pano-edit-mode .pano-module * {
+            pointer-events: none;
+        }
+
+        .pano-edit-mode .pano-module .pano-resize-handle {
+            pointer-events: auto;
+        }
+
+        .pano-edit-mode .pano-module.pano-dragging {
+            cursor: grabbing;
+            outline-color: var(--neon-yellow, #ffb703);
+            z-index: 500;
+            opacity: 0.9;
+        }
+
+        .pano-edit-mode .pano-module.pano-selected {
+            outline: 2px solid var(--neon-yellow, #ffb703);
+            outline-offset: -2px;
+            z-index: 400;
+        }
+
+        .pano-module-label {
+            display: none;
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            background: rgba(0, 180, 216, 0.9);
+            color: #02040a;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 4px;
+            z-index: 600;
+            pointer-events: none;
+            font-family: 'Rajdhani', sans-serif;
+            letter-spacing: 0.5px;
+        }
+
+        .pano-edit-mode .pano-module-label {
+            display: block;
+        }
+
+        .pano-resize-handle {
+            display: none;
+            position: absolute;
+            right: 2px;
+            bottom: 2px;
+            width: 16px;
+            height: 16px;
+            background: var(--neon-yellow, #ffb703);
+            border: 2px solid #02040a;
+            border-radius: 4px;
+            cursor: nwse-resize;
+            z-index: 600;
+            pointer-events: auto;
+        }
+
+        .pano-edit-mode .pano-resize-handle {
+            display: block;
+        }
+
+        .pano-edit-toolbar {
+            position: fixed;
+            left: 50%;
+            bottom: 18px;
+            transform: translateX(-50%);
+            z-index: 99999;
+            display: none;
+            align-items: center;
+            gap: 10px;
+            background: #0b1220;
+            border: 1px solid #1d3557;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+            border-radius: 14px;
+            padding: 10px 16px;
+            font-family: 'Rajdhani', sans-serif;
+        }
+
+        .pano-edit-toolbar.active {
+            display: flex;
+        }
+
+        .pano-edit-toolbar .pet-title {
+            color: #94a3b8;
+            font-size: 12px;
+            font-weight: 600;
+            padding-right: 6px;
+            border-right: 1px solid #1d3557;
+            margin-right: 4px;
+        }
+
+        .pano-edit-toolbar button {
+            font-family: 'Rajdhani', sans-serif;
+            font-weight: 700;
+            font-size: 13px;
+            letter-spacing: 0.3px;
+            padding: 8px 14px;
+            border-radius: 9px;
+            border: none;
+            cursor: pointer;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .pano-edit-toolbar .pet-btn-primary { background: #00b4d8; }
+        .pano-edit-toolbar .pet-btn-primary:hover { background: #0096b8; }
+        .pano-edit-toolbar .pet-btn-secondary { background: #1d3557; color: #cbd5e1; }
+        .pano-edit-toolbar .pet-btn-secondary:hover { background: #274873; }
+        .pano-edit-toolbar .pet-btn-danger { background: #d90429; }
+        .pano-edit-toolbar .pet-btn-danger:hover { background: #b8021f; }
+
+        .pano-edit-panel {
+            position: fixed;
+            top: 16px;
+            right: 16px;
+            z-index: 99999;
+            display: none;
+            width: 230px;
+            background: #0b1220;
+            border: 1px solid #1d3557;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+            border-radius: 14px;
+            padding: 14px;
+            font-family: 'Rajdhani', sans-serif;
+            color: #e2e8f0;
+        }
+
+        .pano-edit-panel.active {
+            display: block;
+        }
+
+        .pano-edit-panel h4 {
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            color: #ffb703;
+            cursor: move;
+            user-select: none;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding-bottom: 8px;
+            border-bottom: 1px dashed #1d3557;
+        }
+
+        .pano-edit-panel.pano-panel-dragging {
+            opacity: 0.85;
+        }
+
+        .pano-edit-panel label {
+            display: block;
+            font-size: 11px;
+            color: #94a3b8;
+            margin-top: 8px;
+            margin-bottom: 3px;
+            text-transform: uppercase;
+        }
+
+        .pano-edit-panel input[type="number"], .pano-edit-panel input[type="range"] {
+            width: 100%;
+            background: #02040a;
+            border: 1px solid #1d3557;
+            border-radius: 6px;
+            color: #fff;
+            padding: 5px 8px;
+            font-family: 'Roboto', sans-serif;
+            font-size: 13px;
+        }
+
+        .pano-edit-panel .pep-value {
+            font-size: 11px;
+            color: #00b4d8;
+            font-weight: 700;
+        }
+
+        .header-bar {
+            display: flex;
+            align-items: stretch;
+            width: 100%;
+            height: 100%;
+            min-height: 0;
+        }
+
+        .school-brand {
+            width: 100%;
+            background: var(--brand-bg, linear-gradient(135deg, #09101f 0%, #0d1b35 100%));
+            border: var(--brand-border-width, 2px) var(--brand-border-style, solid) var(--brand-border-color, var(--neon-blue));
+            box-shadow: var(--brand-shadow, 0 0 15px rgba(0, 180, 216, 0.2));
+            border-radius: 10px;
+            display: flex;
+            align-items: stretch;
+            padding: 8px 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .school-brand:hover {
+            box-shadow: var(--brand-shadow-hover, 0 0 25px rgba(0, 180, 216, 0.4));
+        }
+
+        /* Efekt ön ayarları: JS tarafından ilgili sınıf ekleniyor/çıkarılıyor */
+        .school-brand.brand-fx-glass {
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+
+        .brand-zone {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 0;
+        }
+
+        .brand-zone-left {
+            flex: 0 1 auto;
+            justify-content: flex-start;
+        }
+
+        .brand-zone-center {
+            flex: 1 1 auto;
+            justify-content: center;
+        }
+
+        .brand-zone-right {
+            flex: 0 1 auto;
+            justify-content: flex-end;
+        }
+
+        #brand-name-block {
+            min-width: 0;
+        }
+
+        #brand-name-block .brand-name {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .brand-logo {
+            width: 54px;
+            height: 54px;
+            flex-shrink: 0;
+            background: gold;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 26px;
+            font-weight: bold;
+            color: #02040a;
+            border: 2px solid #fff;
+            font-family: 'Rajdhani', sans-serif;
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+            overflow: hidden;
+        }
+
+        /* Gerçek bir logo görseli yüklendiğinde altın renkli arka planı kaldırıyoruz.
+           Aksi halde şeffaf (transparent) PNG logoların boşlukları altın renge boyanmış
+           gibi görünüyordu ("logonun rengi bozuldu" sorunu buradan kaynaklanıyordu). */
+        .brand-logo.has-image {
+            background: #0d1424;
+            box-shadow: none;
+        }
+
+        .brand-logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            border-radius: 50%;
+        }
+
+        .brand-name {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 24px;
+            font-weight: 700;
+            color: #fff;
+            letter-spacing: 1px;
+            text-shadow: 0 0 8px rgba(255, 255, 255, 0.2);
+            transition: font-size 0.2s ease;
+        }
+
+        .brand-sub {
+            font-size: 10px;
+            color: var(--text-muted);
+        }
+
+        .dashboard-card {
+            background: transparent;
+            border: 1px solid var(--card-border);
+            border-radius: 10px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        /* MODÜL SAYDAMLIĞI: kartın arka planı, gerçek bir alt katman (::after) olarak
+           ayrı render edilir ve SADECE bu katmanın opaklığı değişir — böylece "Modül
+           Saydamlığı" düşürüldüğünde metin/başlık/görsel gibi içerik ASLA solmaz, sadece
+           arka plan görünürlüğü azalır (tarayıcının normal "opacity" davranışının aksine,
+           ki o TÜM alt öğeleri birlikte soldurur). --pano-module-bg JS tarafından
+           ayarlanmazsa (varsayılan görünüm) otomatik olarak temanın --card-bg rengine düşer. */
+        .dashboard-card::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none;
+            background: var(--pano-module-bg, var(--card-bg));
+            opacity: var(--pano-module-opacity, 1);
+        }
+
+        .dashboard-card > * {
+            position: relative;
+            z-index: 1;
+        }
+
+        .card-header {
+            background: linear-gradient(to right, var(--title-gradient-start), var(--title-gradient-end));
+            border-bottom: 2px solid var(--neon-red);
+            color: #fff;
+            padding: 6px 10px;
+            text-align: center;
+            font-family: 'Rajdhani', sans-serif;
+            font-weight: 700;
+            font-size: 15px;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+
+        .card-body {
+            padding: 10px;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            min-height: 0;
+        }
+
+        .birthday-slider {
+            text-align: center;
+            animation: slideUp 0.6s ease;
+        }
+
+        .b-class {
+            font-size: 16px;
+            color: var(--neon-blue);
+            font-weight: 700;
+            margin-bottom: 3px;
+        }
+
+        .b-name {
+            font-size: 19px;
+            color: var(--neon-yellow);
+            font-weight: bold;
+            text-shadow: 0 0 8px rgba(255, 183, 3, 0.4);
+        }
+
+        .b-count {
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-top: 5px;
+        }
+
+        .schedule-grid {
+            display: grid;
+            grid-template-columns: repeat(var(--sch-columns, 4), 1fr);
+            gap: var(--sch-gap, 6px);
+            flex-grow: 1;
+        }
+
+        .class-schedule-box {
+            background: var(--sch-box-bg, rgba(17, 27, 45, 0.4));
+            border: 1px solid var(--sch-box-border, var(--card-border));
+            border-radius: var(--sch-box-radius, 6px);
+            padding: 6px;
+            display: grid;
+            grid-template-rows: auto 1fr;
+            grid-template-columns: 100%;
+            row-gap: 4px;
+            transition: all 0.3s ease;
+        }
+
+        .class-schedule-box.active {
+            border-color: var(--sch-active-border, var(--neon-blue));
+            background: var(--sch-active-bg, rgba(0, 180, 216, 0.05));
+            box-shadow: 0 0 10px var(--sch-active-border, rgba(0, 180, 216, 0.1));
+        }
+
+        /* Sınıf adı ve ders adı, üst üste iki ayrı hücrede (grid row) yer alır;
+           her hücre kendi dikey (justify-content) ve yatay (align-items/text-align)
+           hizalamasını bağımsız olarak taşır. */
+        .class-name-wrap,
+        .class-lesson-wrap {
+            grid-column: 1;
+            width: 100%;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .class-name-wrap {
+            grid-row: 1;
+            justify-content: var(--sch-name-justify, flex-start);
+        }
+
+        .class-lesson-wrap {
+            grid-row: 2;
+            justify-content: var(--sch-lesson-justify, flex-end);
+        }
+
+        .class-name-badge {
+            background: var(--sch-name-bg, #09101f);
+            color: var(--sch-name-color, #7dd3fc);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: var(--sch-name-weight, 700);
+            font-size: var(--sch-name-size, 12px);
+            text-align: var(--sch-name-align, center);
+            border: 1px solid rgba(0, 180, 216, 0.3);
+            width: 100%;
+        }
+
+        .class-lesson-name {
+            font-size: var(--sch-lesson-size, 12px);
+            font-weight: var(--sch-lesson-weight, 700);
+            color: var(--sch-lesson-color, #fff);
+            font-family: var(--sch-lesson-font, inherit);
+            text-align: var(--sch-lesson-align, center);
+            width: 100%;
+            margin-top: 4px;
+        }
+
+        .class-lesson-name.recess {
+            color: var(--sch-recess-color, var(--neon-green));
+        }
+
+        .media-slider {
+            flex-grow: 1;
+            position: relative;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 1px solid var(--card-border);
+        }
+
+        .media-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: opacity 0.5s ease;
+        }
+
+        .media-caption {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(2, 4, 10, 0.85);
+            padding: 8px 12px;
+            text-align: center;
+            font-size: 12px;
+            color: #cbd5e1;
+            border-top: 1.5px solid var(--neon-blue);
+        }
+
+        .duty-container {
+            /* Konum/ebat artık panoInitLayout() tarafından dinamik olarak uygulanır. */
+        }
+
+        .duty-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 10px;
+        }
+
+        .duty-card-box {
+            background: rgba(9, 16, 31, 0.5);
+            border: 1px solid var(--card-border);
+            border-radius: 6px;
+            padding: 6px 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .duty-avatar-box {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            border: 2px solid var(--neon-blue);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #111b2d;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
+        .duty-info-box {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .duty-title {
+            font-size: 10px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .duty-name-pill {
+            background: #e2e8f0;
+            color: #02040a;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: bold;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        /* =========================================
+           DİNAMİK NÖBET MODÜLÜ — ŞEKİL / ŞABLON / VURGU
+           renderActiveDuties() appConfig.dutyStyle'a göre
+           bu sınıfları duty-card-box / duty-avatar-box /
+           duty-name-pill öğelerine ekler.
+        ========================================= */
+        .duty-card-box.duty-shape-square { border-radius: 3px; }
+        .duty-card-box.duty-shape-rounded { border-radius: 10px; }
+        .duty-card-box.duty-shape-oval { border-radius: 999px; padding-left: 16px; padding-right: 16px; }
+        .duty-card-box.duty-shape-card {
+            border-radius: 12px;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            padding: 12px 8px;
+            gap: 8px;
+        }
+        .duty-card-box.duty-shape-card .duty-info-box { align-items: center; }
+
+        .duty-avatar-box.duty-shape-square { border-radius: 6px; }
+        .duty-avatar-box.duty-shape-oval { border-radius: 999px; }
+        .duty-avatar-box.duty-shape-card { border-radius: 14px; width: 52px; height: 52px; }
+
+        .duty-name-pill.duty-shape-square { border-radius: 4px; }
+        .duty-name-pill.duty-shape-oval { border-radius: 999px; }
+        .duty-name-pill.duty-shape-card { border-radius: 8px; width: 100%; }
+
+        /* Aktif nöbetçi hücresi vurgu şekilleri (renk/opaklık JS tarafından inline stil ile uygulanır) */
+        .duty-card-box.duty-active.duty-highlight-border {
+            border-width: 2px;
+            box-shadow: 0 0 0 1px var(--duty-highlight-color, var(--neon-blue)) inset;
+        }
+        .duty-card-box.duty-active.duty-highlight-glow {
+            box-shadow: 0 0 14px 1px var(--duty-highlight-color, var(--neon-blue));
+        }
+        .duty-card-box.duty-active.duty-highlight-left-bar {
+            border-left: 4px solid var(--duty-highlight-color, var(--neon-blue));
+        }
+        .duty-card-box.duty-active.duty-highlight-underline {
+            border-bottom: 3px solid var(--duty-highlight-color, var(--neon-blue));
+        }
+        .duty-card-box.duty-empty {
+            opacity: 0.55;
+        }
+
+        /* Yönetim panelindeki nöbet yeri satırı (sürükle-bırak sıralama) */
+        .dutypos-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid #1e293b;
+            border-radius: 8px;
+            padding: 6px 8px;
+        }
+        .dutypos-row.dragging { opacity: 0.4; }
+        .dutypos-row .dutypos-drag-handle { cursor: grab; color: #475569; }
+        .dutypos-row .dutypos-drag-handle:active { cursor: grabbing; }
+
+        /* Öğretmen kadrosu (roster) sürükle-bırak sıralama */
+        .roster-row { cursor: default; transition: opacity 0.15s, border-color 0.15s; }
+        .roster-row.dragging { opacity: 0.4; }
+        .roster-row .roster-drag-handle { cursor: grab; color: #475569; flex-shrink: 0; }
+        .roster-row .roster-drag-handle:active { cursor: grabbing; }
+        .roster-row.drag-over-top { border-top: 2px solid var(--neon-blue); }
+        .roster-row.drag-over-bottom { border-bottom: 2px solid var(--neon-blue); }
+        .dutypos-row.drag-over-top { border-top: 2px solid var(--neon-blue); }
+        .dutypos-row.drag-over-bottom { border-bottom: 2px solid var(--neon-blue); }
+
+        /* =========================================
+           NÖBETÇİ KARTI GENİŞLETİLMİŞ ANİMASYON VE EFEKT SİNIFLARI
+        ========================================= */
+        @keyframes dutyFadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes dutySlideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes dutyZoomIn {
+            from { opacity: 0; transform: scale(0.88); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        @keyframes dutyPulseGlow {
+            0%, 100% { box-shadow: 0 0 6px 1px var(--duty-highlight-color, var(--neon-blue)); }
+            50%       { box-shadow: 0 0 18px 4px var(--duty-highlight-color, var(--neon-blue)); }
+        }
+        @keyframes dutyShimmer {
+            0%   { background-position: -200% center; }
+            100% { background-position:  200% center; }
+        }
+        .duty-anim-fade-in   { animation: dutyFadeIn   var(--duty-anim-dur, 0.5s) ease both; }
+        .duty-anim-slide-up  { animation: dutySlideUp  var(--duty-anim-dur, 0.5s) ease both; }
+        .duty-anim-zoom-in   { animation: dutyZoomIn   var(--duty-anim-dur, 0.5s) ease both; }
+        .duty-anim-pulse-glow{ animation: dutyPulseGlow var(--duty-anim-dur, 2s) ease-in-out infinite; }
+        .duty-anim-shimmer {
+            background: linear-gradient(90deg, transparent 25%, rgba(255,255,255,0.08) 50%, transparent 75%);
+            background-size: 200% 100%;
+            animation: dutyShimmer var(--duty-anim-dur, 2s) linear infinite;
+        }
+        /* Hover efektleri */
+        .duty-hover-lift:hover   { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(0,0,0,0.4); }
+        .duty-hover-glow:hover   { box-shadow: 0 0 16px 2px var(--duty-highlight-color, var(--neon-blue)); }
+        .duty-hover-scale:hover  { transform: scale(1.04); }
+        .duty-card-box           { transition: transform var(--duty-transition, 0.4s), box-shadow var(--duty-transition, 0.4s); }
+
+        /* Arka plan desenleri */
+        .duty-bg-pattern-dots {
+            background-image: radial-gradient(circle, rgba(255,255,255,0.07) 1px, transparent 1px);
+            background-size: 12px 12px;
+        }
+        .duty-bg-pattern-lines {
+            background-image: repeating-linear-gradient(0deg, rgba(255,255,255,0.04) 0px, rgba(255,255,255,0.04) 1px, transparent 1px, transparent 10px);
+        }
+        .duty-bg-pattern-grid {
+            background-image:
+                repeating-linear-gradient(0deg, rgba(255,255,255,0.04) 0px, rgba(255,255,255,0.04) 1px, transparent 1px, transparent 16px),
+                repeating-linear-gradient(90deg, rgba(255,255,255,0.04) 0px, rgba(255,255,255,0.04) 1px, transparent 1px, transparent 16px);
+        }
+
+        /* Ayarlar ikonu listesi satırı */
+        .ds-icon-row {
+            display: flex; align-items: center; gap: 6px;
+            background: rgba(15,23,42,0.7); border: 1px solid #1e293b;
+            border-radius: 8px; padding: 6px 8px; font-size: 11px;
+        }
+        .ds-icon-row .ds-icon-preview { font-size: 14px; color: #94a3b8; width: 20px; text-align: center; }
+        .ds-icon-row .ds-icon-label   { flex: 1; color: #cbd5e1; }
+        .ds-icon-row .ds-icon-remove  { color: #f87171; cursor: pointer; font-size: 10px; padding: 2px 6px; border-radius: 4px; background: rgba(248,113,113,0.1); border: 1px solid rgba(248,113,113,0.2); }
+        .ds-icon-row .ds-icon-remove:hover { background: rgba(248,113,113,0.25); }
+
+        .clock-box {
+            background: radial-gradient(circle, #0e1726 0%, #02040a 100%);
+            border: 1px solid var(--neon-blue);
+            text-align: center;
+            padding: 8px;
+            box-shadow: 0 0 12px rgba(0, 180, 216, 0.2);
+            display: grid;
+            grid-template-rows: 1fr 1fr 1fr;
+            grid-template-columns: 100%;
+        }
+
+        /* Tarih, Saat ve Geri Sayım üst üste üç ayrı hücrede (grid row) yer
+           alır; her hücre kendi dikey (justify-content) hizalamasını
+           bağımsız olarak taşır. */
+        .clk-date-wrap,
+        .clk-time-wrap,
+        .clk-cd-wrap {
+            width: 100%;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .clk-date-wrap { grid-row: 1; justify-content: var(--clk-date-justify, center); }
+        .clk-time-wrap { grid-row: 2; justify-content: var(--clk-time-justify, center); }
+        .clk-cd-wrap   { grid-row: 3; justify-content: var(--clk-cd-justify, center); }
+
+        .digital-clock {
+            font-family: var(--clk-time-font, 'Rajdhani', sans-serif);
+            font-size: var(--clk-time-size, 32px);
+            color: var(--clk-time-color, var(--neon-blue));
+            font-weight: var(--clk-time-weight, 700);
+            text-shadow: 0 0 8px rgba(0, 180, 216, 0.4);
+            line-height: 1.1;
+            text-align: var(--clk-time-align, center);
+        }
+
+        .digital-date {
+            font-size: var(--clk-date-size, 11px);
+            color: var(--clk-date-color, var(--text-muted));
+            text-transform: uppercase;
+            margin-bottom: 4px;
+            font-family: var(--clk-date-font, inherit);
+            font-weight: var(--clk-date-weight, 400);
+            text-align: var(--clk-date-align, center);
+        }
+
+        .bell-countdown {
+            margin-top: 6px;
+            font-size: var(--clk-cd-size, 12px);
+            color: var(--clk-cd-color, var(--neon-yellow));
+            font-weight: var(--clk-cd-weight, 500);
+            font-family: var(--clk-cd-font, inherit);
+            text-align: var(--clk-cd-align, center);
+        }
+
+        .lesson-schedule-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+        }
+
+        .lesson-schedule-table th {
+            background-color: var(--bell-header-bg, rgba(17, 27, 45, 0.5));
+            color: var(--bell-header-color, var(--text-muted));
+            font-weight: var(--bell-header-weight, 600);
+            font-size: var(--bell-header-fs, 11px);
+            padding-top: 3px;
+            padding-bottom: 3px;
+            padding-left: var(--bell-col-gap, 4px);
+            padding-right: var(--bell-col-gap, 4px);
+            text-transform: uppercase;
+            transition: background-color .25s ease, color .25s ease;
+        }
+
+        .lesson-schedule-table td {
+            padding-top: var(--bell-row-gap, 4px);
+            padding-bottom: var(--bell-row-gap, 4px);
+            padding-left: var(--bell-col-gap, 4px);
+            padding-right: var(--bell-col-gap, 4px);
+            text-align: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+            color: #cbd5e1;
+            transition: background-color .25s ease, color .25s ease, box-shadow .25s ease, padding .2s ease;
+        }
+
+        .lesson-schedule-table tr.active-row {
+            background-color: var(--bell-active-bg, rgba(255, 183, 3, 0.12));
+            color: var(--bell-active-color, var(--neon-yellow));
+            font-weight: bold;
+        }
+
+        .lesson-schedule-table tr.active-row td {
+            padding-top: var(--bell-active-row-gap, var(--bell-row-gap, 4px));
+            padding-bottom: var(--bell-active-row-gap, var(--bell-row-gap, 4px));
+            font-size: var(--bell-active-font-size, inherit);
+            border-top: 1px solid var(--bell-active-color, var(--neon-yellow));
+            border-bottom: 1px solid var(--bell-active-color, var(--neon-yellow));
+            color: var(--bell-active-color, var(--neon-yellow));
+        }
+
+        /* Aktif ders satırı - efekt seçenekleri (Admin > Zil Saatleri > Görünüm Ayarları) */
+        .lesson-schedule-table tr.active-row.effect-glow td {
+            box-shadow: inset 0 0 10px -1px var(--bell-active-color, var(--neon-yellow));
+        }
+
+        .lesson-schedule-table tr.active-row.effect-border td {
+            border-top-width: 2px;
+            border-bottom-width: 2px;
+        }
+
+        .lesson-schedule-table tr.active-row.effect-pulse {
+            animation: bellActiveRowPulse 1.4s ease-in-out infinite;
+        }
+
+        /* Vurgu Efekti: Düz Renk (Dolgu) — satır, seçilen vurgu rengiyle tamamen (opak) doldurulur */
+        .lesson-schedule-table tr.active-row.effect-solid {
+            background-color: var(--bell-active-color, var(--neon-yellow));
+        }
+
+        .lesson-schedule-table tr.active-row.effect-solid td {
+            background-color: var(--bell-active-color, var(--neon-yellow));
+            color: var(--bell-active-text-solid, #0f172a);
+            border-top-color: var(--bell-active-color, var(--neon-yellow));
+            border-bottom-color: var(--bell-active-color, var(--neon-yellow));
+        }
+
+        @keyframes bellActiveRowPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .55; }
+        }
+
+        /* Teneffüs ayırıcı satırları — hangi derslerin arasında olduğunu net gösteren ayırıcı + farklı arka plan */
+        .lesson-schedule-table tr.recess-row td {
+            padding-top: var(--bell-recess-row-gap, max(2px, calc(var(--bell-row-gap, 4px) * 0.6)));
+            padding-bottom: var(--bell-recess-row-gap, max(2px, calc(var(--bell-row-gap, 4px) * 0.6)));
+            padding-left: var(--bell-col-gap, 4px);
+            padding-right: var(--bell-col-gap, 4px);
+            text-align: center;
+            background: rgba(255, 183, 3, 0.045);
+            border-top: 1px dashed rgba(255, 183, 3, 0.3);
+            border-bottom: 1px dashed rgba(255, 183, 3, 0.3);
+            transition: background-color .25s ease, padding .2s ease;
+        }
+
+        /* Ayırıcı stili: Düz Çizgi */
+        .lesson-schedule-table tr.recess-row.recess-style-line td {
+            border-top: 1px solid rgba(255, 183, 3, 0.35);
+            border-bottom: 1px solid rgba(255, 183, 3, 0.35);
+        }
+
+        /* Ayırıcı stili: Noktalı Çizgi */
+        .lesson-schedule-table tr.recess-row.recess-style-dotted td {
+            border-top: 1px dotted rgba(255, 183, 3, 0.55);
+            border-bottom: 1px dotted rgba(255, 183, 3, 0.55);
+        }
+
+        /* Çizgi/Noktalı modlarda satır boşken (teneffüs pasifken) daha ince/kompakt görünür */
+        .lesson-schedule-table tr.recess-row.recess-style-line:not(.active-recess) td,
+        .lesson-schedule-table tr.recess-row.recess-style-dotted:not(.active-recess) td {
+            padding-top: max(1px, calc(var(--bell-recess-row-gap, var(--bell-row-gap, 4px)) * 0.6));
+            padding-bottom: max(1px, calc(var(--bell-recess-row-gap, var(--bell-row-gap, 4px)) * 0.6));
+        }
+
+        .recess-label {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            gap: 6px;
+            font-size: var(--bell-recess-font-size, 9px);
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: .3px;
+            white-space: nowrap;
+            overflow: hidden;
+        }
+
+        .recess-label i {
+            color: var(--neon-yellow);
+            font-size: var(--bell-recess-font-size, 9px);
+            flex-shrink: 0;
+        }
+
+        .recess-label-text {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            text-align: center;
+        }
+
+        .recess-badge {
+            flex-shrink: 0;
+            font-weight: 700;
+            font-size: calc(var(--bell-recess-font-size, 9px) + 0.5px);
+            text-transform: none;
+            letter-spacing: 0;
+            text-align: center;
+        }
+
+        .lesson-schedule-table tr.recess-row.active-recess td {
+            background: var(--bell-active-recess-bg, rgba(34, 197, 94, 0.14));
+            border-top: 1px solid var(--bell-active-recess-color, #22c55e);
+            border-bottom: 1px solid var(--bell-active-recess-color, #22c55e);
+            padding-top: var(--bell-active-recess-row-gap, var(--bell-recess-row-gap, 3px));
+            padding-bottom: var(--bell-active-recess-row-gap, var(--bell-recess-row-gap, 3px));
+        }
+
+        .lesson-schedule-table tr.recess-row.active-recess .recess-label {
+            color: var(--bell-active-recess-color, #22c55e);
+            font-weight: 700;
+            text-transform: none;
+            font-size: var(--bell-active-recess-font-size, calc(var(--bell-recess-font-size, 9px) + 1.5px));
+        }
+
+        .lesson-schedule-table tr.recess-row.active-recess .recess-label i {
+            color: var(--bell-active-recess-color, #22c55e);
+            font-size: var(--bell-active-recess-font-size, calc(var(--bell-recess-font-size, 9px) + 1.5px));
+        }
+
+        .lesson-schedule-table tr.recess-row.active-recess .recess-badge {
+            color: var(--bell-active-recess-color, #22c55e);
+            font-size: var(--bell-active-recess-font-size, calc(var(--bell-recess-font-size, 9px) + 1.5px));
+        }
+
+        /* Aktif teneffüs satırı - efekt seçenekleri (Admin > Zil Saatleri > Görünüm Ayarları) */
+        .lesson-schedule-table tr.recess-row.active-recess.effect-glow td {
+            box-shadow: inset 0 0 10px -1px var(--bell-active-recess-color, #22c55e);
+        }
+
+        .lesson-schedule-table tr.recess-row.active-recess.effect-border td {
+            border-top-width: 2px;
+            border-bottom-width: 2px;
+        }
+
+        .lesson-schedule-table tr.recess-row.active-recess.effect-pulse {
+            animation: bellActiveRowPulse 1.4s ease-in-out infinite;
+        }
+
+        /* Vurgu Efekti: Düz Renk (Dolgu) — teneffüs satırı seçilen renkle tamamen (opak) doldurulur */
+        .lesson-schedule-table tr.recess-row.active-recess.effect-solid td {
+            background-color: var(--bell-active-recess-color, #22c55e);
+            border-top-color: var(--bell-active-recess-color, #22c55e);
+            border-bottom-color: var(--bell-active-recess-color, #22c55e);
+        }
+
+        .lesson-schedule-table tr.recess-row.active-recess.effect-solid .recess-label,
+        .lesson-schedule-table tr.recess-row.active-recess.effect-solid .recess-label i,
+        .lesson-schedule-table tr.recess-row.active-recess.effect-solid .recess-badge {
+            color: var(--bell-active-recess-text-solid, #0f172a);
+        }
+
+        .announcements-box {
+            /* Konum/ebat artık panoInitLayout() tarafından dinamik olarak uygulanır. */
+        }
+
+        /* ==========================================================================
+           KAYAN YAZI (MARQUEE) MODÜLÜ
+           Sürekli/kesintisiz kayan bir bant elde etmek için içerik iki kez art arda
+           basılır (.marquee-seg x2) ve track, translateX(0) -> translateX(-50%)
+           arasında animasyonla kaydırılır; ikinci kopyanın başladığı an ilk kopyanın
+           bittiği ana denk geldiği için göz, dikişsiz/kesintisiz bir döngü görür.
+           Süre (animation-duration), gerçek segment genişliğine ve seçilen "hız"a
+           göre JS tarafından (renderMarqueeWidget) anlık hesaplanır.
+           ========================================================================== */
+        .marquee-box .card-body {
+            padding: 0;
+            overflow: hidden;
+        }
+
+        .marquee-viewport {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            position: relative;
+            white-space: nowrap;
+        }
+
+        .marquee-viewport.marquee-paused-hover:hover .marquee-track {
+            animation-play-state: paused;
+        }
+
+        .marquee-track {
+            display: inline-flex;
+            align-items: center;
+            white-space: nowrap;
+            will-change: transform;
+            animation-name: marqueeScroll;
+            animation-timing-function: linear;
+            animation-iteration-count: infinite;
+            color: var(--text-main, #f1f5f9);
+        }
+
+        .marquee-seg {
+            display: inline-flex;
+            align-items: center;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .marquee-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+        }
+
+        .marquee-item i { font-size: 0.85em; }
+
+        .marquee-sep {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0.55;
+            flex-shrink: 0;
+            margin: 0 22px;
+            font-size: 0.75em;
+        }
+
+        .marquee-glow-text {
+            text-shadow: 0 0 6px var(--marquee-glow-color, #00e5ff), 0 0 16px var(--marquee-glow-color, #00e5ff);
+        }
+
+        @keyframes marqueeScroll {
+            from { transform: translateX(0); }
+            to { transform: translateX(-50%); }
+        }
+
+        .ann-list {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            overflow: hidden;
+            height: 100%;
+        }
+
+        .ann-item {
+            font-size: 11px;
+            line-height: 1.25;
+            color: #cbd5e1;
+            display: flex;
+            align-items: flex-start;
+        }
+
+        .ann-item i {
+            color: var(--neon-red);
+            font-size: 7px;
+            margin-top: 3px;
+            margin-right: 6px;
+        }
+
+        .achievements-flex {
+            display: flex;
+            flex: 1;
+            width: 100%;
+            min-height: 0;
+            min-width: 0;
+            gap: 8px;
+        }
+
+        .achievements-flex.ach-layout-column {
+            flex-direction: column;
+        }
+
+        .achievements-flex.ach-layout-row {
+            flex-direction: row;
+        }
+
+        /* "Satır Başına Hücre Sayısı" belirlendiğinde: hücreler taşmadan, belirtilen
+           sayıda sütun halinde çok satırlı bir ızgarada gösterilir. */
+        .achievements-flex.ach-layout-grid {
+            display: grid;
+            grid-template-columns: repeat(var(--ach-cols, 3), 1fr);
+            grid-auto-rows: min-content;
+            align-content: start;
+            row-gap: 10px;
+        }
+
+        .achievements-flex.ach-layout-grid .achievement-slider {
+            flex: unset;
+            min-width: 0;
+        }
+
+        .achievement-slider {
+            display: flex;
+            align-items: center; /* hücre içi dikey (cross-axis) ortalama */
+            justify-content: center;
+            gap: 8px;
+            flex: 1 1 0;
+            min-width: 0;
+            min-height: 0;
+        }
+
+        .achievement-img {
+            width: 44px;
+            height: 44px;
+            border-radius: 6px;
+            object-fit: cover;
+            border: 1.5px solid var(--neon-blue);
+            flex-shrink: 0;
+            transition: opacity 0.4s ease, border-radius 0.25s ease, width 0.25s ease, height 0.25s ease;
+        }
+
+        .achievement-details {
+            min-width: 0;
+        }
+
+        .achievement-details h4 {
+            font-size: 13px;
+            color: #fff;
+            margin: 0 0 2px 0;
+            overflow-wrap: anywhere;
+        }
+
+        .achievement-details p {
+            font-size: 10px;
+            color: var(--neon-yellow);
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* AYIN ENLERİ — DİKKAT ÇEKME EFEKTLERİ (Hücre)
+           --ach-cell-fx-intensity: 0.5 (Hafif) - 1 (Normal) - 1.5 (Güçlü) - 2.2 (Çok Güçlü) çarpanı; JS tarafından ayarlanır. */
+        .achievement-slider.ach-cell-fx-glow {
+            border-radius: 10px;
+            box-shadow: 0 0 calc(14px * var(--ach-cell-fx-intensity, 1)) calc(-2px * var(--ach-cell-fx-intensity, 1)) var(--ach-cell-fx-color, #00b4d8);
+        }
+
+        .achievement-slider.ach-cell-fx-pulse {
+            border-radius: 10px;
+            animation: achCellPulseGlow 1.7s ease-in-out infinite;
+        }
+
+        .achievement-slider.ach-cell-fx-border {
+            border-radius: 10px;
+            border: calc(2px * var(--ach-cell-fx-intensity, 1)) solid var(--ach-cell-fx-color, #00b4d8);
+            animation: achCellBorderPulse 1.7s ease-in-out infinite;
+        }
+
+        .achievement-slider.ach-cell-fx-shine {
+            position: relative;
+            overflow: hidden;
+            border-radius: 10px;
+        }
+
+        .achievement-slider.ach-cell-fx-shine::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -60%;
+            width: calc(40% * var(--ach-cell-fx-intensity, 1));
+            height: 100%;
+            pointer-events: none;
+            opacity: min(var(--ach-cell-fx-intensity, 1), 1.4);
+            background: linear-gradient(120deg, transparent, rgba(255, 255, 255, 0.45), transparent);
+            transform: skewX(-20deg);
+            animation: achCellShineSweep 2.8s ease-in-out infinite;
+        }
+
+        @keyframes achCellPulseGlow {
+            0%, 100% { box-shadow: 0 0 calc(5px * var(--ach-cell-fx-intensity, 1)) calc(-2px * var(--ach-cell-fx-intensity, 1)) var(--ach-cell-fx-color, #00b4d8); }
+            50% { box-shadow: 0 0 calc(20px * var(--ach-cell-fx-intensity, 1)) calc(3px * var(--ach-cell-fx-intensity, 1)) var(--ach-cell-fx-color, #00b4d8); }
+        }
+
+        @keyframes achCellBorderPulse {
+            0%, 100% { box-shadow: 0 0 0 0 var(--ach-cell-fx-color, #00b4d8); }
+            50% { box-shadow: 0 0 calc(12px * var(--ach-cell-fx-intensity, 1)) calc(2px * var(--ach-cell-fx-intensity, 1)) var(--ach-cell-fx-color, #00b4d8); }
+        }
+
+        @keyframes achCellShineSweep {
+            0% { left: -60%; }
+            55%, 100% { left: 130%; }
+        }
+
+        /* AYIN ENLERİ — DİKKAT ÇEKME EFEKTLERİ (Görsel)
+           --ach-img-fx-intensity: aynı çarpan mantığı, sadece görsele uygulanır. */
+        .achievement-img.ach-img-fx-glow {
+            box-shadow: 0 0 calc(10px * var(--ach-img-fx-intensity, 1)) calc(1px * var(--ach-img-fx-intensity, 1)) var(--ach-img-fx-color, #00b4d8);
+        }
+
+        .achievement-img.ach-img-fx-pulse {
+            animation: achImgPulseGlow 1.6s ease-in-out infinite;
+        }
+
+        .achievement-img.ach-img-fx-border {
+            animation: achImgBorderPulse 1.6s ease-in-out infinite;
+        }
+
+        @keyframes achImgPulseGlow {
+            0%, 100% { box-shadow: 0 0 calc(4px * var(--ach-img-fx-intensity, 1)) calc(-1px * var(--ach-img-fx-intensity, 1)) var(--ach-img-fx-color, #00b4d8); }
+            50% { box-shadow: 0 0 calc(16px * var(--ach-img-fx-intensity, 1)) calc(3px * var(--ach-img-fx-intensity, 1)) var(--ach-img-fx-color, #00b4d8); }
+        }
+
+        @keyframes achImgBorderPulse {
+            0%, 100% { box-shadow: 0 0 0 calc(2px * var(--ach-img-fx-intensity, 1)) var(--ach-img-fx-color, #00b4d8); }
+            50% { box-shadow: 0 0 0 calc(5px * var(--ach-img-fx-intensity, 1)) var(--ach-img-fx-color, #00b4d8); }
+        }
+
+        /* GENEL MODÜL KARTI — DİKKAT ÇEKME EFEKTLERİ
+           (Yönetim Paneli > Modül Ayarları / her modülün "Kart Görünüm & Yayın Ayarları" bölümü)
+           Saat, Doğum Günleri ve diğer tüm modül kartlarında kullanılabilir.
+           --pano-fx-intensity: 0 (Kapalı) - 0.5 (Hafif) - 1 (Normal) - 1.5 (Güçlü) - 2.2 (Çok Güçlü) çarpanı; JS tarafından ayarlanır.
+           NOT: Bu efektler kasıtlı olarak box-shadow YERİNE filter:drop-shadow / outline kullanır.
+           Sebep: modül kartları (.dashboard-card) köşe yuvarlama + saydamlık katmanı için
+           "overflow: hidden" kullanıyor; box-shadow bir elemanın KENDİ üzerinde overflow:hidden
+           varsa tarayıcı tarafından görünmez şekilde kırpılıyor (klasik bir CSS tuzağı). filter
+           ve outline ise bu kırpmadan etkilenmediği için efekt her zaman görünür kalır. */
+        .pano-fx-glow {
+            filter: drop-shadow(0 0 calc(6px * var(--pano-fx-intensity, 1)) var(--pano-fx-color, #00b4d8))
+                    drop-shadow(0 0 calc(16px * var(--pano-fx-intensity, 1)) var(--pano-fx-color, #00b4d8));
+        }
+
+        .pano-fx-pulse {
+            animation: panoCardPulseGlow 1.8s ease-in-out infinite;
+        }
+
+        .pano-fx-border {
+            outline: calc(2px * var(--pano-fx-intensity, 1)) solid var(--pano-fx-color, #00b4d8);
+            outline-offset: -2px;
+            animation: panoCardBorderPulse 1.8s ease-in-out infinite;
+        }
+
+        .pano-fx-shine {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .pano-fx-shine::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -70%;
+            width: calc(45% * var(--pano-fx-intensity, 1));
+            height: 100%;
+            pointer-events: none;
+            z-index: 5;
+            opacity: min(var(--pano-fx-intensity, 1), 1.4);
+            background: linear-gradient(120deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+            transform: skewX(-20deg);
+            animation: panoCardShineSweep 3s ease-in-out infinite;
+        }
+
+        /* YENİ EFEKT: Neon — glow'un daha güçlü/canlı, hafif "nefes alan" iki katmanlı hali */
+        .pano-fx-neon {
+            animation: panoCardNeonCycle 2.6s ease-in-out infinite;
+        }
+
+        /* YENİ EFEKT: Titreşen Işık (Flicker) — eski neon tabela gibi düzensiz titreyen parıltı */
+        .pano-fx-flicker {
+            animation: panoCardFlicker 2.4s linear infinite;
+        }
+
+        /* YENİ EFEKT: Köşe Işıması (Corner) — sadece kartın köşelerinden süzülen ışık hissi */
+        .pano-fx-corner {
+            position: relative;
+        }
+
+        .pano-fx-corner::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 4;
+            border-radius: inherit;
+            background:
+                radial-gradient(circle at 0% 0%, var(--pano-fx-color, #00b4d8) 0%, transparent calc(28% * var(--pano-fx-intensity, 1))),
+                radial-gradient(circle at 100% 100%, var(--pano-fx-color, #00b4d8) 0%, transparent calc(28% * var(--pano-fx-intensity, 1)));
+            opacity: 0.5;
+            mix-blend-mode: screen;
+            animation: panoCardCornerPulse 2.2s ease-in-out infinite;
+        }
+
+        @keyframes panoCardPulseGlow {
+            0%, 100% { filter: drop-shadow(0 0 calc(2px * var(--pano-fx-intensity, 1)) var(--pano-fx-color, #00b4d8)); }
+            50% { filter: drop-shadow(0 0 calc(20px * var(--pano-fx-intensity, 1)) var(--pano-fx-color, #00b4d8)); }
+        }
+
+        @keyframes panoCardBorderPulse {
+            0%, 100% { outline-color: color-mix(in srgb, var(--pano-fx-color, #00b4d8) 25%, transparent); filter: drop-shadow(0 0 0 transparent); }
+            50% { outline-color: var(--pano-fx-color, #00b4d8); filter: drop-shadow(0 0 calc(9px * var(--pano-fx-intensity, 1)) var(--pano-fx-color, #00b4d8)); }
+        }
+
+        @keyframes panoCardShineSweep {
+            0% { left: -70%; }
+            55%, 100% { left: 130%; }
+        }
+
+        @keyframes panoCardNeonCycle {
+            0%, 100% {
+                filter: drop-shadow(0 0 calc(4px * var(--pano-fx-intensity, 1)) var(--pano-fx-color, #00b4d8))
+                        drop-shadow(0 0 calc(10px * var(--pano-fx-intensity, 1)) var(--pano-fx-color, #00b4d8))
+                        saturate(1);
+            }
+            50% {
+                filter: drop-shadow(0 0 calc(8px * var(--pano-fx-intensity, 1)) var(--pano-fx-color, #00b4d8))
+                        drop-shadow(0 0 calc(26px * var(--pano-fx-intensity, 1)) var(--pano-fx-color, #00b4d8))
+                        saturate(1.6);
+            }
+        }
+
+        @keyframes panoCardFlicker {
+            0%, 18%, 22%, 25%, 53%, 57%, 100% {
+                filter: drop-shadow(0 0 calc(13px * var(--pano-fx-intensity, 1)) var(--pano-fx-color, #00b4d8));
+            }
+            20%, 24%, 55% {
+                filter: drop-shadow(0 0 calc(2px * var(--pano-fx-intensity, 1)) var(--pano-fx-color, #00b4d8));
+            }
+        }
+
+        @keyframes panoCardCornerPulse {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: calc(0.55 * var(--pano-fx-intensity, 1)); }
+        }
+
+        /* Ayın Enleri alanları arasındaki ayırıcı (çizgi / ikon / desen) */
+        .achievement-separator {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: rgba(0, 180, 216, 0.75);
+            font-size: 13px;
+        }
+
+        .ach-layout-row .achievement-separator {
+            width: 1px;
+            align-self: stretch;
+        }
+
+        .ach-layout-column .achievement-separator {
+            height: 1px;
+            width: 100%;
+        }
+
+        .achievement-separator.ach-sep-none {
+            display: none;
+        }
+
+        .ach-layout-row .achievement-separator.ach-sep-line {
+            background: linear-gradient(to bottom, transparent, rgba(0, 180, 216, 0.6), transparent);
+        }
+
+        .ach-layout-column .achievement-separator.ach-sep-line {
+            background: linear-gradient(to right, transparent, rgba(0, 180, 216, 0.6), transparent);
+        }
+
+        .ach-layout-row .achievement-separator.ach-sep-dots {
+            width: 2px;
+            background-image: repeating-linear-gradient(to bottom, rgba(0, 180, 216, 0.7) 0 3px, transparent 3px 8px);
+        }
+
+        .ach-layout-column .achievement-separator.ach-sep-dots {
+            height: 2px;
+            background-image: repeating-linear-gradient(to right, rgba(0, 180, 216, 0.7) 0 3px, transparent 3px 8px);
+        }
+
+        .achievement-separator.ach-sep-icon {
+            width: auto !important;
+            height: auto !important;
+            padding: 0 4px;
+        }
+
+        /* BELİRLİ GÜN & HAVA DURUMU — iki bağımsız alan (hücre) + aralarındaki ayırıcı.
+           "Ayın Enleri" kartındaki .achievements-flex / .achievement-separator düzeniyle
+           birebir aynı mantık: yerleşim (dikey/yatay) ve ayırıcı türü (çizgi/noktalı/simge/yok)
+           appConfig.specialDayWidget ayarlarına göre renderSpecialDayWeatherLayout() ile uygulanır. */
+        .specialday-flex {
+            display: flex;
+            flex: 1;
+            width: 100%;
+            min-height: 0;
+            min-width: 0;
+            gap: 6px;
+        }
+
+        .specialday-flex.sdw-layout-column {
+            flex-direction: column;
+            justify-content: space-around;
+        }
+
+        .specialday-flex.sdw-layout-row {
+            flex-direction: row;
+            align-items: center;
+        }
+
+        .sdw-area {
+            min-width: 0;
+            min-height: 0;
+        }
+
+        .specialday-flex.sdw-layout-row .sdw-area {
+            flex: 1 1 0;
+            min-width: 0;
+        }
+
+        .sdw-separator {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: rgba(0, 180, 216, 0.75);
+            font-size: 12px;
+        }
+
+        .sdw-layout-row .sdw-separator {
+            width: 1px;
+            align-self: stretch;
+        }
+
+        .sdw-layout-column .sdw-separator {
+            height: 1px;
+            width: 100%;
+        }
+
+        .sdw-separator.sdw-sep-none {
+            display: none;
+        }
+
+        .sdw-layout-row .sdw-separator.sdw-sep-line {
+            background: linear-gradient(to bottom, transparent, rgba(0, 180, 216, 0.6), transparent);
+        }
+
+        .sdw-layout-column .sdw-separator.sdw-sep-line {
+            background: linear-gradient(to right, transparent, rgba(0, 180, 216, 0.6), transparent);
+        }
+
+        .sdw-layout-row .sdw-separator.sdw-sep-dots {
+            width: 2px;
+            background-image: repeating-linear-gradient(to bottom, rgba(0, 180, 216, 0.7) 0 3px, transparent 3px 8px);
+        }
+
+        .sdw-layout-column .sdw-separator.sdw-sep-dots {
+            height: 2px;
+            background-image: repeating-linear-gradient(to right, rgba(0, 180, 216, 0.7) 0 3px, transparent 3px 8px);
+        }
+
+        .sdw-separator.sdw-sep-icon {
+            width: auto !important;
+            height: auto !important;
+            padding: 0 4px;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }

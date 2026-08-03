@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pano</title>
+<style>
+  html,body{margin:0;height:100%;background:#0f0f1a;font-family:system-ui,-apple-system,sans-serif}
+  .wrap{height:100%;display:flex;align-items:center;justify-content:center;color:#8892b0;font-size:.85rem;letter-spacing:.02em}
+</style>
+</head>
+<body>
+<div class="wrap">Yükleniyor…</div>
+<script>
+// ============================================================================
+// GİRİŞ YÖNLENDİRİCİSİ (Router)
+// ----------------------------------------------------------------------------
+// Bu sayfa, panonun kendisini İÇERMEZ. Tek işi: Supabase'teki "display_control"
+// tablosuna bakıp, o an aktif olan panonun (pano49 mu, duyuru panosu mu) gerçek
+// dosyasına YÖNLENDİRMEKTİR. Böylece bu adresi (index.html) nereden/ne zaman
+// açarsanız açın, ekrana gelen sayfa HER ZAMAN o an aktif olan panodur — siz
+// başka bir panoya geçirene kadar.
+//
+// PANO49_TARGET / DUYURU_TARGET: hedef dosyaların, bu index.html'e göre GÖRECELİ
+// yolu. Üçünü de (index.html, pano49.html, duyuru panosu dosyası) AYNI klasöre/
+// repoya yüklerseniz aşağıdaki varsayılanlar doğrudan çalışır.
+// ============================================================================
+(function () {
+  var SUPABASE_URL = "https://lvrwponfyvdxvypeewnw.supabase.co";
+  var ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx2cndwb25meXZkeHZ5cGVld253Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUxNjM1MDUsImV4cCI6MjEwMDczOTUwNX0.AqsnWHE3nPF_dQ8cxuqBGK_IIyqrK21gLFXgoGrGtls";
+  var PANO49_TARGET = "pano49.html";
+  var DUYURU_TARGET = "pano99.html?ekran=1";
+
+  function go(target) {
+    // replace() kullanılır ki geri tuşu bu yükleme sayfasında sonsuz döngüye
+    // girmesin; kullanıcı geri gittiğinde bir önceki GERÇEK sayfaya döner.
+    window.location.replace(target);
+  }
+
+  fetch(SUPABASE_URL + "/rest/v1/display_control?id=eq.1&select=active", {
+    headers: { apikey: ANON_KEY, Authorization: "Bearer " + ANON_KEY }
+  })
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (rows) {
+      var active = (rows && rows[0] && rows[0].active) ? rows[0].active : "pano";
+      go(active === "duyuru" ? DUYURU_TARGET : PANO49_TARGET);
+    })
+    .catch(function () {
+      // Bulut erişilemezse (çevrimdışı vb.) güvenli varsayılan: pano49'u aç.
+      go(PANO49_TARGET);
+    });
+})();
+</script>
+</body>
+</html>

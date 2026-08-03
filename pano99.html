@@ -76,6 +76,11 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--cb);color:v
 .fs:-webkit-full-screen,.fs:fullscreen{width:100vw;height:100vh}
 .fs.a{display:flex}
 .fsc{position:fixed;top:20px;right:20px;z-index:100000;background:rgba(255,255,255,.2);border:none;color:#fff;width:48px;height:48px;border-radius:50%;font-size:1.4rem;cursor:pointer;display:none;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .25s ease}
+/* PIN modalı (Bootstrap), tam ekran yayın görünümünün (z-index 99999) ÜSTÜNDE
+   görünmeli — aksi halde "X" ya da gizli geçiş butonuna basınca modal açılır
+   ama siyah tam ekranın arkasında kalıp görünmez/tıklanamaz kalırdı. */
+#switchPinModal{z-index:1000010}
+.modal-backdrop{z-index:1000005}
 .fsc.show{opacity:1;pointer-events:auto}
 .tc{position:fixed;bottom:15px;right:15px;z-index:10002}
 .ti{background:var(--pb);border:1px solid var(--bc);border-left:3px solid var(--hl);padding:10px 16px;border-radius:6px;margin-top:8px;font-size:.85rem;animation:tr .3s}

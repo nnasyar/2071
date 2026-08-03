@@ -707,9 +707,39 @@
                     if (target === 'duyuru') {
                         writeCMSLog('Ekran, Duyuru Panosu\'na geçiriliyor...');
                         const sep = DUYURU_PANOSU_URL.includes('?') ? '&' : '?';
+                        // Geçmeden önce BU sayfadaki gerçek (OS düzeyinde) tam ekrandan çıkılır.
+                        // Aksi halde şu ters/tuhaf görüntü oluşuyordu: tıklama anında bu (terk
+                        // edilecek) sayfa anlık olarak tam ekrana geçiyor, hemen ardından sayfa
+                        // geçişiyle bu durum siliniyor, ve asıl hedef sayfa tam ekran OLMADAN
+                        // açılıyordu. Artık hedef sayfa temiz açılır; kendi açılışında/ilk
+                        // tıklamada tam ekranı YENİDEN kurar (bkz. armFullscreenOnFirstInteraction).
+                        exitRealFullscreenIfActive();
                         window.location.href = DUYURU_PANOSU_URL + sep + 'ekran=1';
                     }
                 });
+        }
+
+        // Yönetim Paneli başlığındaki "Duyuru Panosuna Geç" düğmesine basılınca çağrılır.
+        // Panel zaten PIN/şifre ile açıldığı (oturum zaten doğrulanmış olduğu) için burada
+        // tekrar şifre sorulmaz — mevcut "Duyuru Panosunu Ekrana Getir" düğmesiyle aynı
+        // yetkilendirmeyi kullanır, sadece daha hızlı erişim için üstte de sunulur.
+        // Geçiş tam ekran olarak gerçekleşir: hedef sayfa (pano99.html) kendi açılışında
+        // gerçek tam ekranı otomatik dener, tarayıcı bunu reddederse kullanıcının ilk
+        // tıklamasında/tuşuna otomatik olarak tekrar dener (bkz. armFullscreenOnFirstInteraction).
+        function adminSwitchToDuyuruPanosu() {
+            if (!confirm('Ekranı Duyuru Panosu\'na (tam ekran) geçirmek istediğinize emin misiniz?')) return;
+            setActiveDisplay('duyuru');
+        }
+
+        // Yönetim Paneli başlığındaki "Pano99'u Düzenle" düğmesine basılınca çağrılır.
+        // Bu, EKRAN GEÇİŞİ değildir (herkesin gördüğü yayını etkilemez) — sadece
+        // Duyuru Panosu'nun İÇERİĞİNİ düzenlemek için pano99.html'i, doğrudan
+        // düzenleme arayüzünde (yayın önizlemesi atlanarak) YENİ BİR SEKMEDE açar.
+        // Böylece iki ayrı pano dosyası olsa da, düzenleme tek bir yönetim akışından
+        // (bu panelden) tek tıkla erişilebilir; pano49 Yönetim Paneli açık kalır.
+        function adminOpenDuyuruPanosuEditor() {
+            const sep = DUYURU_PANOSU_URL.includes('?') ? '&' : '?';
+            window.open(DUYURU_PANOSU_URL + sep + 'duzenle=1', '_blank');
         }
 
         // Anında (sayfa açılır açılmaz) ve ardından periyodik olarak kontrol eder;
@@ -730,6 +760,7 @@
                     if (data.active === 'duyuru') {
                         displayControlSwitching = true;
                         const sep = DUYURU_PANOSU_URL.includes('?') ? '&' : '?';
+                        exitRealFullscreenIfActive();
                         window.location.href = DUYURU_PANOSU_URL + sep + 'ekran=1';
                     }
                 })
@@ -2229,6 +2260,20 @@
             if (req) {
                 const r = req.call(el);
                 if (r && r.catch) r.catch(() => {});
+            }
+        }
+        // Pano geçişlerinden hemen önce çağrılır: bu sayfa gerçek tam ekrandaysa
+        // temiz biçimde çıkar, böylece hedef sayfaya "yarım" bir tam ekran durumu
+        // sızmaz (bkz. setActiveDisplay).
+        function exitRealFullscreenIfActive() {
+            if (!isRealFullscreen()) return;
+            const doc = document;
+            const exit = doc.exitFullscreen || doc.webkitExitFullscreen || doc.msExitFullscreen;
+            if (exit) {
+                try {
+                    const r = exit.call(doc);
+                    if (r && r.catch) r.catch(() => {});
+                } catch (e) { /* yoksay */ }
             }
         }
         function armFullscreenOnFirstInteraction() {

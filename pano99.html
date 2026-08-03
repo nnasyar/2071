@@ -76,11 +76,25 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--cb);color:v
 .fs:-webkit-full-screen,.fs:fullscreen{width:100vw;height:100vh}
 .fs.a{display:flex}
 .fsc{position:fixed;top:20px;right:20px;z-index:100000;background:rgba(255,255,255,.2);border:none;color:#fff;width:48px;height:48px;border-radius:50%;font-size:1.4rem;cursor:pointer;display:none;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .25s ease}
-/* PIN modalı (Bootstrap), tam ekran yayın görünümünün (z-index 99999) ÜSTÜNDE
-   görünmeli — aksi halde "X" ya da gizli geçiş butonuna basınca modal açılır
-   ama siyah tam ekranın arkasında kalıp görünmez/tıklanamaz kalırdı. */
-#switchPinModal{z-index:1000010}
-.modal-backdrop{z-index:1000005}
+/* GÜVENLİK GİRİŞ EKRANI (PIN) — pano49.html'deki #pin-prompt-modal ile BİREBİR AYNI
+   görünüm için elle yazılmış eşdeğer CSS (bu sayfada Tailwind yok, sadece Bootstrap
+   var, o yüzden sınıflar burada yeniden tanımlanıyor). Tam ekran yayın görünümünün
+   (z-index 99999) ÜSTÜNDE görünmeli — aksi halde "X" ya da gizli geçiş butonuna
+   basınca modal açılır ama siyah tam ekranın arkasında kalıp görünmez/tıklanamaz
+   kalırdı. */
+#switchPinModal{position:fixed;inset:0;z-index:1000010;background:rgba(0,0,0,.95);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center}
+#switchPinModal.show{display:flex}
+#switchPinModal .spm-card{background:#0f172a;border:2px solid #0ea5e9;border-radius:16px;padding:32px;width:384px;max-width:90vw;text-align:center;box-shadow:0 25px 50px -12px rgba(14,165,233,.2)}
+#switchPinModal .spm-icon{width:64px;height:64px;background:rgba(14,165,233,.1);border:1px solid #0ea5e9;border-radius:9999px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;color:#0ea5e9;font-size:1.5rem}
+#switchPinModal .spm-title{color:#fff;font-size:1.25rem;font-weight:700;letter-spacing:.02em;margin:0 0 4px}
+#switchPinModal .spm-sub{color:#94a3b8;font-size:.75rem;margin:0 0 24px}
+#switchPinModal .spm-input{width:224px;max-width:100%;text-align:center;font-size:1.5rem;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;letter-spacing:.25em;background:#000;border:2px solid #334155;color:#fff;padding:12px;border-radius:12px;outline:none;margin:0 0 24px}
+#switchPinModal .spm-input:focus{border-color:#0ea5e9}
+#switchPinModal .spm-actions{display:flex;gap:16px;justify-content:center}
+#switchPinModal .spm-cancel{padding:10px 20px;background:#1e293b;color:#94a3b8;font-weight:700;border:none;border-radius:12px;cursor:pointer;transition:.2s}
+#switchPinModal .spm-cancel:hover{background:#334155}
+#switchPinModal .spm-confirm{padding:10px 20px;background:#0ea5e9;color:#fff;font-weight:700;border:none;border-radius:12px;cursor:pointer;transition:.2s;box-shadow:0 10px 15px -3px rgba(14,165,233,.2)}
+#switchPinModal .spm-confirm:hover{background:#0284c7}
 .fsc.show{opacity:1;pointer-events:auto}
 .tc{position:fixed;bottom:15px;right:15px;z-index:10002}
 .ti{background:var(--pb);border:1px solid var(--bc);border-left:3px solid var(--hl);padding:10px 16px;border-radius:6px;margin-top:8px;font-size:.85rem;animation:tr .3s}
@@ -317,18 +331,16 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--cb);color:v
   </div>
 </div>
 
-<div class="modal fade" id="switchPinModal" tabindex="-1">
-  <div class="modal-dialog modal-sm">
-    <div class="modal-content md-content">
-      <div class="modal-header md-header"><h5 class="modal-title" id="switchPinModalTitle">Pano49'a Dön</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
-      <div class="modal-body">
-        <label class="pl">Yönetici PIN'ini girin</label>
-        <input type="password" class="pi" id="switchPinInput" placeholder="Şifre" onkeydown="if(event.key==='Enter') app.confirmSwitchPin()">
-      </div>
-      <div class="modal-footer md-footer">
-        <button type="button" class="btn-sec" data-bs-dismiss="modal">İptal</button>
-        <button type="button" class="btn-pri" id="switchPinModalConfirmBtn" onclick="app.confirmSwitchPin()">Onayla ve Geç</button>
-      </div>
+<!-- GÜVENLİK GİRİŞ EKRANI — pano49.html'deki #pin-prompt-modal ile BİREBİR AYNI görünüm -->
+<div id="switchPinModal">
+  <div class="spm-card">
+    <div class="spm-icon"><i class="fas fa-shield-halved"></i></div>
+    <h3 class="spm-title">GÜVENLİK GEÇİDİ</h3>
+    <p class="spm-sub">Yönetici yetkisi doğrulamak için şifrenizi girin.</p>
+    <input type="password" class="spm-input" id="switchPinInput" onkeydown="if(event.key==='Enter') app.confirmSwitchPin()">
+    <div class="spm-actions">
+      <button type="button" class="spm-cancel" onclick="app.closeSwitchPinModal()">İptal</button>
+      <button type="button" class="spm-confirm" onclick="app.confirmSwitchPin()">Giriş</button>
     </div>
   </div>
 </div>
@@ -589,6 +601,21 @@ let displayControlSwitching = false;
 // Aksi halde her düzenleme oturumunda varsayılan "pano" bayrağı yüzünden
 // kullanıcı çalışırken sürekli panox49'a geri atılırdı.
 const dpIsDisplayScreen = new URLSearchParams(window.location.search).get("ekran") === "1";
+// pano49'un Yönetim Paneli'ndeki "Pano99'u Düzenle" kısayolu bu bayrakla (?duzenle=1)
+// gelir: açılışta yayın önizlemesini atlayıp doğrudan düzenleme arayüzünü gösterir.
+const dpForceEditor = new URLSearchParams(window.location.search).get("duzenle") === "1";
+
+function exitRealFullscreenIfActive() {
+  const isFS = !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
+  if (!isFS) return;
+  const exit = document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen;
+  if (exit) {
+    try {
+      const r = exit.call(document);
+      if (r && r.catch) r.catch(() => {});
+    } catch (e) { /* yoksay */ }
+  }
+}
 
 function setActiveDisplay(target) {
   if (!supabaseClient) {
@@ -607,7 +634,14 @@ function setActiveDisplay(target) {
         displayControlSwitching = false;
         return;
       }
-      if (target === "pano") window.location.href = PANOX49_URL;
+      if (target === "pano") {
+        // pano49.html'e geçmeden önce BU sayfadaki gerçek tam ekrandan temiz
+        // biçimde çıkılır (bkz. pano49 tarafındaki AYNI mantık) — aksi halde
+        // "geçilen değil, terk edilen sayfa tam ekrana giriyor" ters etkisi
+        // oluşuyordu.
+        exitRealFullscreenIfActive();
+        window.location.href = PANOX49_URL;
+      }
     });
 }
 
@@ -624,6 +658,7 @@ function displayControlCheckOnce() {
       if (error || !data) return;
       if (data.active === "pano") {
         displayControlSwitching = true;
+        exitRealFullscreenIfActive();
         window.location.href = PANOX49_URL;
       }
     })
@@ -710,35 +745,43 @@ class App {
     // Gerçek tarayıcı "fullscreen" izni kullanıcı etkileşimi gerektirdiğinden bu
     // otomatik çağrıda sessizce reddedilse dahi, önizlemenin kendisi (kenarlıksız,
     // tüm ekranı kaplayan görünüm) yine de gösterilir.
-    this.previewFullscreen();
+    // İSTİSNA: pano49'un Yönetim Paneli'ndeki "Pano99'u Düzenle" kısayolundan
+    // (?duzenle=1 ile) gelindiyse, doğrudan DÜZENLEME arayüzü gösterilir — yayın
+    // önizlemesi atlanır. Böylece iki ayrı pano dosyası olsa da, düzenleme AYNI
+    // yönetim akışından tek tıkla açılabilir.
+    if (!dpForceEditor) this.previewFullscreen();
     // Güvenlik perdesi (bkz. body başındaki #bootGate açıklaması) SADECE buraya
-    // ulaşıldıysa, yani gerçek pano içeriği başarıyla yayın görünümüne
-    // yüklendiyse kaldırılır. Yukarıdaki adımlardan biri hata verirse bu satıra
-    // hiç gelinmez ve perde kalkmaz — editör asla açığa çıkmaz.
+    // ulaşıldıysa, yani gerçek pano içeriği başarıyla yayın görünümüne (ya da
+    // düzenleme kısayoluyla geldiyse doğrudan editöre) yüklendiyse kaldırılır.
+    // Yukarıdaki adımlardan biri hata verirse bu satıra hiç gelinmez ve perde
+    // kalkmaz — editör asla açığa çıkmaz.
     const gate = document.getElementById("bootGate");
     if (gate) gate.remove();
   }
 
   // Gizli geçiş butonuna (bkz. body başındaki #hidden-switch-trigger) tıklanınca
-  // çağrılır: PIN modalını açar.
+  // çağrılır: PIN modalını açar. (Görünüm pano49.html'deki GÜVENLİK GEÇİDİ ekranıyla
+  // birebir aynıdır — bkz. #switchPinModal CSS'i.)
   tryHiddenDisplaySwitch() {
-    this._openSwitchPinModal("switchDisplay", "Pano49'a Dön", "Onayla ve Geç");
+    this._openSwitchPinModal("switchDisplay");
   }
 
   // Tam ekran yayın görünümündeki "✕" düğmesine tıklanınca çağrılır: editöre
   // geçmeden önce de AYNI PIN'i sorar — böylece panoyu sadece görüntüleyen biri
   // yanlışlıkla ya da bilerek düzenleme ekranına geçemez.
   tryExitToEditor() {
-    this._openSwitchPinModal("exitToEditor", "Düzenleme Ekranına Geç", "Onayla ve Düzenle");
+    this._openSwitchPinModal("exitToEditor");
   }
 
-  _openSwitchPinModal(action, title, confirmLabel) {
+  _openSwitchPinModal(action) {
     this._pendingPinAction = action;
-    document.getElementById("switchPinModalTitle").textContent = title;
-    document.getElementById("switchPinModalConfirmBtn").textContent = confirmLabel;
     document.getElementById("switchPinInput").value = "";
-    new bootstrap.Modal(document.getElementById("switchPinModal")).show();
-    setTimeout(() => document.getElementById("switchPinInput").focus(), 300);
+    document.getElementById("switchPinModal").classList.add("show");
+    setTimeout(() => document.getElementById("switchPinInput").focus(), 50);
+  }
+
+  closeSwitchPinModal() {
+    document.getElementById("switchPinModal").classList.remove("show");
   }
 
   // Girilen şifreyi Supabase Auth'a (gerçek sunucu tarafı doğrulama, pano49 ile
@@ -759,7 +802,7 @@ class App {
       const { error } = await supabaseClient.auth.signInWithPassword({ email: ADMIN_EMAIL, password: entered });
       if (!error) {
         dpPinWrongAttempts = 0;
-        bootstrap.Modal.getInstance(document.getElementById("switchPinModal")).hide();
+        this.closeSwitchPinModal();
         if (this._pendingPinAction === "exitToEditor") this.closeFS();
         else setActiveDisplay("pano");
       } else {
@@ -2373,7 +2416,14 @@ class App {
     this._fsResizeHandler = () => this._fitFS(clone);
     window.addEventListener("resize", this._fsResizeHandler);
     p.classList.add("a");
-    this._requestRealFullscreen(p);
+    // ÖNEMLİ: Gerçek (OS düzeyinde) tam ekran, sadece "fsPreview" ALT elemanı için
+    // DEĞİL, document.documentElement (yani <html>, pano49.html'deki ile AYNI
+    // yaklaşım) için istenir. Aksi halde tarayıcının Fullscreen API'si SADECE
+    // fullscreen istenen elemanın (ve onun DOM alt ağacının) dışında kalan her
+    // şeyi (ör. #switchPinModal, PIN girişi) görünmez kılar — "✕" düğmesine
+    // basılınca PIN ekranı açılıyor ama gerçek tam ekran modundayken hiçbir
+    // yerde görünmediği için düzenlemeye geçiş "çalışmıyormuş" gibi görünürdü.
+    this._requestRealFullscreen(document.documentElement);
     this._fsChangeHandler = () => {
       // Gerçek (işletim sistemi düzeyinde) tam ekrandan çıkıldığında (ör. ESC
       // tuşu, F11) editöre DÜŞMÜYORUZ — panonun kendisi, tarayıcı penceresini
@@ -2424,10 +2474,9 @@ class App {
   _armFullscreenOnFirstInteraction() {
     if (this._isFullscreen() || this._fsArmed) return;
     this._fsArmed = true;
-    const p = document.getElementById("fsPreview");
     const handler = () => {
       this._fsArmed = false;
-      if (!this._isFullscreen()) this._requestRealFullscreen(p);
+      if (!this._isFullscreen()) this._requestRealFullscreen(document.documentElement);
       document.removeEventListener("click", handler);
       document.removeEventListener("keydown", handler);
     };

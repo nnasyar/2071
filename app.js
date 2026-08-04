@@ -707,13 +707,13 @@
                     if (target === 'duyuru') {
                         writeCMSLog('Ekran, Duyuru Panosu\'na geçiriliyor...');
                         const sep = DUYURU_PANOSU_URL.includes('?') ? '&' : '?';
-                        // Geçmeden önce BU sayfadaki gerçek (OS düzeyinde) tam ekrandan çıkılır.
-                        // Aksi halde şu ters/tuhaf görüntü oluşuyordu: tıklama anında bu (terk
-                        // edilecek) sayfa anlık olarak tam ekrana geçiyor, hemen ardından sayfa
-                        // geçişiyle bu durum siliniyor, ve asıl hedef sayfa tam ekran OLMADAN
-                        // açılıyordu. Artık hedef sayfa temiz açılır; kendi açılışında/ilk
-                        // tıklamada tam ekranı YENİDEN kurar (bkz. armFullscreenOnFirstInteraction).
-                        exitRealFullscreenIfActive();
+                        // ÖNEMLİ: Buradan KASITLI olarak tam ekrandan ÇIKILMIYOR. Chrome/Edge gibi
+                        // tarayıcılar, AYNI sekmede aynı origin'e yapılan bir yönlendirmede gerçek
+                        // (OS düzeyinde) tam ekran durumunu koruyabiliyor — biz burada elle
+                        // exitFullscreen() çağırırsak (önceki sürümde olduğu gibi) tarayıcı
+                        // çubuğu geçiş anında görünüp kayboluyor ("yanlış işlem" hissi buradan
+                        // geliyordu). Hedef sayfa zaten kendi açılışında/ilk tıklamada tam ekranı
+                        // ister (bkz. armFullscreenOnFirstInteraction) — bu yeterli ve güvenli.
                         window.location.href = DUYURU_PANOSU_URL + sep + 'ekran=1';
                     }
                 });
@@ -723,23 +723,25 @@
         // Panel zaten PIN/şifre ile açıldığı (oturum zaten doğrulanmış olduğu) için burada
         // tekrar şifre sorulmaz — mevcut "Duyuru Panosunu Ekrana Getir" düğmesiyle aynı
         // yetkilendirmeyi kullanır, sadece daha hızlı erişim için üstte de sunulur.
-        // Geçiş tam ekran olarak gerçekleşir: hedef sayfa (pano99.html) kendi açılışında
-        // gerçek tam ekranı otomatik dener, tarayıcı bunu reddederse kullanıcının ilk
-        // tıklamasında/tuşuna otomatik olarak tekrar dener (bkz. armFullscreenOnFirstInteraction).
+        // Not: burada KASITLI olarak native confirm() KULLANILMIYOR — tam ekran (kiosk)
+        // modunda bazı tarayıcılarda native onay kutuları görünmez/engellenir ve buton
+        // "çalışmıyormuş" gibi görünürdü. Doğrudan geçiş yapılır.
         function adminSwitchToDuyuruPanosu() {
-            if (!confirm('Ekranı Duyuru Panosu\'na (tam ekran) geçirmek istediğinize emin misiniz?')) return;
+            requestRealFullscreen(); // bkz. checkAdminPinCode içindeki AYNI açıklama
             setActiveDisplay('duyuru');
         }
 
         // Yönetim Paneli başlığındaki "Pano99'u Düzenle" düğmesine basılınca çağrılır.
         // Bu, EKRAN GEÇİŞİ değildir (herkesin gördüğü yayını etkilemez) — sadece
-        // Duyuru Panosu'nun İÇERİĞİNİ düzenlemek için pano99.html'i, doğrudan
-        // düzenleme arayüzünde (yayın önizlemesi atlanarak) YENİ BİR SEKMEDE açar.
-        // Böylece iki ayrı pano dosyası olsa da, düzenleme tek bir yönetim akışından
-        // (bu panelden) tek tıkla erişilebilir; pano49 Yönetim Paneli açık kalır.
+        // Duyuru Panosu'nun İÇERİĞİNİ düzenlemek için pano99.html'i, doğrudan düzenleme
+        // arayüzünde (yayın önizlemesi atlanarak) açar. AYNI sekmede yönlendirir (yeni
+        // sekme/pencere AÇMAZ) — tam ekran/kiosk modunda window.open() güvenilmez şekilde
+        // engellenebiliyor ya da arka planda sessizce açılıp fark edilmeyebiliyordu.
+        // Pano49 Yönetim Paneli'ne dönmek için pano99'daki "Pano49'a Dön" düğmesi kullanılır.
         function adminOpenDuyuruPanosuEditor() {
+            requestRealFullscreen(); // bkz. checkAdminPinCode içindeki AYNI açıklama
             const sep = DUYURU_PANOSU_URL.includes('?') ? '&' : '?';
-            window.open(DUYURU_PANOSU_URL + sep + 'duzenle=1', '_blank');
+            window.location.href = DUYURU_PANOSU_URL + sep + 'duzenle=1';
         }
 
         // Anında (sayfa açılır açılmaz) ve ardından periyodik olarak kontrol eder;
@@ -760,7 +762,8 @@
                     if (data.active === 'duyuru') {
                         displayControlSwitching = true;
                         const sep = DUYURU_PANOSU_URL.includes('?') ? '&' : '?';
-                        exitRealFullscreenIfActive();
+                        // (bkz. setActiveDisplay içindeki AYNI açıklama) — kasıtlı olarak
+                        // tam ekrandan çıkılmıyor; hedef sayfa zaten tam ekran ister.
                         window.location.href = DUYURU_PANOSU_URL + sep + 'ekran=1';
                     }
                 })
@@ -2260,20 +2263,6 @@
             if (req) {
                 const r = req.call(el);
                 if (r && r.catch) r.catch(() => {});
-            }
-        }
-        // Pano geçişlerinden hemen önce çağrılır: bu sayfa gerçek tam ekrandaysa
-        // temiz biçimde çıkar, böylece hedef sayfaya "yarım" bir tam ekran durumu
-        // sızmaz (bkz. setActiveDisplay).
-        function exitRealFullscreenIfActive() {
-            if (!isRealFullscreen()) return;
-            const doc = document;
-            const exit = doc.exitFullscreen || doc.webkitExitFullscreen || doc.msExitFullscreen;
-            if (exit) {
-                try {
-                    const r = exit.call(doc);
-                    if (r && r.catch) r.catch(() => {});
-                } catch (e) { /* yoksay */ }
             }
         }
         function armFullscreenOnFirstInteraction() {
@@ -5627,6 +5616,13 @@
         // Başarılı olursa bu tarayıcı, veritabanına yazma izni olan gerçek bir oturum
         // kazanır (RLS politikaları artık SADECE bu oturuma izin veriyor).
         async function checkAdminPinCode() {
+            // Bu fonksiyon bir tıklamadan (kullanıcı hareketi/"user gesture") çağrılır.
+            // Aşağıdaki adımlar async (Supabase'e ağ isteği) olduğu için tarayıcı bu
+            // "gesture" hakkını kısa sürede geri alabilir; bu yüzden gerçek tam ekran
+            // isteği, hâlâ tam bu tıklamanın içindeyken, EN BAŞTA senkron olarak yapılır.
+            // Böylece ekran geçişi sırasında (bkz. setActiveDisplay) tarayıcı tam ekranı
+            // yeni sayfaya taşıyabiliyorsa, taşınacak "canlı" bir tam ekran hakkı olur.
+            requestRealFullscreen();
             const now = Date.now();
             if (now < pinLockedUntil) {
                 const secs = Math.ceil((pinLockedUntil - now) / 1000);

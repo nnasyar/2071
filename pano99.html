@@ -605,17 +605,13 @@ const dpIsDisplayScreen = new URLSearchParams(window.location.search).get("ekran
 // gelir: açılışta yayın önizlemesini atlayıp doğrudan düzenleme arayüzünü gösterir.
 const dpForceEditor = new URLSearchParams(window.location.search).get("duzenle") === "1";
 
-function exitRealFullscreenIfActive() {
-  const isFS = !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
-  if (!isFS) return;
-  const exit = document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen;
-  if (exit) {
-    try {
-      const r = exit.call(document);
-      if (r && r.catch) r.catch(() => {});
-    } catch (e) { /* yoksay */ }
-  }
-}
+// pano49.html tarafındaki AYNI yaklaşım: geçiş sırasında BU sayfadaki gerçek
+// tam ekrandan KASITLI olarak çıkılmıyor. Chrome/Edge gibi tarayıcılar, AYNI
+// sekmede aynı origin'e yapılan bir yönlendirmede gerçek (OS düzeyinde) tam
+// ekran durumunu koruyabiliyor; elle exitFullscreen() çağırmak bunu bozup
+// tarayıcı çubuğunun geçiş anında görünüp kaybolmasına ("ters" geçiş hissi)
+// yol açıyordu. Hedef sayfa zaten kendi açılışında/ilk tıklamada tam ekranı
+// ister (bkz. _armFullscreenOnFirstInteraction) — bu yeterli ve güvenli.
 
 function setActiveDisplay(target) {
   if (!supabaseClient) {
@@ -635,11 +631,6 @@ function setActiveDisplay(target) {
         return;
       }
       if (target === "pano") {
-        // pano49.html'e geçmeden önce BU sayfadaki gerçek tam ekrandan temiz
-        // biçimde çıkılır (bkz. pano49 tarafındaki AYNI mantık) — aksi halde
-        // "geçilen değil, terk edilen sayfa tam ekrana giriyor" ters etkisi
-        // oluşuyordu.
-        exitRealFullscreenIfActive();
         window.location.href = PANOX49_URL;
       }
     });
@@ -658,7 +649,6 @@ function displayControlCheckOnce() {
       if (error || !data) return;
       if (data.active === "pano") {
         displayControlSwitching = true;
-        exitRealFullscreenIfActive();
         window.location.href = PANOX49_URL;
       }
     })
@@ -788,6 +778,11 @@ class App {
   // AYNI hesap) gönderir. Başarılı olursa bekleyen işlemi (Pano49'a geçiş veya
   // editöre çıkış) gerçekleştirir.
   async confirmSwitchPin() {
+    // app.js:checkAdminPinCode ile AYNI mantık: async (ağ) adımlardan önce, hâlâ
+    // bu tıklamanın ("user gesture") içindeyken gerçek tam ekran senkron olarak
+    // istenir — böylece pano49'a geçişte tarayıcı bunu taşıyabiliyorsa taşınacak
+    // "canlı" bir tam ekran hakkı olur.
+    this._requestRealFullscreen(document.documentElement);
     const now = Date.now();
     if (now < dpPinLockedUntil) {
       const secs = Math.ceil((dpPinLockedUntil - now) / 1000);

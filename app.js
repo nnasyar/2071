@@ -692,6 +692,9 @@
                 showCustomNotification('Bulut Bağlı Değil', 'Ekran geçişi için Supabase bağlantısı gerekli.');
                 return;
             }
+            // Hâlâ çağrıldığı tıklamanın ("user gesture") içindeyken gerçek tam ekran
+            // senkron olarak istenir (bkz. checkAdminPinCode içindeki AYNI açıklama).
+            requestRealFullscreen();
             displayControlSwitching = true;
             supabaseClient
                 .from(DISPLAY_CONTROL_TABLE)

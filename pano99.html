@@ -158,7 +158,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--cb);color:v
 <!-- Gizli ekran geçişi tetikleyicisi: tamamen görünmez, sağ-alt köşede küçük bir
      tıklama alanı. Editör görünümünde de tam ekran pano önizlemesinde de üstte
      kalır. Tıklanınca PIN sorar, doğruysa Pano49'a döner. -->
-<div id="hidden-switch-trigger" onclick="app.tryHiddenDisplaySwitch()" title="" aria-hidden="true"
+<div id="hidden-switch-trigger" onclick="app.tryHiddenEditorAccess()" title="" aria-hidden="true"
      style="position:fixed; bottom:0; right:0; width:34px; height:34px; z-index:1000001; opacity:0; cursor:default;"></div>
 <div class="topbar">
   <div class="logo"><i class="fas fa-tv"></i><span>Gelişmiş Dijital Duyuru Panosu</span></div>
@@ -299,7 +299,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--cb);color:v
 </div>
 
 <div class="fs" id="fsPreview"></div>
-<button class="fsc" id="fsc" onclick="app.tryExitToEditor()"><i class="fas fa-times"></i></button>
+<button class="fsc" id="fsc" onclick="app.exitRealFullscreenOnly()"><i class="fas fa-times"></i></button>
 <div class="tc" id="tc"></div>
 
 <div class="modal fade" id="tplModal" tabindex="-1">
@@ -618,6 +618,14 @@ function setActiveDisplay(target) {
     alert("Ekran geçişi için Supabase bağlantısı gerekli.");
     return;
   }
+  // Bu fonksiyon her zaman bir tıklamadan ("user gesture") çağrılır (topbar'daki
+  // "Pano49'a Dön" düğmesi ya da pano49'daki "Duyuru Panosuna Geç" düğmesi).
+  // Async Supabase çağrısından önce, hâlâ o tıklamanın içindeyken gerçek tam
+  // ekran senkron olarak istenir — tarayıcı bunu hedef sayfaya taşıyabiliyorsa
+  // (aynı sekme + aynı origin geçişlerinde bazı tarayıcılar bunu destekler)
+  // geçilen ekran ANINDA tam ekran açılır; desteklemiyorsa hedef sayfa kendi
+  // açılışında/ilk dokunuşta zaten tam ekranı yeniden ister.
+  if (typeof app !== "undefined" && app._requestRealFullscreen) app._requestRealFullscreen(document.documentElement);
   displayControlSwitching = true;
   supabaseClient
     .from(DISPLAY_CONTROL_TABLE)
@@ -749,18 +757,20 @@ class App {
     if (gate) gate.remove();
   }
 
-  // Gizli geçiş butonuna (bkz. body başındaki #hidden-switch-trigger) tıklanınca
-  // çağrılır: PIN modalını açar. (Görünüm pano49.html'deki GÜVENLİK GEÇİDİ ekranıyla
-  // birebir aynıdır — bkz. #switchPinModal CSS'i.)
-  tryHiddenDisplaySwitch() {
-    this._openSwitchPinModal("switchDisplay");
+  // Köşedeki GİZLİ düğmeye (bkz. body başındaki #hidden-switch-trigger) tıklanınca
+  // çağrılır: PIN modalını açar, başarılı girişte DÜZENLEME ekranına geçirir.
+  // (Görünüm pano49.html'deki GÜVENLİK GEÇİDİ ekranıyla birebir aynıdır — bkz.
+  // #switchPinModal CSS'i.)
+  tryHiddenEditorAccess() {
+    this._openSwitchPinModal("exitToEditor");
   }
 
-  // Tam ekran yayın görünümündeki "✕" düğmesine tıklanınca çağrılır: editöre
-  // geçmeden önce de AYNI PIN'i sorar — böylece panoyu sadece görüntüleyen biri
-  // yanlışlıkla ya da bilerek düzenleme ekranına geçemez.
-  tryExitToEditor() {
-    this._openSwitchPinModal("exitToEditor");
+  // Tam ekran yayın görünümündeki "✕" düğmesine tıklanınca çağrılır: PIN SORMAZ,
+  // editöre GEÇMEZ — SADECE gerçek (OS düzeyinde) tam ekrandan çıkar. Pano,
+  // kenarlıksız yayın görünümünde (artık pencereli tarayıcıda) gösterilmeye
+  // devam eder. Düzenleme ekranına geçmek için köşedeki GİZLİ düğme kullanılır.
+  exitRealFullscreenOnly() {
+    this._exitRealFullscreen();
   }
 
   _openSwitchPinModal(action) {
@@ -775,14 +785,8 @@ class App {
   }
 
   // Girilen şifreyi Supabase Auth'a (gerçek sunucu tarafı doğrulama, pano49 ile
-  // AYNI hesap) gönderir. Başarılı olursa bekleyen işlemi (Pano49'a geçiş veya
-  // editöre çıkış) gerçekleştirir.
+  // AYNI hesap) gönderir. Başarılı olursa editöre geçiş yapılır.
   async confirmSwitchPin() {
-    // app.js:checkAdminPinCode ile AYNI mantık: async (ağ) adımlardan önce, hâlâ
-    // bu tıklamanın ("user gesture") içindeyken gerçek tam ekran senkron olarak
-    // istenir — böylece pano49'a geçişte tarayıcı bunu taşıyabiliyorsa taşınacak
-    // "canlı" bir tam ekran hakkı olur.
-    this._requestRealFullscreen(document.documentElement);
     const now = Date.now();
     if (now < dpPinLockedUntil) {
       const secs = Math.ceil((dpPinLockedUntil - now) / 1000);
@@ -798,8 +802,10 @@ class App {
       if (!error) {
         dpPinWrongAttempts = 0;
         this.closeSwitchPinModal();
-        if (this._pendingPinAction === "exitToEditor") this.closeFS();
-        else setActiveDisplay("pano");
+        // Tek olası bekleyen işlem: PIN korumalı DÜZENLEME ekranına geçiş.
+        // closeFS() gerçek tam ekrandan da kasıtlı olarak çıkarır (editör
+        // pencereli görünümde çalışır).
+        this.closeFS();
       } else {
         dpPinWrongAttempts++;
         const waitMs = DP_PIN_LOCK_STEPS_MS[Math.min(dpPinWrongAttempts, DP_PIN_LOCK_STEPS_MS.length - 1)];
@@ -2421,10 +2427,11 @@ class App {
     this._requestRealFullscreen(document.documentElement);
     this._fsChangeHandler = () => {
       // Gerçek (işletim sistemi düzeyinde) tam ekrandan çıkıldığında (ör. ESC
-      // tuşu, F11) editöre DÜŞMÜYORUZ — panonun kendisi, tarayıcı penceresini
-      // kaplayan (ama artık OS tam ekranı olmayan) aynı "yayın" görünümünde
-      // kalmaya devam eder. Editöre geçiş sadece PIN korumalı "✕" düğmesiyle
-      // (app.tryExitToEditor) mümkündür.
+      // tuşu, F11, ya da "✕" düğmesi/app.exitRealFullscreenOnly) editöre
+      // DÜŞMÜYORUZ — panonun kendisi, tarayıcı penceresini kaplayan (ama artık
+      // OS tam ekranı olmayan) aynı "yayın" görünümünde kalmaya devam eder.
+      // Editöre geçiş SADECE köşedeki PIN korumalı GİZLİ düğmeyle
+      // (app.tryHiddenEditorAccess) mümkündür.
       if (!this._isFullscreen()) this._fitFS(clone);
     };
     document.addEventListener("fullscreenchange", this._fsChangeHandler);

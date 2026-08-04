@@ -716,7 +716,7 @@
                         // exitFullscreen() çağırırsak (önceki sürümde olduğu gibi) tarayıcı
                         // çubuğu geçiş anında görünüp kayboluyor ("yanlış işlem" hissi buradan
                         // geliyordu). Hedef sayfa zaten kendi açılışında/ilk tıklamada tam ekranı
-                        // ister (bkz. armFullscreenOnFirstInteraction) — bu yeterli ve güvenli.
+                        // ister (bkz. armFullscreenPersistent) — bu yeterli ve güvenli.
                         window.location.href = DUYURU_PANOSU_URL + sep + 'ekran=1';
                     }
                 });
@@ -2253,9 +2253,12 @@
         // tam ekranda açılmasını sağlar. Tarayıcılar requestFullscreen()'i SADECE bir
         // kullanıcı etkileşimi (tıklama/tuş) sırasında/hemen sonrasında kabul eder;
         // sayfa yeni yüklendiğinde otomatik çağrı çoğu tarayıcıda sessizce reddedilir.
-        // Bu yüzden hem yükleme anında bir deneme yapılır, hem de kullanıcının
-        // sayfadaki İLK tıklamasında/tuşuna otomatik olarak tekrar denenir — böylece
-        // pratikte geçiş sonrası ilk dokunuşta/tıklamada tam ekrana geçilmiş olur.
+        // Bu yüzden SADECE ilk tıklamada değil — kullanıcı SAATE TIKLAYIP MANUEL
+        // OLARAK ÇIKMADIĞI sürece HER tıklama/dokunuş/tuşta tam ekran olup olmadığı
+        // kontrol edilir ve değilse yeniden istenir. Böylece "bir kere denedim, olmadı,
+        // pes ettim" durumu yaşanmaz: kullanıcı panoya her dokunduğunda (ör. TV
+        // kumandasıyla rastgele bir tuşa basıldığında) sistem tam ekranı yeniden kurar.
+        let fsAutoEnforce = true; // false olursa (saate tıklayıp manuel çıkınca) enforcement durur
         function isRealFullscreen() {
             return !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
         }
@@ -2268,14 +2271,15 @@
                 if (r && r.catch) r.catch(() => {});
             }
         }
-        function armFullscreenOnFirstInteraction() {
+        function armFullscreenPersistent() {
             const handler = () => {
-                requestRealFullscreen();
-                document.removeEventListener('click', handler);
-                document.removeEventListener('keydown', handler);
+                if (fsAutoEnforce && !isRealFullscreen()) requestRealFullscreen();
             };
-            document.addEventListener('click', handler, { once: true });
-            document.addEventListener('keydown', handler, { once: true });
+            // {once:true} KULLANILMIYOR — manuel çıkış olana kadar her etkileşimde
+            // yeniden denenir (bkz. yukarıdaki açıklama).
+            document.addEventListener('click', handler);
+            document.addEventListener('keydown', handler);
+            document.addEventListener('touchstart', handler);
         }
 
         window.onload = function() {
@@ -2297,7 +2301,7 @@
             panoRenderModuleSizeList();
 
             requestRealFullscreen();
-            armFullscreenOnFirstInteraction();
+            armFullscreenPersistent();
 
             // BULUT SENKRONİZASYONU: önce mevcut yerel veriyle yukarıda ANINDA çizim yapıldı;
             // SUPABASE_CONFIG doldurulmuşsa, arka planda buluttan daha güncel bir kayıt olup
@@ -5562,6 +5566,7 @@
             const doc = document;
             const isFullscreen = !!(doc.fullscreenElement || doc.webkitFullscreenElement || doc.mozFullScreenElement || doc.msFullscreenElement);
             if (!isFullscreen) {
+                fsAutoEnforce = true; // manuel giriş: enforcement'ı (yeniden) etkinleştir
                 const el = doc.documentElement;
                 const req = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
                 if (req) {
@@ -5571,6 +5576,10 @@
                     } catch (err) { /* bazı eski TV tarayıcıları sessizce yoksayılabilir */ }
                 }
             } else {
+                // MANUEL ÇIKIŞ: kullanıcı bilerek tam ekrandan çıkıyor — bir sonraki
+                // tıklamada sistem bunu geri zorlamasın diye enforcement kapatılır.
+                // Tekrar saate tıklayınca (yukarıdaki dal) enforcement yeniden açılır.
+                fsAutoEnforce = false;
                 const exit = doc.exitFullscreen || doc.webkitExitFullscreen || doc.mozCancelFullScreen || doc.msExitFullscreen;
                 if (exit) {
                     try {

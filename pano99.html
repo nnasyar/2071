@@ -611,7 +611,7 @@ const dpForceEditor = new URLSearchParams(window.location.search).get("duzenle")
 // ekran durumunu koruyabiliyor; elle exitFullscreen() çağırmak bunu bozup
 // tarayıcı çubuğunun geçiş anında görünüp kaybolmasına ("ters" geçiş hissi)
 // yol açıyordu. Hedef sayfa zaten kendi açılışında/ilk tıklamada tam ekranı
-// ister (bkz. _armFullscreenOnFirstInteraction) — bu yeterli ve güvenli.
+// ister (bkz. _armFullscreenPersistent) — bu yeterli ve güvenli.
 
 function setActiveDisplay(target) {
   if (!supabaseClient) {
@@ -769,7 +769,11 @@ class App {
   // editöre GEÇMEZ — SADECE gerçek (OS düzeyinde) tam ekrandan çıkar. Pano,
   // kenarlıksız yayın görünümünde (artık pencereli tarayıcıda) gösterilmeye
   // devam eder. Düzenleme ekranına geçmek için köşedeki GİZLİ düğme kullanılır.
+  // MANUEL ÇIKIŞ: bir sonraki tıklamada sistem tam ekranı geri zorlamasın diye
+  // enforcement kapatılır (bkz. _armFullscreenPersistent). previewFullscreen()
+  // tekrar çağrıldığında (ör. sayfa yeniden yüklendiğinde) enforcement yeniden açılır.
   exitRealFullscreenOnly() {
+    this._fsAutoEnforce = false;
     this._exitRealFullscreen();
   }
 
@@ -2417,6 +2421,10 @@ class App {
     this._fsResizeHandler = () => this._fitFS(clone);
     window.addEventListener("resize", this._fsResizeHandler);
     p.classList.add("a");
+    // Yayın görünümüne her dönüşte enforcement YENİDEN açılır: "✕" ile önceden
+    // manuel çıkılmış olsa bile, önizleme yeniden kurulduğunda uygulama tekrar
+    // "X'e basılana kadar tam ekranda kal" moduna girer.
+    this._fsAutoEnforce = true;
     // ÖNEMLİ: Gerçek (OS düzeyinde) tam ekran, sadece "fsPreview" ALT elemanı için
     // DEĞİL, document.documentElement (yani <html>, pano49.html'deki ile AYNI
     // yaklaşım) için istenir. Aksi halde tarayıcının Fullscreen API'si SADECE
@@ -2465,25 +2473,26 @@ class App {
       const r = req.call(el);
       if (r && r.catch) r.catch(() => {}); // izin verilmeyen ortamlarda (ör. iframe) sessizce yedek moda düş
     }
-    this._armFullscreenOnFirstInteraction();
+    this._armFullscreenPersistent();
   }
 
   // Tarayıcılar requestFullscreen()'i SADECE bir kullanıcı etkileşimi sırasında/
   // hemen sonrasında kabul eder; sayfa yeni yüklendiğinde (ör. Pano49'dan geçiş
-  // sonrası) otomatik çağrı çoğu tarayıcıda sessizce reddedilir. Bu yüzden
-  // kullanıcının sayfadaki İLK tıklamasında/tuşuna otomatik olarak tekrar
-  // denenir — pratikte geçiş sonrası ilk dokunuşta tam ekrana geçilmiş olur.
-  _armFullscreenOnFirstInteraction() {
-    if (this._isFullscreen() || this._fsArmed) return;
-    this._fsArmed = true;
+  // sonrası) otomatik çağrı çoğu tarayıcıda sessizce reddedilir. Bu yüzden SADECE
+  // ilk tıklamada değil — "✕" düğmesiyle (bkz. exitRealFullscreenOnly) MANUEL
+  // olarak çıkılmadığı sürece HER tıklama/dokunuş/tuşta tam ekran olup olmadığı
+  // kontrol edilir ve değilse yeniden istenir. Böylece uygulama, X'e basılana
+  // kadar sürekli tam ekranda kalmaya "kendini zorlar".
+  _armFullscreenPersistent() {
+    if (this._fsPersistentArmed) return;
+    this._fsPersistentArmed = true;
+    if (this._fsAutoEnforce === undefined) this._fsAutoEnforce = true;
     const handler = () => {
-      this._fsArmed = false;
-      if (!this._isFullscreen()) this._requestRealFullscreen(document.documentElement);
-      document.removeEventListener("click", handler);
-      document.removeEventListener("keydown", handler);
+      if (this._fsAutoEnforce && !this._isFullscreen()) this._requestRealFullscreen(document.documentElement);
     };
-    document.addEventListener("click", handler, { once: true });
-    document.addEventListener("keydown", handler, { once: true });
+    document.addEventListener("click", handler);
+    document.addEventListener("keydown", handler);
+    document.addEventListener("touchstart", handler);
   }
 
   _exitRealFullscreen() {

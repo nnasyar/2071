@@ -306,7 +306,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--cb);color:v
 </div>
 
 <div class="fs" id="fsPreview"></div>
-<button class="fsc" id="fsc" onclick="app.exitRealFullscreenOnly()"><i class="fas fa-times"></i></button>
+<button class="fsc" id="fsc" onclick="app.toggleRealFullscreen()"><i class="fas fa-times"></i></button>
 <div class="tc" id="tc"></div>
 
 <div class="modal fade" id="tplModal" tabindex="-1">
@@ -799,16 +799,28 @@ class App {
     this._openSwitchPinModal("exitToEditor");
   }
 
-  // Tam ekran yayın görünümündeki "✕" düğmesine tıklanınca çağrılır: PIN SORMAZ,
-  // editöre GEÇMEZ — SADECE gerçek (OS düzeyinde) tam ekrandan çıkar. Pano,
-  // kenarlıksız yayın görünümünde (artık pencereli tarayıcıda) gösterilmeye
-  // devam eder. Düzenleme ekranına geçmek için köşedeki GİZLİ düğme kullanılır.
-  // MANUEL ÇIKIŞ: bir sonraki tıklamada sistem tam ekranı geri zorlamasın diye
-  // enforcement kapatılır (bkz. _armFullscreenPersistent). previewFullscreen()
-  // tekrar çağrıldığında (ör. sayfa yeniden yüklendiğinde) enforcement yeniden açılır.
-  exitRealFullscreenOnly() {
-    this._fsAutoEnforce = false;
-    this._exitRealFullscreen();
+  // Tam ekran yayın görünümündeki köşedeki "✕" düğmesine tıklanınca çağrılır.
+  // PIN SORMAZ, editöre GEÇMEZ — SADECE gerçek (OS düzeyinde) tam ekran durumunu
+  // AÇAR/KAPATIR (toggle). Pano, kenarlıksız yayın görünümünde (pencereli ya da
+  // tam ekran tarayıcıda) her durumda gösterilmeye devam eder. Düzenleme
+  // ekranına geçmek için köşedeki GİZLİ düğme kullanılır.
+  //   - Hâlâ tam ekrandaysa: gerçek tam ekrandan çıkar VE bir sonraki tıklamada
+  //     sistemin tam ekranı geri zorlamaması için enforcement kapatılır (bkz.
+  //     _armFullscreenPersistent).
+  //   - Tam ekranda DEĞİLSE (ör. sayfa yeni açıldı ve tarayıcı otomatik isteği
+  //     kullanıcı etkileşimi olmadığı için reddetti, ya da kullanıcı az önce
+  //     "✕" ile çıkmıştı): bu tıklama kullanıcı etkileşimi SAYILDIĞI için gerçek
+  //     tam ekran yeniden istenir VE enforcement tekrar açılır.
+  // previewFullscreen() tekrar çağrıldığında (ör. sayfa yeniden yüklendiğinde)
+  // enforcement zaten yeniden açılır.
+  toggleRealFullscreen() {
+    if (this._isFullscreen()) {
+      this._fsAutoEnforce = false;
+      this._exitRealFullscreen();
+    } else {
+      this._fsAutoEnforce = true;
+      this._requestRealFullscreen(document.documentElement);
+    }
   }
 
   _openSwitchPinModal(action) {
@@ -2661,7 +2673,7 @@ class App {
     this._requestRealFullscreen(document.documentElement);
     this._fsChangeHandler = () => {
       // Gerçek (işletim sistemi düzeyinde) tam ekrandan çıkıldığında (ör. ESC
-      // tuşu, F11, ya da "✕" düğmesi/app.exitRealFullscreenOnly) editöre
+      // tuşu, F11, ya da "✕" düğmesi/app.toggleRealFullscreen) editöre
       // DÜŞMÜYORUZ — panonun kendisi, tarayıcı penceresini kaplayan (ama artık
       // OS tam ekranı olmayan) aynı "yayın" görünümünde kalmaya devam eder.
       // Editöre geçiş SADECE köşedeki PIN korumalı GİZLİ düğmeyle
@@ -2705,7 +2717,7 @@ class App {
   // Tarayıcılar requestFullscreen()'i SADECE bir kullanıcı etkileşimi sırasında/
   // hemen sonrasında kabul eder; sayfa yeni yüklendiğinde (ör. Pano49'dan geçiş
   // sonrası) otomatik çağrı çoğu tarayıcıda sessizce reddedilir. Bu yüzden SADECE
-  // ilk tıklamada değil — "✕" düğmesiyle (bkz. exitRealFullscreenOnly) MANUEL
+  // ilk tıklamada değil — "✕" düğmesiyle (bkz. toggleRealFullscreen) MANUEL
   // olarak çıkılmadığı sürece HER tıklama/dokunuş/tuşta tam ekran olup olmadığı
   // kontrol edilir ve değilse yeniden istenir. Böylece uygulama, X'e basılana
   // kadar sürekli tam ekranda kalmaya "kendini zorlar".
@@ -2732,9 +2744,21 @@ class App {
   }
 
   _fitFS(clone) {
-    // "Cover" mantığı: ekranı TAMAMEN kaplasın, hiçbir kenarda boşluk kalmasın;
-    // gerekirse pano kenarlardan hafifçe taşıp kırpılır (letterbox/siyah şerit yok).
-    const sc = Math.max(window.innerWidth / this.canvasW, window.innerHeight / this.canvasH);
+    // Mobil / dikey (portre) ekranlarda "Cover" mantığı YIKICI olabilir: pano
+    // 1920×1080 (yatay/TV oranında) tasarlandığından, dar bir telefon ekranını
+    // doldurmak için çok büyük ölçeklenir ve içeriğin büyük kısmı ekranın
+    // solundan/sağından TAŞIP KIRPILIR — kullanıcı panonun sadece dar bir dikey
+    // şeridini görür. Bu yüzden ekran, panonun kendi (yatay) oranından BELİRGİN
+    // ŞEKİLDE farklı bir dikey (portre) oranındaysa — yani tipik bir telefon/
+    // tabletse — "Contain" mantığına geçilir: pano KIRPILMADAN, TAMAMI görünecek
+    // şekilde (gerekirse üstte/altta ince siyah şeritlerle) ölçeklenir. Masaüstü/
+    // TV gibi geniş (yatay) ekranlarda davranış DEĞİŞMEZ — hâlâ kenarsız "Cover".
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const isPortraitViewport = vh > vw;
+    const isLandscapeCanvas = this.canvasW >= this.canvasH;
+    const coverSc = Math.max(vw / this.canvasW, vh / this.canvasH);
+    const containSc = Math.min(vw / this.canvasW, vh / this.canvasH);
+    const sc = (isPortraitViewport && isLandscapeCanvas) ? containSc : coverSc;
     clone.style.transform = "scale(" + sc + ")";
   }
 

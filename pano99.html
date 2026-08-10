@@ -49,6 +49,13 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--cb);color:v
 .pi:focus,.ps:focus,.pta:focus{outline:none;border-color:var(--hl)}
 .pr{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .pco{width:100%;height:34px;border:1px solid var(--bc);border-radius:6px;cursor:pointer;background:none}
+.rte-toolbar{display:flex;align-items:center;gap:4px;margin-bottom:6px;flex-wrap:wrap}
+.rte-btn{background:var(--ac);border:1px solid var(--bc);color:#fff;width:30px;height:30px;border-radius:6px;font-size:.82rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.2s}
+.rte-btn:hover{background:var(--hl);border-color:var(--hl)}
+.rte-btn.active{background:var(--hl);border-color:var(--hl)}
+.rte-color{width:30px;height:30px;border:1px solid var(--bc);border-radius:6px;cursor:pointer;background:none;padding:2px}
+.rte-editable{width:100%;min-height:72px;max-height:220px;overflow:auto;background:var(--ac);border:1px solid var(--bc);color:#fff;padding:7px 10px;border-radius:6px;font-size:.82rem;line-height:1.4}
+.rte-editable:focus{outline:none;border-color:var(--hl)}
 .pra{width:100%;accent-color:var(--hl)}
 .li{display:flex;align-items:center;justify-content:space-between;padding:10px;background:var(--ac);border-radius:6px;margin-bottom:6px;cursor:pointer;border:1px solid transparent;font-size:.82rem}
 .li:hover{border-color:var(--bc)}
@@ -354,6 +361,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--cb);color:v
         <div class="ptab" id="setTabEkran" onclick="app.switchSettingsTab('ekran')">Ekran</div>
         <div class="ptab" id="setTabGorunum" onclick="app.switchSettingsTab('gorunum')">Görünüm</div>
         <div class="ptab" id="setTabGuvenlik" onclick="app.switchSettingsTab('guvenlik')">Güvenlik</div>
+        <div class="ptab" id="setTabYedek" onclick="app.switchSettingsTab('yedek')">Yedekleme</div>
       </div>
       <div class="modal-body">
         <div id="setPano">
@@ -416,6 +424,20 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--cb);color:v
             </div>
           </div>
           <div class="help-note">Bu alan "Uygula" butonuna dahil DEĞİLDİR — şifreyi değiştirmek için yukarıdaki "Şifreyi Güncelle" butonuna ayrıca basmanız gerekir.</div>
+        </div>
+        <div id="setYedek" style="display:none">
+          <div class="mb-3">
+            <label class="pl">JSON Yedeği İndir</label>
+            <p class="help-note" style="margin-top:-4px;margin-bottom:8px">Duyuru Panosu'nun TÜM tasarımını, ayarlarını ve kayıtlı şablonlarını tek bir dosyaya indirir.</p>
+            <button type="button" class="btn-sec" style="width:100%" onclick="app.exportBackupJSON()"><i class="fas fa-download"></i> JSON Yedeği Al</button>
+          </div>
+          <div class="mb-3">
+            <label class="pl">Yedekten Geri Yükle</label>
+            <p class="help-note" style="margin-top:-4px;margin-bottom:8px">Daha önce indirilmiş bir yedek dosyasını seçin. MEVCUT tasarımın/ayarların/şablonların üzerine yazılır.</p>
+            <button type="button" class="btn-sec" style="width:100%" onclick="document.getElementById('yedek-restore-input').click()"><i class="fas fa-upload"></i> Yedek Dosyası Seç ve Geri Yükle</button>
+            <input type="file" id="yedek-restore-input" accept="application/json,.json" style="display:none" onchange="app.importBackupJSONFile(event)">
+          </div>
+          <div class="help-note">Not: Fotoğrafların kendisi Supabase Storage'da ayrı durur; yedek dosyasında sadece fotoğraf linkleri bulunur.</div>
         </div>
       </div>
       <div class="modal-footer md-footer">
@@ -895,6 +917,59 @@ class App {
     return false;
   }
 
+  // ---- YEDEKLEME / GERİ YÜKLEME (pano49'daki "JSON Sistem Yedeği Al" ile AYNI
+  // mantık) ----
+  // dpCloudState İÇİNDE autosave (tasarım + ayarlar), templates (kayıtlı şablonlar)
+  // ve editorTheme (editör görünüm teması) bulunur; yani Duyuru Panosu'nun TÜM
+  // durumu tek bir JSON dosyasına indirilip aynı şekilde geri yüklenebilir.
+  exportBackupJSON() {
+    this.autoSave(); // en güncel haliyle yedeklemek için önce mevcut durumu dpCloudState'e yaz
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(dpCloudState));
+    const a = document.createElement("a");
+    a.setAttribute("href", dataStr);
+    a.setAttribute("download", "Duyuru_Panosu_Yedek.json");
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    this.toast("JSON yedeği indirildi");
+  }
+
+  // Yerel görünümü VE buluttaki (Supabase) veriyi bu yedekle DEĞİŞTİRİR — dikkatli
+  // kullanılmalı. Fotoğrafların kendisini geri getirmez (yedekte sadece linkleri
+  // vardır); o linkler artık Supabase Storage'da yoksa fotoğraflar görünmeyecektir.
+  importBackupJSONFile(event) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    if (!confirm("Bu yedek, Duyuru Panosu'ndaki MEVCUT tüm tasarımı/ayarları/şablonları üzerine yazacak. Devam edilsin mi?")) {
+      event.target.value = "";
+      return;
+    }
+    const reader = new FileReader();
+    reader.onerror = () => alert("Yedek dosyası okunamadı.");
+    reader.onload = () => {
+      let restored;
+      try {
+        restored = JSON.parse(reader.result);
+      } catch (e) {
+        alert("Geçersiz JSON dosyası.");
+        return;
+      }
+      if (!restored || typeof restored !== "object") {
+        alert("Geçersiz yedek içeriği.");
+        return;
+      }
+      dpCloudState = {
+        autosave: restored.autosave || null,
+        templates: restored.templates || [],
+        editorTheme: restored.editorTheme || null
+      };
+      dpCloudPushNow(); // buluta HEMEN yaz (debounce beklemeden) — diğer cihazlar da alsın
+      this.toast("Yedek geri yüklendi. Sayfa yenileniyor...");
+      setTimeout(() => location.reload(), 1200);
+    };
+    reader.readAsText(file);
+  }
+
   gid() { return "el_" + (++this.ec) + "_" + Date.now(); }
 
   toast(msg) {
@@ -1148,7 +1223,10 @@ class App {
       case "banner": {
         const t = document.createElement("div");
         t.style.cssText = "width:100%;height:100%;display:flex;align-items:center;justify-content:" + (p.textAlign || "center") + ";font-family:" + (p.fontFamily || "Inter") + ";font-size:" + (p.fontSize || 16) + "px;color:" + (p.color || "#fff") + ";font-weight:" + (p.fontWeight || "400") + ";text-align:" + (p.textAlign || "center") + ";line-height:" + (p.lineHeight || 1.4) + ";letter-spacing:" + (p.letterSpacing || 0) + "px;padding:" + (p.padding || 10) + "px;text-transform:" + (p.textTransform || "none") + ";font-style:" + (p.fontStyle || "normal") + ";text-decoration:" + (p.textDecoration || "none") + ";text-shadow:" + (p.textShadow || "none") + ";opacity:" + ((p.opacity || 100) / 100) + ";transform:rotate(" + (p.rotation || 0) + "deg) skew(" + (p.skew || 0) + "deg);word-wrap:break-word;overflow-wrap:break-word";
-        t.textContent = p.text || el.content;
+        // NOT: textContent DEĞİL innerHTML kullanılır — böylece Metin özellik panelindeki
+        // zengin metin araç çubuğuyla (bkz. rteExec) eklenen <b>/<span style="color:..."> gibi
+        // satır-içi biçimlendirme, hem tasarım tuvalinde hem de yayınlanan panoda görünür.
+        t.innerHTML = p.text || el.content;
         if (p.paperStyle) {
           const baseColor = App.PAPER_COLORS[p.paperColor] || App.PAPER_COLORS.yellow;
           const ptype = p.paperType || "duz";
@@ -1537,7 +1615,18 @@ class App {
     h += '<div class="pg"><label class="pl">Animasyon</label><select class="ps" onchange="app.updProp(&#39;animation&#39;,this.value)"><option value="none" ' + (el.animation === "none" ? "selected" : "") + '>Yok</option><option value="fi" ' + (el.animation === "fi" ? "selected" : "") + '>Fade In</option><option value="sil" ' + (el.animation === "sil" ? "selected" : "") + '>Soldan Gel</option><option value="sir" ' + (el.animation === "sir" ? "selected" : "") + '>Sağdan Gel</option><option value="siu" ' + (el.animation === "siu" ? "selected" : "") + '>Yukarıdan Gel</option><option value="sid" ' + (el.animation === "sid" ? "selected" : "") + '>Aşağıdan Gel</option><option value="zi" ' + (el.animation === "zi" ? "selected" : "") + '>Zoom In</option><option value="ri" ' + (el.animation === "ri" ? "selected" : "") + '>Rotate In</option></select></div>';
     const p = el.properties;
     if (["heading","subheading","text","banner"].includes(el.type)) {
-      h += '<div class="pg"><label class="pl">Metin</label><textarea class="pta" rows="3" onchange="app.updProp(&#39;text&#39;,this.value)">' + (p.text || el.content) + '</textarea></div>';
+      h += '<div class="pg"><label class="pl">Metin</label>' +
+        '<div class="rte-toolbar">' +
+          '<button type="button" class="rte-btn" title="Kalın" onmousedown="event.preventDefault()" onclick="app.rteExec(&#39;bold&#39;)"><i class="fas fa-bold"></i></button>' +
+          '<button type="button" class="rte-btn" title="İtalik" onmousedown="event.preventDefault()" onclick="app.rteExec(&#39;italic&#39;)"><i class="fas fa-italic"></i></button>' +
+          '<button type="button" class="rte-btn" title="Altı Çizili" onmousedown="event.preventDefault()" onclick="app.rteExec(&#39;underline&#39;)"><i class="fas fa-underline"></i></button>' +
+          '<input type="color" class="rte-color" title="Metin Rengi" value="#ffff00" onmousedown="event.preventDefault()" onchange="app.rteExec(&#39;foreColor&#39;,this.value)">' +
+          '<input type="color" class="rte-color" title="Vurgu (Fon) Rengi" value="#ff0000" onmousedown="event.preventDefault()" onchange="app.rteExec(&#39;hiliteColor&#39;,this.value)">' +
+          '<button type="button" class="rte-btn" title="Biçimlendirmeyi Temizle" onmousedown="event.preventDefault()" onclick="app.rteExec(&#39;removeFormat&#39;)"><i class="fas fa-eraser"></i></button>' +
+        '</div>' +
+        '<div class="rte-editable" id="rteText" contenteditable="true" oninput="app.rteLiveUpdate(this)" onblur="app.save()">' + (p.text || el.content) + '</div>' +
+        '<div class="help-note" style="margin-top:4px">İpucu: Kalın/renkli yapmak istediğiniz kısmı fare ile seçip yukarıdaki düğmelere basın — sadece seçili kısım biçimlenir.</div>' +
+      '</div>';
       h += '<div class="pg"><label class="pl">Yazı Tipi</label><select class="ps" onchange="app.updProp(&#39;fontFamily&#39;,this.value)"><option value="Inter" ' + (p.fontFamily === "Inter" ? "selected" : "") + '>Inter</option><option value="Roboto" ' + (p.fontFamily === "Roboto" ? "selected" : "") + '>Roboto</option><option value="Open Sans" ' + (p.fontFamily === "Open Sans" ? "selected" : "") + '>Open Sans</option><option value="Arial" ' + (p.fontFamily === "Arial" ? "selected" : "") + '>Arial</option><option value="Georgia" ' + (p.fontFamily === "Georgia" ? "selected" : "") + '>Georgia</option></select></div>';
       h += '<div class="pg"><label class="pl">Boyut (px)</label><input type="number" class="pi" value="' + (p.fontSize || 16) + '" onchange="app.updProp(&#39;fontSize&#39;,this.value)"></div>';
       h += '<div class="pg"><label class="pl">Renk</label><input type="color" class="pco" value="' + (p.color || "#ffffff") + '" onchange="app.updProp(&#39;color&#39;,this.value)"></div>';
@@ -1720,6 +1809,33 @@ class App {
 
   updPropPanel() {
     if (this.sel) this.renderPropPanel();
+  }
+
+  // ---- ZENGİN METİN (KALIN/RENKLİ vb.) BİÇİMLENDİRME ARAÇ ÇUBUĞU ----
+  // "Metin" özellik panelindeki contenteditable kutunun araç çubuğu düğmelerinden
+  // çağrılır. document.execCommand hâlâ tüm büyük tarayıcılarda temel zengin metin
+  // komutları (bold/italic/underline/foreColor/hiliteColor/removeFormat) için
+  // güvenilir şekilde çalışır; bu basit dahili editör için yeterli ve sağlamdır.
+  rteExec(cmd, value) {
+    const editor = document.getElementById("rteText");
+    if (!editor) return;
+    editor.focus();
+    try { document.execCommand(cmd, false, value || null); } catch (e) { /* yoksay */ }
+    this.rteLiveUpdate(editor);
+    this.save();
+  }
+
+  // Zengin metin kutusuna her tuş vuruşunda (oninput) çağrılır: canvas'taki
+  // önizlemeyi ANINDA günceller ama undo geçmişine/otomatik kaydetmeye HER
+  // HARFTE değil — kutudan çıkıldığında (onblur, bkz. yukarıdaki HTML) ya da
+  // araç çubuğu düğmelerinde (rteExec) yazar; aksi halde "Merhaba" yazmak 7 ayrı
+  // geri-al adımı oluştururdu.
+  rteLiveUpdate(editorEl) {
+    const el = this.els.find(x => x.id === this.sel);
+    if (!el) return;
+    el.properties.text = editorEl.innerHTML;
+    el.content = editorEl.innerHTML;
+    this.renderEl(el);
   }
 
   updProp(prop, val) {
@@ -2602,10 +2718,12 @@ class App {
     document.getElementById("setTabEkran").classList.toggle("a", tab === "ekran");
     document.getElementById("setTabGorunum").classList.toggle("a", tab === "gorunum");
     document.getElementById("setTabGuvenlik").classList.toggle("a", tab === "guvenlik");
+    document.getElementById("setTabYedek").classList.toggle("a", tab === "yedek");
     document.getElementById("setPano").style.display = tab === "pano" ? "block" : "none";
     document.getElementById("setEkran").style.display = tab === "ekran" ? "block" : "none";
     document.getElementById("setGorunum").style.display = tab === "gorunum" ? "block" : "none";
     document.getElementById("setGuvenlik").style.display = tab === "guvenlik" ? "block" : "none";
+    document.getElementById("setYedek").style.display = tab === "yedek" ? "block" : "none";
   }
 
   // Pano49'daki "Şifreyi Güncelle" ile birebir aynı işi yapar (aynı Supabase Auth

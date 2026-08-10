@@ -711,6 +711,18 @@ class App {
     kareli: "Kareli Kağıt", resmi: "Resmi Not (Kırmızı Çizgili)", eskimis: "Eskimiş / Vintage Kağıt",
     yirtik: "Yırtık Kenarlı Kağıt", zikzak: "Zikzak Kenarlı Kağıt"
   };
+  // Kağıt notu tuttuğunu simüle eden sabitleme öğesi (raptiye/bant/kıvrık köşe) - tür ve renk seçenekleri
+  static PIN_STYLE_NAMES = {
+    raptiye: "📌 Raptiye (Toplu İğne)", bant: "🩹 Bant (Washi Tape)", kivrik: "📎 Kıvrık Köşe", yok: "Yok"
+  };
+  static PIN_COLORS = {
+    red: "#C0392B", yellow: "#E8C547", blue: "#3B6EB4", green: "#4E9A51", pink: "#E091B0",
+    orange: "#E08A3C", purple: "#8E6BC9", black: "#3A3A3A", white: "#EDEDED", brown: "#8B6B4A"
+  };
+  static PIN_COLOR_NAMES = {
+    red: "Kırmızı", yellow: "Sarı", blue: "Mavi", green: "Yeşil", pink: "Pembe",
+    orange: "Turuncu", purple: "Mor", black: "Siyah", white: "Beyaz", brown: "Kahve"
+  };
 
   constructor() {
     this.els = [];
@@ -1205,7 +1217,10 @@ class App {
       d.appendChild(h);
     });
     const co = document.createElement("div");
-    co.style.cssText = "width:100%;height:100%;overflow:hidden;position:relative";
+    // Döndürülmüş görsel (resim.rotation) veya eğimli kağıt not (paperStyle) içeren
+    // elemanlarda, dönme sonucu köşeler kutunun dışına taşabilir. Bu durumda
+    // overflow:hidden KALDIRILIR ki içerik kırpılmasın/bozulmasın.
+    co.style.cssText = "width:100%;height:100%;overflow:" + (this._needsOverflowVisible(el) ? "visible" : "hidden") + ";position:relative";
     this.renderCo(co, el);
     d.appendChild(co);
     d.addEventListener("mousedown", e => this.onMD(e, el.id));
@@ -1222,7 +1237,17 @@ class App {
       case "text":
       case "banner": {
         const t = document.createElement("div");
-        t.style.cssText = "width:100%;height:100%;display:flex;align-items:center;justify-content:" + (p.textAlign || "center") + ";font-family:" + (p.fontFamily || "Inter") + ";font-size:" + (p.fontSize || 16) + "px;color:" + (p.color || "#fff") + ";font-weight:" + (p.fontWeight || "400") + ";text-align:" + (p.textAlign || "center") + ";line-height:" + (p.lineHeight || 1.4) + ";letter-spacing:" + (p.letterSpacing || 0) + "px;padding:" + (p.padding || 10) + "px;text-transform:" + (p.textTransform || "none") + ";font-style:" + (p.fontStyle || "normal") + ";text-decoration:" + (p.textDecoration || "none") + ";text-shadow:" + (p.textShadow || "none") + ";opacity:" + ((p.opacity || 100) / 100) + ";transform:rotate(" + (p.rotation || 0) + "deg) skew(" + (p.skew || 0) + "deg);word-wrap:break-word;overflow-wrap:break-word";
+        // ÖNEMLİ: Konteyner flex-direction:column'dır (satır bazında değil, dikey
+        // istiflenir). Bunun nedeni: zengin metin kutusunda (bkz. rteExec) Enter'a
+        // basıldığında tarayıcılar her satırı ayrı bir <div> olarak sarar; konteyner
+        // flex-direction:row olsaydı (eski davranış) bu <div>'ler yan yana flex
+        // öğeleri olarak dizilir, metin "sütunlara ayrılmış" gibi görünürdü. Column
+        // modunda ise satırlar (hangi HTML etiketiyle gelirse gelsin) alt alta akar.
+        // Bu yüzden yatay hizalama artık justify-content DEĞİL align-items ile
+        // yapılır (dikey eksende justify-content ortalamayı sağlar).
+        const alignItemsMap = { left: "flex-start", center: "center", right: "flex-end", justify: "stretch" };
+        const hAlign = alignItemsMap[p.textAlign] || "center";
+        t.style.cssText = "width:100%;height:100%;display:flex;flex-direction:column;align-items:" + hAlign + ";justify-content:center;font-family:" + (p.fontFamily || "Inter") + ";font-size:" + (p.fontSize || 16) + "px;color:" + (p.color || "#fff") + ";font-weight:" + (p.fontWeight || "400") + ";text-align:" + (p.textAlign || "center") + ";line-height:" + (p.lineHeight || 1.4) + ";letter-spacing:" + (p.letterSpacing || 0) + "px;padding:" + (p.padding || 10) + "px;text-transform:" + (p.textTransform || "none") + ";font-style:" + (p.fontStyle || "normal") + ";text-decoration:" + (p.textDecoration || "none") + ";text-shadow:" + (p.textShadow || "none") + ";opacity:" + ((p.opacity || 100) / 100) + ";transform:rotate(" + (p.rotation || 0) + "deg) skew(" + (p.skew || 0) + "deg);word-wrap:break-word;overflow-wrap:break-word";
         // NOT: textContent DEĞİL innerHTML kullanılır — böylece Metin özellik panelindeki
         // zengin metin araç çubuğuyla (bkz. rteExec) eklenen <b>/<span style="color:..."> gibi
         // satır-içi biçimlendirme, hem tasarım tuvalinde hem de yayınlanan panoda görünür.
@@ -1256,17 +1281,31 @@ class App {
           t.style.transform = "none";
           wrap.appendChild(t);
           c.appendChild(wrap);
-          if (ptype === "sticky") {
+          // Kağıt eğimli/döndürülmüş olduğu için (paperRotation), köşeleri kutunun
+          // dışına taşabilir. Elemanın dış kapsayıcıları artık bu durumda kırpma
+          // yapmıyor (bkz. renderEl/_buildPreviewCanvas: needsOverflowVisible),
+          // bu yüzden burada ekstra bir önlem almaya gerek yok — kağıt tam görünür.
+          const pinStyle = p.pinStyle || (ptype === "sticky" ? "kivrik" : "raptiye");
+          const pinColorHex = App.PIN_COLORS[p.pinColor] || App.PIN_COLORS.red;
+          if (pinStyle === "kivrik") {
             const fold = document.createElement("div");
             fold.style.cssText = "position:absolute;top:7%;right:7%;width:20px;height:20px;background:linear-gradient(135deg, rgba(0,0,0,.2), rgba(0,0,0,.05) 60%);clip-path:polygon(100% 0,0 0,100% 100%);pointer-events:none;";
             c.appendChild(fold);
-          } else {
+          } else if (pinStyle === "bant") {
+            // Bant (washi tape): kağıdın üst kenarını çaprazlamasına tutan yarı
+            // saydam bir şerit. Raptiye gibi kağıdın overflow:hidden kutusunun
+            // DIŞINA, doğrudan ana kapsayıcıya ekleniyor ki kırpılmasın.
+            const tape = document.createElement("div");
+            tape.style.cssText = "position:absolute;top:calc(7% - 11px);left:50%;transform:translateX(-50%) rotate(-4deg);width:68px;height:24px;background:" + this._hexToRgba(pinColorHex, .55) + ";border:1px solid " + this._hexToRgba(pinColorHex, .8) + ";box-shadow:0 2px 5px rgba(0,0,0,.3);z-index:2;pointer-events:none;";
+            c.appendChild(tape);
+          } else if (pinStyle === "raptiye") {
             // Raptiye artık kağıdın kendi overflow:hidden kutusunun DIŞINA, doğrudan
             // ana kapsayıcıya ekleniyor; böylece kırpılıp kaybolmuyor.
             const pin = document.createElement("div");
-            pin.style.cssText = "position:absolute;top:calc(7% - 7px);left:50%;transform:translateX(-50%);width:14px;height:14px;border-radius:50%;background:radial-gradient(circle at 30% 30%, #ff8a7a, #C0392B);box-shadow:0 2px 3px rgba(0,0,0,.45);z-index:2;pointer-events:none;";
+            pin.style.cssText = "position:absolute;top:calc(7% - 7px);left:50%;transform:translateX(-50%);width:14px;height:14px;border-radius:50%;background:radial-gradient(circle at 30% 30%, rgba(255,255,255,.65), " + pinColorHex + ");box-shadow:0 2px 3px rgba(0,0,0,.45);z-index:2;pointer-events:none;";
             c.appendChild(pin);
           }
+          // pinStyle === "yok" ise hiçbir sabitleme öğesi eklenmez.
         } else {
           c.appendChild(t);
         }
@@ -1274,7 +1313,10 @@ class App {
       }
       case "image": {
         const wrap = document.createElement("div");
-        wrap.style.cssText = "position:relative;width:100%;height:100%";
+        // Döndürme (rotation) tüm sarmalayıcıya (görsel + üstündeki metin) birlikte
+        // uygulanır ki ikisi de aynı açıyla dönsün. Kutunun dışına taşan köşeler
+        // artık üst kapsayıcılarda kırpılmıyor (bkz. needsOverflowVisible).
+        wrap.style.cssText = "position:relative;width:100%;height:100%;transform:rotate(" + (p.rotation || 0) + "deg)";
         const i = document.createElement("img");
         i.src = p.src || "";
         i.style.cssText = "width:100%;height:100%;object-fit:" + (p.objectFit || "cover") + ";border-radius:" + (p.borderRadius || 0) + "px;opacity:" + ((p.opacity || 100) / 100) + ";filter:brightness(" + (p.brightness || 100) + "%) contrast(" + (p.contrast || 100) + "%) blur(" + (p.blur || 0) + "px);border:" + (p.borderWidth || 0) + "px solid " + (p.borderColor || "transparent");
@@ -1306,7 +1348,7 @@ class App {
       case "logo": {
         const i = document.createElement("img");
         i.src = p.src || "";
-        i.style.cssText = "width:100%;height:100%;object-fit:" + (p.objectFit || "cover") + ";border-radius:" + (p.borderRadius || 0) + "px;opacity:" + ((p.opacity || 100) / 100) + ";filter:brightness(" + (p.brightness || 100) + "%) contrast(" + (p.contrast || 100) + "%) blur(" + (p.blur || 0) + "px);border:" + (p.borderWidth || 0) + "px solid " + (p.borderColor || "transparent");
+        i.style.cssText = "width:100%;height:100%;object-fit:" + (p.objectFit || "cover") + ";border-radius:" + (p.borderRadius || 0) + "px;opacity:" + ((p.opacity || 100) / 100) + ";filter:brightness(" + (p.brightness || 100) + "%) contrast(" + (p.contrast || 100) + "%) blur(" + (p.blur || 0) + "px);border:" + (p.borderWidth || 0) + "px solid " + (p.borderColor || "transparent") + ";transform:rotate(" + (p.rotation || 0) + "deg)";
         c.appendChild(i);
         break;
       }
@@ -1360,6 +1402,11 @@ class App {
         const cd = document.createElement("div");
         cd.id = "clock-" + el.id;
         cd.style.cssText = "width:100%;height:100%;display:flex;align-items:center;justify-content:" + (p.textAlign || "center") + ";font-family:" + (p.fontFamily || "Roboto") + ";font-size:" + (p.fontSize || 36) + "px;color:" + (p.color || "#fff");
+        // Başlangıç değeri hemen yazılır; aksi halde startClock()'un ilk periyodik
+        // güncellemesi gelene kadar (en fazla 1 saniye) saat boş görünürdü —
+        // özellikle tam ekran önizlemesi yeni açıldığında fark edilir bir gecikme
+        // yaratıyordu.
+        cd.textContent = this._fmtClock(new Date(), p);
         c.appendChild(cd);
         break;
       }
@@ -1617,15 +1664,17 @@ class App {
     if (["heading","subheading","text","banner"].includes(el.type)) {
       h += '<div class="pg"><label class="pl">Metin</label>' +
         '<div class="rte-toolbar">' +
+          '<button type="button" class="rte-btn" title="Geri Al" onmousedown="event.preventDefault()" onclick="app.rteExec(&#39;undo&#39;)"><i class="fas fa-rotate-left"></i></button>' +
           '<button type="button" class="rte-btn" title="Kalın" onmousedown="event.preventDefault()" onclick="app.rteExec(&#39;bold&#39;)"><i class="fas fa-bold"></i></button>' +
           '<button type="button" class="rte-btn" title="İtalik" onmousedown="event.preventDefault()" onclick="app.rteExec(&#39;italic&#39;)"><i class="fas fa-italic"></i></button>' +
           '<button type="button" class="rte-btn" title="Altı Çizili" onmousedown="event.preventDefault()" onclick="app.rteExec(&#39;underline&#39;)"><i class="fas fa-underline"></i></button>' +
           '<input type="color" class="rte-color" title="Metin Rengi" value="#ffff00" onmousedown="event.preventDefault()" onchange="app.rteExec(&#39;foreColor&#39;,this.value)">' +
           '<input type="color" class="rte-color" title="Vurgu (Fon) Rengi" value="#ff0000" onmousedown="event.preventDefault()" onchange="app.rteExec(&#39;hiliteColor&#39;,this.value)">' +
-          '<button type="button" class="rte-btn" title="Biçimlendirmeyi Temizle" onmousedown="event.preventDefault()" onclick="app.rteExec(&#39;removeFormat&#39;)"><i class="fas fa-eraser"></i></button>' +
+          '<button type="button" class="rte-btn" title="Vurgu (Fon) Rengini Kaldır — sadece seçili kısmın arka planını varsayılana döndürür" onmousedown="event.preventDefault()" onclick="app.rteClearHighlight()"><i class="fas fa-fill-drip"></i><i class="fas fa-slash" style="margin-left:-13px;font-size:.6rem"></i></button>' +
+          '<button type="button" class="rte-btn" title="Tüm Biçimlendirmeyi Temizle (kalın/italik/renk/vurgu — hepsi)" onmousedown="event.preventDefault()" onclick="app.rteExec(&#39;removeFormat&#39;)"><i class="fas fa-eraser"></i></button>' +
         '</div>' +
-        '<div class="rte-editable" id="rteText" contenteditable="true" oninput="app.rteLiveUpdate(this)" onblur="app.save()">' + (p.text || el.content) + '</div>' +
-        '<div class="help-note" style="margin-top:4px">İpucu: Kalın/renkli yapmak istediğiniz kısmı fare ile seçip yukarıdaki düğmelere basın — sadece seçili kısım biçimlenir.</div>' +
+        '<div class="rte-editable" id="rteText" contenteditable="true" oninput="app.rteLiveUpdate(this)" onblur="app.save()" onfocus="try{document.execCommand(&#39;defaultParagraphSeparator&#39;,false,&#39;br&#39;)}catch(e){}">' + (p.text || el.content) + '</div>' +
+        '<div class="help-note" style="margin-top:4px">İpucu: Kalın/renkli yapmak istediğiniz kısmı fare ile seçip yukarıdaki düğmelere basın — sadece seçili kısım biçimlenir. Bir işlemi geri almak için ilk düğmeyi (↺) kullanın.</div>' +
       '</div>';
       h += '<div class="pg"><label class="pl">Yazı Tipi</label><select class="ps" onchange="app.updProp(&#39;fontFamily&#39;,this.value)"><option value="Inter" ' + (p.fontFamily === "Inter" ? "selected" : "") + '>Inter</option><option value="Roboto" ' + (p.fontFamily === "Roboto" ? "selected" : "") + '>Roboto</option><option value="Open Sans" ' + (p.fontFamily === "Open Sans" ? "selected" : "") + '>Open Sans</option><option value="Arial" ' + (p.fontFamily === "Arial" ? "selected" : "") + '>Arial</option><option value="Georgia" ' + (p.fontFamily === "Georgia" ? "selected" : "") + '>Georgia</option></select></div>';
       h += '<div class="pg"><label class="pl">Boyut (px)</label><input type="number" class="pi" value="' + (p.fontSize || 16) + '" onchange="app.updProp(&#39;fontSize&#39;,this.value)"></div>';
@@ -1646,12 +1695,20 @@ class App {
         h += '<div class="pg"><label class="pl">Kağıt Türü</label><select class="ps" onchange="app.updProp(&#39;paperType&#39;,this.value)">' + Object.keys(typeNames).map(k => '<option value="' + k + '" ' + ((p.paperType || "duz") === k ? "selected" : "") + '>' + typeNames[k] + '</option>').join("") + '</select></div>';
         h += '<div class="pg"><label class="pl">Kağıt Rengi</label><div class="pr" style="grid-template-columns:repeat(5,1fr);gap:6px">' + Object.keys(paperNames).map(c => '<div title="' + paperNames[c] + '" onclick="app.updProp(&#39;paperColor&#39;,&#39;' + c + '&#39;)" style="cursor:pointer;height:26px;border-radius:5px;border:2px solid ' + (p.paperColor === c ? "var(--hl)" : "var(--bc)") + ';background:' + App.PAPER_COLORS[c] + '"></div>').join("") + '</div></div>';
         h += '<div class="pg"><label class="pl">Eğim (derece)</label><input type="number" class="pi" min="-8" max="8" value="' + (p.paperRotation || 0) + '" onchange="app.updProp(&#39;paperRotation&#39;,this.value)"></div>';
+        const pinStyleNames = App.PIN_STYLE_NAMES;
+        const curPinStyle = p.pinStyle || ((p.paperType || "duz") === "sticky" ? "kivrik" : "raptiye");
+        h += '<div class="pg"><label class="pl">Sabitleme Türü (Pin / Bant)</label><select class="ps" onchange="app.updProp(&#39;pinStyle&#39;,this.value)">' + Object.keys(pinStyleNames).map(k => '<option value="' + k + '" ' + (curPinStyle === k ? "selected" : "") + '>' + pinStyleNames[k] + '</option>').join("") + '</select></div>';
+        if (curPinStyle === "raptiye" || curPinStyle === "bant") {
+          const pinColorNames = App.PIN_COLOR_NAMES;
+          h += '<div class="pg"><label class="pl">Sabitleme Rengi</label><div class="pr" style="grid-template-columns:repeat(5,1fr);gap:6px">' + Object.keys(pinColorNames).map(c => '<div title="' + pinColorNames[c] + '" onclick="app.updProp(&#39;pinColor&#39;,&#39;' + c + '&#39;)" style="cursor:pointer;height:26px;border-radius:5px;border:2px solid ' + ((p.pinColor || "red") === c ? "var(--hl)" : "var(--bc)") + ';background:' + App.PIN_COLORS[c] + '"></div>').join("") + '</div></div>';
+        }
       }
     }
     if (["image","logo"].includes(el.type)) {
       h += '<div class="pg"><label class="pl">Resim URL</label><input type="text" class="pi" value="' + (p.src || "") + '" onchange="app.updProp(&#39;src&#39;,this.value)"></div>';
       h += '<div class="pg"><input type="file" id="upl_' + el.id + '" accept="image/*" style="display:none" onchange="app.uploadImageProp(this,&#39;src&#39;)"><button type="button" class="btn-sec" style="width:100%" onclick="document.getElementById(&#39;upl_' + el.id + '&#39;).click()"><i class="fas fa-upload"></i> Bilgisayardan Yükle</button></div>';
       h += '<div class="pg"><label class="pl">Object Fit</label><select class="ps" onchange="app.updProp(&#39;objectFit&#39;,this.value)"><option value="cover" ' + (p.objectFit === "cover" ? "selected" : "") + '>Cover</option><option value="contain" ' + (p.objectFit === "contain" ? "selected" : "") + '>Contain</option><option value="fill" ' + (p.objectFit === "fill" ? "selected" : "") + '>Fill</option></select></div>';
+      h += '<div class="pg"><label class="pl">Döndürme (derece)</label><input type="number" class="pi" value="' + (p.rotation || 0) + '" onchange="app.updProp(&#39;rotation&#39;,this.value)"></div>';
       h += '<div class="pg"><label class="pl">Köşe Yuvarlaklık (px)</label><input type="number" class="pi" value="' + (p.borderRadius || 0) + '" onchange="app.updProp(&#39;borderRadius&#39;,this.value)"></div>';
       h += '<div class="pg"><label class="pl">Kenarlık Kalınlığı</label><input type="number" class="pi" value="' + (p.borderWidth || 0) + '" onchange="app.updProp(&#39;borderWidth&#39;,this.value)"></div>';
       h += '<div class="pg"><label class="pl">Kenarlık Rengi</label><input type="color" class="pco" value="' + (p.borderColor || "#ffffff") + '" onchange="app.updProp(&#39;borderColor&#39;,this.value)"></div>';
@@ -1825,6 +1882,33 @@ class App {
     this.save();
   }
 
+  // Sadece seçili kısmın VURGU (fon) rengini kaldırır — kalın/italik/metin rengi gibi
+  // diğer biçimlendirmelere DOKUNMAZ. "removeFormat" tüm biçimlendirmeyi sildiği için
+  // (kullanıcı sadece fonu geri almak istediğinde çok kaba kalıyordu) bu ayrı, hedefli
+  // düğme eklendi. "transparent" bazı tarayıcılarda hiliteColor için tam temizlemeyebilir;
+  // bu yüzden yedek olarak seçili aralıktaki tüm alt elemanların backgroundColor stilini
+  // de elle temizleriz.
+  rteClearHighlight() {
+    const editor = document.getElementById("rteText");
+    if (!editor) return;
+    editor.focus();
+    try { document.execCommand("hiliteColor", false, "transparent"); } catch (e) { /* yoksay */ }
+    try { document.execCommand("backColor", false, "transparent"); } catch (e) { /* yoksay */ }
+    // Yedek: seçim içindeki tüm elemanların satır-içi arka plan rengini elle temizle.
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0) {
+      const range = sel.getRangeAt(0);
+      const container = range.commonAncestorContainer;
+      const root = container.nodeType === 1 ? container : container.parentElement;
+      if (root && editor.contains(root)) {
+        root.querySelectorAll("*").forEach(node => { node.style.backgroundColor = ""; });
+        if (root !== editor) root.style.backgroundColor = "";
+      }
+    }
+    this.rteLiveUpdate(editor);
+    this.save();
+  }
+
   // Zengin metin kutusuna her tuş vuruşunda (oninput) çağrılır: canvas'taki
   // önizlemeyi ANINDA günceller ama undo geçmişine/otomatik kaydetmeye HER
   // HARFTE değil — kutudan çıkıldığında (onblur, bkz. yukarıdaki HTML) ya da
@@ -1874,6 +1958,16 @@ class App {
   }
 
   /* ---- Yardımcılar ---- */
+  // Bir elemanın döndürülmüş (rotation) bir görsel VEYA eğimli kağıt not (paperStyle)
+  // içerip içermediğini söyler. Böyle elemanlarda dış kapsayıcıların overflow:hidden'ı
+  // kaldırılmalıdır; aksi halde döndürme sırasında köşeler kırpılıp görüntü bozulur.
+  _needsOverflowVisible(el) {
+    const p = el.properties || {};
+    if (["image","logo"].includes(el.type) && Math.abs(parseFloat(p.rotation) || 0) > 0.001) return true;
+    if (["heading","subheading","text","banner"].includes(el.type) && p.paperStyle) return true;
+    return false;
+  }
+
   _hexToRgba(hex, alpha) {
     hex = String(hex || "#000000").replace("#", "");
     if (hex.length === 3) hex = hex.split("").map(ch => ch + ch).join("");
@@ -2301,26 +2395,39 @@ class App {
     c.innerHTML = h;
   }
 
+  // Saat metnini (12/24 saat, saniye açık/kapalı) tek bir yerden üretir; hem ilk
+  // render'da (renderCo/case "clock") hem periyodik güncellemede (startClock)
+  // kullanılır ki iki yerde birbirinden sapan formatlama mantığı olmasın.
+  _fmtClock(n, p) {
+    let h = n.getHours(), m = n.getMinutes(), s = n.getSeconds();
+    if (p.format === "12") {
+      const ap = h >= 12 ? "PM" : "AM";
+      h = h % 12 || 12;
+      return (h < 10 ? "0" : "") + h + ":" + (m < 10 ? "0" : "") + m + (p.showSeconds !== false ? ":" + (s < 10 ? "0" : "") + s : "") + " " + ap;
+    }
+    return (h < 10 ? "0" : "") + h + ":" + (m < 10 ? "0" : "") + m + (p.showSeconds !== false ? ":" + (s < 10 ? "0" : "") + s : "");
+  }
+
   startClock() {
     setInterval(() => {
       this.els.filter(e => e.type === "clock").forEach(el => {
-        const d = document.getElementById("clock-" + el.id);
-        if (d) {
-          const n = new Date();
-          let h = n.getHours(), m = n.getMinutes(), s = n.getSeconds();
-          const p = el.properties;
-          if (p.format === "12") {
-            const ap = h >= 12 ? "PM" : "AM";
-            h = h % 12 || 12;
-            d.textContent = (h < 10 ? "0" : "") + h + ":" + (m < 10 ? "0" : "") + m + (p.showSeconds !== false ? ":" + (s < 10 ? "0" : "") + s : "") + " " + ap;
-          } else {
-            d.textContent = (h < 10 ? "0" : "") + h + ":" + (m < 10 ? "0" : "") + m + (p.showSeconds !== false ? ":" + (s < 10 ? "0" : "") + s : "");
-          }
-        }
+        // NOT: document.getElementById yerine querySelectorAll kullanılıyor.
+        // Tam ekran/yayın önizlemesi açıkken hem düzenleme tuvalinde (cContent)
+        // hem de yayın kutusunda (fsPreview) AYNI "clock-<id>" id'sine sahip birer
+        // saat <div>'i bulunuyor (kopya id — teknik olarak geçersiz ama render
+        // mimarisi böyle). getElementById SADECE ilkini (düzenleme tuvalindekini,
+        // ki o an gizli) döndürdüğü için tam ekrandaki saat hiç güncellenmiyor ve
+        // boş görünüyordu. querySelectorAll ile TÜM eşleşen kopyalar güncellenir.
+        const nodes = document.querySelectorAll('[id="clock-' + el.id + '"]');
+        if (!nodes.length) return;
+        const txt = this._fmtClock(new Date(), el.properties);
+        nodes.forEach(d => { d.textContent = txt; });
       });
       this.els.filter(e => e.type === "date").forEach(el => {
-        const d = document.getElementById("date-" + el.id);
-        if (d) d.textContent = this.fmtDate(new Date(), el.properties.format);
+        // Aynı kopya-id nedeniyle tarih bileşeni de aynı düzeltmeyi gerektiriyor.
+        const nodes = document.querySelectorAll('[id="date-' + el.id + '"]');
+        const txt = this.fmtDate(new Date(), el.properties.format);
+        nodes.forEach(d => { d.textContent = txt; });
       });
     }, 1000);
   }
@@ -2448,10 +2555,13 @@ class App {
 
     this.els.forEach(el => {
       if (!el.visible) return;
+      // Döndürülmüş görsel veya eğimli kağıt not içeren elemanlarda kırpma
+      // (overflow:hidden) kaldırılır, aksi halde döndürülen köşeler kesilir.
+      const ovf = this._needsOverflowVisible(el) ? "visible" : "hidden";
       const d = document.createElement("div");
-      d.style.cssText = "position:absolute;left:" + el.x + "px;top:" + el.y + "px;width:" + el.width + "px;height:" + el.height + "px;z-index:" + el.zIndex + ";overflow:hidden";
+      d.style.cssText = "position:absolute;left:" + el.x + "px;top:" + el.y + "px;width:" + el.width + "px;height:" + el.height + "px;z-index:" + el.zIndex + ";overflow:" + ovf;
       const co = document.createElement("div");
-      co.style.cssText = "width:100%;height:100%;overflow:hidden;position:relative";
+      co.style.cssText = "width:100%;height:100%;overflow:" + ovf + ";position:relative";
 
       if (el.type === "slide") {
         // Slaytı canlı timer ile render et

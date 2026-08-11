@@ -83,6 +83,58 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--cb);color:v
 .fs:-webkit-full-screen,.fs:fullscreen{width:100vw;height:100vh}
 .fs.a{display:flex}
 .fsc{position:fixed;top:20px;right:20px;z-index:100000;background:rgba(255,255,255,.2);border:none;color:#fff;width:48px;height:48px;border-radius:50%;font-size:1.4rem;cursor:pointer;display:none;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .25s ease}
+/* ============================================================================
+   BİLEŞEN EFEKTLERİ (Metin/Kutu/Şekil/Fotoğraf vb. için Parlama-Neon-Yanıp Sönme...)
+   ----------------------------------------------------------------------------
+   Her efekt aşağıdaki CSS değişkenlerini kullanır (JS tarafında applyFxEffect()
+   içinde elemente inline olarak set edilir):
+     --fx-color    : efekt rengi (hex)
+     --fx-blur     : parlama/glow bulanıklık yarıçapı (px) — "yayılma oranı"ndan hesaplanır
+     --fx-spread   : kenar parıltısı (border-glow) için box-shadow yayılma miktarı (px)
+     --fx-duration : efekt animasyon hızı (saniye)
+     --fx-scale    : titreşim (shake) genliği çarpanı (yoğunluktan hesaplanır)
+   ============================================================================ */
+.fx-glow{filter:drop-shadow(0 0 var(--fx-blur,10px) var(--fx-color,#00e5ff)) drop-shadow(0 0 calc(var(--fx-blur,10px) * 1.8) var(--fx-color,#00e5ff))}
+.fx-glowPulse{animation:fxGlowPulse var(--fx-duration,2s) ease-in-out infinite}
+@keyframes fxGlowPulse{
+  0%,100%{filter:drop-shadow(0 0 calc(var(--fx-blur,10px) * .35) var(--fx-color,#00e5ff))}
+  50%{filter:drop-shadow(0 0 var(--fx-blur,10px) var(--fx-color,#00e5ff)) drop-shadow(0 0 calc(var(--fx-blur,10px) * 2) var(--fx-color,#00e5ff))}
+}
+.fx-neon{animation:fxNeonFlicker var(--fx-duration,1.6s) linear infinite}
+@keyframes fxNeonFlicker{
+  0%,19%,21%,23%,54%,56%,100%{filter:drop-shadow(0 0 var(--fx-blur,10px) var(--fx-color,#ff2ee0)) drop-shadow(0 0 calc(var(--fx-blur,10px) * 2.4) var(--fx-color,#ff2ee0));opacity:1}
+  20%,22%,55%{filter:drop-shadow(0 0 2px var(--fx-color,#ff2ee0));opacity:.5}
+}
+.fx-blink{animation:fxBlink var(--fx-duration,1s) steps(1) infinite}
+@keyframes fxBlink{0%,49%{opacity:1}50%,100%{opacity:.12}}
+.fx-borderGlow{box-shadow:0 0 calc(var(--fx-blur,10px) * .6) var(--fx-spread,4px) var(--fx-color,#00e5ff);animation:fxBorderGlowPulse var(--fx-duration,2s) ease-in-out infinite}
+@keyframes fxBorderGlowPulse{
+  0%,100%{box-shadow:0 0 calc(var(--fx-blur,10px) * .3) calc(var(--fx-spread,4px) * .5) var(--fx-color,#00e5ff)}
+  50%{box-shadow:0 0 calc(var(--fx-blur,10px) * .7) var(--fx-spread,4px) var(--fx-color,#00e5ff)}
+}
+.fx-rainbow{animation:fxRainbowGlow var(--fx-duration,3s) linear infinite}
+@keyframes fxRainbowGlow{
+  0%{filter:drop-shadow(0 0 var(--fx-blur,10px) hsl(0,90%,60%))}
+  16%{filter:drop-shadow(0 0 var(--fx-blur,10px) hsl(60,90%,60%))}
+  33%{filter:drop-shadow(0 0 var(--fx-blur,10px) hsl(120,90%,60%))}
+  50%{filter:drop-shadow(0 0 var(--fx-blur,10px) hsl(180,90%,60%))}
+  66%{filter:drop-shadow(0 0 var(--fx-blur,10px) hsl(240,90%,60%))}
+  83%{filter:drop-shadow(0 0 var(--fx-blur,10px) hsl(300,90%,60%))}
+  100%{filter:drop-shadow(0 0 var(--fx-blur,10px) hsl(360,90%,60%))}
+}
+.fx-shake{animation:fxShakeJitter var(--fx-duration,.5s) ease-in-out infinite}
+@keyframes fxShakeJitter{
+  0%,100%{transform:translate(0,0) rotate(0)}
+  10%{transform:translate(calc(-2px * var(--fx-scale,1)),calc(-1px * var(--fx-scale,1))) rotate(calc(-.6deg * var(--fx-scale,1)))}
+  20%{transform:translate(calc(2px * var(--fx-scale,1)),calc(1px * var(--fx-scale,1))) rotate(calc(.6deg * var(--fx-scale,1)))}
+  30%{transform:translate(calc(-2px * var(--fx-scale,1)),calc(1px * var(--fx-scale,1))) rotate(calc(-.4deg * var(--fx-scale,1)))}
+  40%{transform:translate(calc(2px * var(--fx-scale,1)),calc(-1px * var(--fx-scale,1))) rotate(calc(.4deg * var(--fx-scale,1)))}
+  50%{transform:translate(calc(-1px * var(--fx-scale,1)),calc(-2px * var(--fx-scale,1))) rotate(calc(-.3deg * var(--fx-scale,1)))}
+  60%{transform:translate(calc(1px * var(--fx-scale,1)),calc(2px * var(--fx-scale,1))) rotate(calc(.3deg * var(--fx-scale,1)))}
+  70%{transform:translate(calc(-1px * var(--fx-scale,1)),calc(1px * var(--fx-scale,1))) rotate(calc(-.2deg * var(--fx-scale,1)))}
+  80%{transform:translate(calc(1px * var(--fx-scale,1)),calc(-1px * var(--fx-scale,1))) rotate(calc(.2deg * var(--fx-scale,1)))}
+  90%{transform:translate(calc(-1px * var(--fx-scale,1)),0) rotate(calc(-.1deg * var(--fx-scale,1)))}
+}
 /* GÜVENLİK GİRİŞ EKRANI (PIN) — pano49.html'deki #pin-prompt-modal ile BİREBİR AYNI
    görünüm için elle yazılmış eşdeğer CSS (bu sayfada Tailwind yok, sadece Bootstrap
    var, o yüzden sınıflar burada yeniden tanımlanıyor). Tam ekran yayın görünümünün
@@ -123,6 +175,10 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--cb);color:v
 .pnl-edge.right{right:0;border-radius:6px 0 0 6px}
 .aspect-box{width:100%;height:90px;background:var(--ac);border:1px solid var(--bc);border-radius:8px;display:flex;align-items:center;justify-content:center;margin-top:4px}
 .aspect-box .ap-inner{background:var(--hl);border-radius:3px;opacity:.85}
+.ppe{position:relative;overflow:hidden;border:1px solid var(--bc);border-radius:8px;cursor:grab;background:#000;margin:0 auto;touch-action:none;user-select:none}
+.ppe:active{cursor:grabbing}
+.ppe-img{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;user-select:none;transform-origin:center center;-webkit-user-drag:none}
+.ppe-hint{position:absolute;bottom:5px;right:5px;background:rgba(0,0,0,.55);color:#fff;font-size:.62rem;padding:3px 6px;border-radius:4px;pointer-events:none;letter-spacing:.02em}
 .aspect-lbl{font-size:.72rem;color:#8892b0;text-align:center;margin-top:6px}
 @keyframes tr{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
 @keyframes fi{from{opacity:0}to{opacity:1}}
@@ -723,6 +779,22 @@ class App {
     red: "Kırmızı", yellow: "Sarı", blue: "Mavi", green: "Yeşil", pink: "Pembe",
     orange: "Turuncu", purple: "Mor", black: "Siyah", white: "Beyaz", brown: "Kahve"
   };
+  // Çerçeve / kutu şekilleri: hem Resim (image/logo) hem Kutu (box) hem Şekil (shape)
+  // bileşenleri tarafından paylaşılır. "circle" ve "pill" border-radius ile, diğerleri
+  // clip-path ile çizilir (bkz. _shapeStyle). "box" eski kayıtlarla uyumluluk için
+  // "rect" ile eşdeğer kabul edilir (bkz. _shapeStyle).
+  static SHAPE_LABELS = {
+    rect: "Dikdörtgen / Kare", circle: "Daire / Oval", pill: "Hap (Stadyum)",
+    arch: "Kemer (Üstü Yuvarlak)", diamond: "Elmas", hexagon: "Altıgen",
+    octagon: "Sekizgen (Kesik Köşe)", star: "Yıldız", triangle: "Üçgen"
+  };
+  static SHAPE_CLIP = {
+    diamond: "polygon(50% 0%,100% 50%,50% 100%,0% 50%)",
+    hexagon: "polygon(25% 0%,75% 0%,100% 50%,75% 100%,25% 100%,0% 50%)",
+    octagon: "polygon(30% 0%,70% 0%,100% 30%,100% 70%,70% 100%,30% 100%,0% 70%,0% 30%)",
+    star: "polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%)",
+    triangle: "polygon(50% 0%,100% 100%,0% 100%)"
+  };
 
   constructor() {
     this.els = [];
@@ -769,6 +841,7 @@ class App {
     if (supabaseClient) dpCloudStartPolling();
     this.updScale();
     window.addEventListener("resize", () => this.updScale());
+    this.setupPhotoEditor();
     // pano49'daki gibi: bu sayfa nasıl açılırsa açılsın (adres çubuğuna yazarak,
     // linke tıklayarak veya pano49'un "Duyuru Panosunu Ekrana Getir" butonuyla),
     // varsayılan görünüm DÜZENLEME arayüzü değil, panonun kendisinin (kenarlıksız,
@@ -1164,19 +1237,19 @@ class App {
       heading: {w:600,h:80,props:{text:"BAŞLIK",fontSize:48,fontFamily:"Inter",color:"#fff",fontWeight:"700",textAlign:"center"}},
       subheading: {w:500,h:50,props:{text:"Alt Başlık",fontSize:28,fontFamily:"Inter",color:"#e0e0e0",fontWeight:"500",textAlign:"center"}},
       text: {w:400,h:150,props:{text:"Metin içeriği buraya gelecek...",fontSize:18,fontFamily:"Open Sans",color:"#ccc",lineHeight:1.6,textAlign:"left"}},
-      image: {w:400,h:300,props:{src:"https://via.placeholder.com/400x300/0f3460/ffffff?text=Resim",objectFit:"cover",borderRadius:8,opacity:100}},
+      image: {w:400,h:300,props:{src:"https://via.placeholder.com/400x300/0f3460/ffffff?text=Resim",objectFit:"cover",shape:"rect",cornerRadius:8,cornerRatio:100,borderRadius:8,zoom:100,panX:50,panY:50,borderStyle:"solid",opacity:100}},
       gallery: {w:500,h:350,props:{images:["https://via.placeholder.com/500x350/0f3460/ffffff?text=1","https://via.placeholder.com/500x350/16213e/ffffff?text=2"],interval:3,transition:"fade"}},
       video: {w:640,h:360,props:{src:"",autoplay:true,muted:true,loop:true,controls:false}},
       slide: {w:800,h:500,props:{autoPlay:true,interval:5,transition:"fade",fullScreen:false,showCaption:true},slides:[{type:"text",content:"Slayt 1",duration:5,animation:"fadeIn",caption:""}]},
-      logo: {w:150,h:150,props:{src:"https://via.placeholder.com/150x150/e94560/ffffff?text=LOGO",borderRadius:0,opacity:100}},
+      logo: {w:150,h:150,props:{src:"https://via.placeholder.com/150x150/e94560/ffffff?text=LOGO",shape:"rect",cornerRadius:0,cornerRatio:100,borderRadius:0,zoom:100,panX:50,panY:50,borderStyle:"solid",opacity:100}},
       date: {w:200,h:50,props:{format:"DD.MM.YYYY",fontSize:24,fontFamily:"Inter",color:"#fff",textAlign:"center"}},
       clock: {w:200,h:60,props:{format:"24",showSeconds:true,fontSize:36,fontFamily:"Roboto",color:"#fff",textAlign:"center"}},
       qr: {w:150,h:150,props:{text:"https://okul.edu.tr",size:150,color:"#000000",bgColor:"#ffffff"}},
       icon: {w:80,h:80,props:{icon:"fa-star",color:"#e94560",fontSize:48}},
       line: {w:300,h:4,props:{color:"#e94560",thickness:4,style:"solid"}},
-      box: {w:200,h:200,props:{backgroundColor:"#0f3460",borderRadius:8,borderWidth:0,borderColor:"#fff",opacity:100}},
+      box: {w:200,h:200,props:{backgroundColor:"#0f3460",shape:"rect",cornerRadius:8,cornerRatio:100,borderRadius:8,borderWidth:0,borderColor:"#fff",borderStyle:"solid",opacity:100}},
       banner: {w:800,h:120,props:{backgroundColor:"#e94560",text:"BANNER",fontSize:32,color:"#fff",textAlign:"center",borderRadius:0}},
-      shape: {w:150,h:150,props:{shape:"circle",backgroundColor:"#e94560",opacity:100}},
+      shape: {w:150,h:150,props:{shape:"circle",backgroundColor:"#e94560",cornerRadius:8,cornerRatio:100,borderWidth:0,borderColor:"#fff",borderStyle:"solid",opacity:100}},
       ticker: {w:1800,h:64,props:{text:"Buraya kayan duyuru metni yazın... Örnek: Yarın 10:00'da veli toplantısı yapılacaktır.",speed:16,direction:"left",bgColor:"#0f3460",color:"#ffffff",fontSize:22,separator:"   •   "}}
     };
     return d[type] || {w:200,h:100,props:{}};
@@ -1235,9 +1308,41 @@ class App {
     co.style.cssText = "width:100%;height:100%;overflow:" + (this._needsOverflowVisible(el) ? "visible" : "hidden") + ";position:relative";
     this.renderCo(co, el);
     d.appendChild(co);
+    this.applyFxEffect(d, el);
     d.addEventListener("mousedown", e => this.onMD(e, el.id));
     d.addEventListener("contextmenu", e => this.onCM(e, el.id));
     c.appendChild(d);
+  }
+
+  // Metin/Kutu/Şekil/Fotoğraf gibi bileşenlere Parlama, Neon, Nabız, Yanıp Sönme,
+  // Kenar Parıltısı, Gökkuşağı ve Titreşim efektlerini uygular. Efekt türü, rengi,
+  // yayılma oranı (yoğunluk) ve hızı el.properties (fxType/fxColor/fxIntensity/
+  // fxSpeed) üzerinden okunur — bkz. renderPropPanel() "Efekt" bölümü ve CSS'teki
+  // .fx-* sınıfları / @keyframes tanımları.
+  applyFxEffect(d, el) {
+    d.classList.remove("fx-glow", "fx-glowPulse", "fx-neon", "fx-blink", "fx-borderGlow", "fx-rainbow", "fx-shake");
+    const p = el.properties || {};
+    const fx = p.fxType || "none";
+    if (fx === "none") {
+      d.style.removeProperty("--fx-color");
+      d.style.removeProperty("--fx-blur");
+      d.style.removeProperty("--fx-spread");
+      d.style.removeProperty("--fx-duration");
+      d.style.removeProperty("--fx-scale");
+      return;
+    }
+    const intensity = Math.min(100, Math.max(0, p.fxIntensity != null ? parseInt(p.fxIntensity, 10) : 60));
+    const speed = Math.min(8, Math.max(0.2, p.fxSpeed != null ? parseFloat(p.fxSpeed) : 2));
+    const color = p.fxColor || "#00e5ff";
+    const blur = 3 + intensity * 0.32;      // yayılma oranından hesaplanan parlama bulanıklığı
+    const spread = 1 + intensity * 0.12;    // kenar parıltısı için yayılma miktarı
+    const shakeScale = 0.15 + (intensity / 100) * 1.6;
+    d.style.setProperty("--fx-color", color);
+    d.style.setProperty("--fx-blur", blur.toFixed(1) + "px");
+    d.style.setProperty("--fx-spread", spread.toFixed(1) + "px");
+    d.style.setProperty("--fx-duration", speed.toFixed(2) + "s");
+    d.style.setProperty("--fx-scale", shakeScale.toFixed(2));
+    d.classList.add("fx-" + fx);
   }
 
   renderCo(c, el) {
@@ -1329,10 +1434,23 @@ class App {
         // uygulanır ki ikisi de aynı açıyla dönsün. Kutunun dışına taşan köşeler
         // artık üst kapsayıcılarda kırpılmıyor (bkz. needsOverflowVisible).
         wrap.style.cssText = "position:relative;width:100%;height:100%;transform:rotate(" + (p.rotation || 0) + "deg)";
+        // Çerçeve katmanı: şekil (daire/oval/elmas/altıgen vb.), köşe yuvarlaklığı
+        // ve kenarlık BURADA uygulanır — böylece görsel yakınlaştırıldığında
+        // (zoom) kenarlık kalınlığı bozulmaz (kenarlık ölçeklenen img'de değil,
+        // sabit bu çerçevede durur).
+        const shp = this._shapeStyle(p, el.width, el.height);
+        const frame = document.createElement("div");
+        frame.style.cssText = "position:absolute;inset:0;overflow:hidden;border-radius:" + shp.borderRadius + ";clip-path:" + shp.clipPath + ";border:" + (p.borderWidth || 0) + "px " + (p.borderStyle || "solid") + " " + (p.borderColor || "transparent") + ";opacity:" + ((p.opacity || 100) / 100);
         const i = document.createElement("img");
         i.src = p.src || "";
-        i.style.cssText = "width:100%;height:100%;object-fit:" + (p.objectFit || "cover") + ";border-radius:" + (p.borderRadius || 0) + "px;opacity:" + ((p.opacity || 100) / 100) + ";filter:brightness(" + (p.brightness || 100) + "%) contrast(" + (p.contrast || 100) + "%) blur(" + (p.blur || 0) + "px);border:" + (p.borderWidth || 0) + "px solid " + (p.borderColor || "transparent");
-        wrap.appendChild(i);
+        // Yakınlaştırma (zoom) + konumlandırma (pan/odak noktası): object-position
+        // hangi kısmın görünür kalacağını, transform:scale ise yakınlaşma miktarını
+        // belirler. Çerçeve overflow:hidden olduğundan taşan kısım kırpılır —
+        // böylece kullanıcı özellik panelindeki mini önizlemeyi sürükleyip fotoğrafı
+        // çerçeve içinde istediği gibi kaydırabilir ve yakınlaştırabilir.
+        i.style.cssText = "width:100%;height:100%;object-fit:" + (p.objectFit || "cover") + ";object-position:" + (p.panX != null ? p.panX : 50) + "% " + (p.panY != null ? p.panY : 50) + "%;transform:scale(" + ((p.zoom || 100) / 100) + ");transform-origin:center center;opacity:1;filter:brightness(" + (p.brightness || 100) + "%) contrast(" + (p.contrast || 100) + "%) blur(" + (p.blur || 0) + "px);display:block";
+        frame.appendChild(i);
+        wrap.appendChild(frame);
         if (p.overlayText) {
           const posMap = {
             "top-left": "align-items:flex-start;justify-content:flex-start;text-align:left",
@@ -1352,16 +1470,23 @@ class App {
           span.style.cssText = "background:" + bgColor + ";color:" + (p.overlayColor || "#ffffff") + ";font-size:" + (p.overlayFontSize || 28) + "px;padding:6px 14px;border-radius:6px;max-width:100%;word-wrap:break-word;white-space:pre-wrap";
           span.innerHTML = this._escHtml(p.overlayText);
           ov.appendChild(span);
-          wrap.appendChild(ov);
+          frame.appendChild(ov);
         }
         c.appendChild(wrap);
         break;
       }
       case "logo": {
+        const wrap = document.createElement("div");
+        wrap.style.cssText = "position:relative;width:100%;height:100%;transform:rotate(" + (p.rotation || 0) + "deg)";
+        const shp = this._shapeStyle(p, el.width, el.height);
+        const frame = document.createElement("div");
+        frame.style.cssText = "position:absolute;inset:0;overflow:hidden;border-radius:" + shp.borderRadius + ";clip-path:" + shp.clipPath + ";border:" + (p.borderWidth || 0) + "px " + (p.borderStyle || "solid") + " " + (p.borderColor || "transparent") + ";opacity:" + ((p.opacity || 100) / 100);
         const i = document.createElement("img");
         i.src = p.src || "";
-        i.style.cssText = "width:100%;height:100%;object-fit:" + (p.objectFit || "cover") + ";border-radius:" + (p.borderRadius || 0) + "px;opacity:" + ((p.opacity || 100) / 100) + ";filter:brightness(" + (p.brightness || 100) + "%) contrast(" + (p.contrast || 100) + "%) blur(" + (p.blur || 0) + "px);border:" + (p.borderWidth || 0) + "px solid " + (p.borderColor || "transparent") + ";transform:rotate(" + (p.rotation || 0) + "deg)";
-        c.appendChild(i);
+        i.style.cssText = "width:100%;height:100%;object-fit:" + (p.objectFit || "cover") + ";object-position:" + (p.panX != null ? p.panX : 50) + "% " + (p.panY != null ? p.panY : 50) + "%;transform:scale(" + ((p.zoom || 100) / 100) + ");transform-origin:center center;filter:brightness(" + (p.brightness || 100) + "%) contrast(" + (p.contrast || 100) + "%) blur(" + (p.blur || 0) + "px);display:block";
+        frame.appendChild(i);
+        wrap.appendChild(frame);
+        c.appendChild(wrap);
         break;
       }
       case "gallery": {
@@ -1455,14 +1580,15 @@ class App {
       }
       case "box": {
         const bx = document.createElement("div");
-        bx.style.cssText = "width:100%;height:100%;background:" + (p.backgroundColor || "#0f3460") + ";border-radius:" + (p.borderRadius || 8) + "px;border:" + (p.borderWidth || 0) + "px solid " + (p.borderColor || "transparent") + ";opacity:" + ((p.opacity || 100) / 100);
+        const bshp = this._shapeStyle(p, el.width, el.height);
+        bx.style.cssText = "width:100%;height:100%;background:" + (p.backgroundColor || "#0f3460") + ";border-radius:" + bshp.borderRadius + ";clip-path:" + bshp.clipPath + ";border:" + (p.borderWidth || 0) + "px " + (p.borderStyle || "solid") + " " + (p.borderColor || "transparent") + ";opacity:" + ((p.opacity || 100) / 100);
         c.appendChild(bx);
         break;
       }
       case "shape": {
         const sh = document.createElement("div");
-        const circ = p.shape === "circle";
-        sh.style.cssText = "width:100%;height:100%;background:" + (p.backgroundColor || "#e94560") + ";border-radius:" + (circ ? "50%" : "8px") + ";opacity:" + ((p.opacity || 100) / 100);
+        const sshp = this._shapeStyle(p, el.width, el.height);
+        sh.style.cssText = "width:100%;height:100%;background:" + (p.backgroundColor || "#e94560") + ";border-radius:" + sshp.borderRadius + ";clip-path:" + sshp.clipPath + ";border:" + (p.borderWidth || 0) + "px " + (p.borderStyle || "solid") + " " + (p.borderColor || "transparent") + ";opacity:" + ((p.opacity || 100) / 100);
         c.appendChild(sh);
         break;
       }
@@ -1673,6 +1799,20 @@ class App {
     h += '<div class="pg"><label class="pl">Konum ve Boyut</label><div class="pr"><div><input type="number" class="pi" value="' + Math.round(el.x) + '" onchange="app.updProp(&#39;x&#39;,this.value)"></div><div><input type="number" class="pi" value="' + Math.round(el.y) + '" onchange="app.updProp(&#39;y&#39;,this.value)"></div></div><div class="pr" style="margin-top:8px"><div><input type="number" class="pi" value="' + Math.round(el.width) + '" onchange="app.updProp(&#39;width&#39;,this.value)"></div><div><input type="number" class="pi" value="' + Math.round(el.height) + '" onchange="app.updProp(&#39;height&#39;,this.value)"></div></div></div>';
     h += '<div class="pg"><label class="pl">Animasyon</label><select class="ps" onchange="app.updProp(&#39;animation&#39;,this.value)"><option value="none" ' + (el.animation === "none" ? "selected" : "") + '>Yok</option><option value="fi" ' + (el.animation === "fi" ? "selected" : "") + '>Fade In</option><option value="sil" ' + (el.animation === "sil" ? "selected" : "") + '>Soldan Gel</option><option value="sir" ' + (el.animation === "sir" ? "selected" : "") + '>Sağdan Gel</option><option value="siu" ' + (el.animation === "siu" ? "selected" : "") + '>Yukarıdan Gel</option><option value="sid" ' + (el.animation === "sid" ? "selected" : "") + '>Aşağıdan Gel</option><option value="zi" ' + (el.animation === "zi" ? "selected" : "") + '>Zoom In</option><option value="ri" ' + (el.animation === "ri" ? "selected" : "") + '>Rotate In</option></select></div>';
     const p = el.properties;
+    {
+      const fx = p.fxType || "none";
+      h += '<div class="pg"><label class="pl">✨ Efekt</label><select class="ps" onchange="app.updProp(&#39;fxType&#39;,this.value);app.renderPropPanel()"><option value="none" ' + (fx === "none" ? "selected" : "") + '>Yok</option><option value="glow" ' + (fx === "glow" ? "selected" : "") + '>Sabit Parlama (Glow)</option><option value="glowPulse" ' + (fx === "glowPulse" ? "selected" : "") + '>Nabız Parlama</option><option value="neon" ' + (fx === "neon" ? "selected" : "") + '>Neon (Titrek)</option><option value="blink" ' + (fx === "blink" ? "selected" : "") + '>Yanıp Sönme</option><option value="borderGlow" ' + (fx === "borderGlow" ? "selected" : "") + '>Kenar Parıltısı</option><option value="rainbow" ' + (fx === "rainbow" ? "selected" : "") + '>Gökkuşağı Parıltısı</option><option value="shake" ' + (fx === "shake" ? "selected" : "") + '>Titreşim</option></select></div>';
+      if (fx !== "none") {
+        if (fx !== "rainbow" && fx !== "shake") {
+          h += '<div class="pg"><label class="pl">Efekt Rengi</label><input type="color" class="pco" value="' + (p.fxColor || "#00e5ff") + '" onchange="app.updProp(&#39;fxColor&#39;,this.value)"></div>';
+        }
+        h += '<div class="pg"><label class="pl">Yayılma Oranı (Yoğunluk)</label><input type="range" class="pra" min="0" max="100" value="' + (p.fxIntensity != null ? p.fxIntensity : 60) + '" oninput="app.updProp(&#39;fxIntensity&#39;,this.value)"></div>';
+        if (fx !== "glow") {
+          h += '<div class="pg"><label class="pl">Efekt Hızı (saniye)</label><input type="range" class="pra" min="0.2" max="8" step="0.1" value="' + (p.fxSpeed != null ? p.fxSpeed : 2) + '" oninput="app.updProp(&#39;fxSpeed&#39;,this.value)"></div>';
+        }
+        h += '<div class="help-note">İpucu: Bu efektler tüm bileşen türlerinde (metin, kutu, şekil, fotoğraf, video, ikon, QR, saat vb.) kullanılabilir. "Sabit Parlama" ve "Kenar Parıltısı" kutu/şekil/fotoğraf için; "Neon" ve "Yanıp Sönme" özellikle metin/başlıklar için etkileyicidir. Yayılma oranı efektin ne kadar güçlü/geniş görüneceğini belirler.</div>';
+      }
+    }
     if (["heading","subheading","text","banner"].includes(el.type)) {
       h += '<div class="pg"><label class="pl">Metin</label>' +
         '<div class="rte-toolbar">' +
@@ -1717,12 +1857,33 @@ class App {
       }
     }
     if (["image","logo"].includes(el.type)) {
-      h += '<div class="pg"><label class="pl">Resim URL</label><input type="text" class="pi" value="' + (p.src || "") + '" onchange="app.updProp(&#39;src&#39;,this.value)"></div>';
+      h += '<div class="pg"><label class="pl">Resim URL</label><input type="text" class="pi" value="' + (p.src || "") + '" onchange="app.updProp(&#39;src&#39;,this.value);app.renderPropPanel()"></div>';
       h += '<div class="pg"><input type="file" id="upl_' + el.id + '" accept="image/*" style="display:none" onchange="app.uploadImageProp(this,&#39;src&#39;)"><button type="button" class="btn-sec" style="width:100%" onclick="document.getElementById(&#39;upl_' + el.id + '&#39;).click()"><i class="fas fa-upload"></i> Bilgisayardan Yükle</button></div>';
+      /* ---- Fotoğrafı Konumlandır & Yakınlaştır: sürüklenebilir mini önizleme ---- */
+      const pew = 258;
+      const peh = Math.max(90, Math.min(220, Math.round(pew * ((el.height || 200) / (el.width || 200)))));
+      h += '<div class="pg"><label class="pl">Fotoğrafı Konumlandır &amp; Yakınlaştır</label>';
+      h += '<div class="ppe" id="ppe_' + el.id + '" style="width:' + pew + 'px;height:' + peh + 'px">';
+      h += '<img class="ppe-img" src="' + (p.src || "") + '" draggable="false" style="object-fit:' + (p.objectFit || "cover") + ';object-position:' + (p.panX != null ? p.panX : 50) + '% ' + (p.panY != null ? p.panY : 50) + '%;transform:scale(' + ((p.zoom || 100) / 100) + ')">';
+      h += '<div class="ppe-hint"><i class="fas fa-up-down-left-right"></i> Sürükle</div>';
+      h += '</div>';
+      h += '<label class="pl" style="margin-top:8px">Yakınlaştırma (%)</label><input type="range" class="pra" id="ppeZoom_' + el.id + '" min="100" max="400" value="' + (p.zoom || 100) + '" oninput="app.updProp(&#39;zoom&#39;,this.value);app.updPhotoEditorPreview(&#39;' + el.id + '&#39;)">';
+      h += '<button type="button" class="btn-sec" style="width:100%;margin-top:6px" onclick="app.resetPhotoPosition()"><i class="fas fa-rotate-left"></i> Konumu Sıfırla</button>';
+      h += '<div class="help-note">Önizlemenin üzerine tıklayıp sürükleyerek fotoğrafın çerçeve içindeki konumunu ayarlayın; fare tekerleği veya yukarıdaki kaydırıcı ile yakınlaştırın.</div></div>';
+      h += '<div class="pg"><label class="pl">Çerçeve Şekli</label><select class="ps" onchange="app.updProp(&#39;shape&#39;,this.value);app.renderPropPanel()">' + Object.keys(App.SHAPE_LABELS).map(k => '<option value="' + k + '" ' + ((p.shape || "rect") === k ? "selected" : "") + '>' + App.SHAPE_LABELS[k] + '</option>').join("") + '</select></div>';
+      if ((p.shape || "rect") === "rect") {
+        h += '<div class="pg"><label class="pl">Köşe Yuvarlaklığı (px)</label><input type="range" class="pra" min="0" max="300" value="' + (p.cornerRadius != null ? p.cornerRadius : 8) + '" oninput="app.updProp(&#39;cornerRadius&#39;,this.value)"></div>';
+        h += '<div class="pg"><label class="pl">Köşe Ovallik Oranı (%)</label><input type="range" class="pra" min="20" max="300" value="' + (p.cornerRatio != null ? p.cornerRatio : 100) + '" oninput="app.updProp(&#39;cornerRatio&#39;,this.value)"><div class="help-note">100% = simetrik yuvarlak köşe. Düşürüp yükselterek köşeleri oval/eliptik yapabilirsiniz.</div></div>';
+        h += '<div class="pg"><label class="pl"><input type="checkbox" ' + (p.cornerPerCorner ? "checked" : "") + ' onchange="app.updProp(&#39;cornerPerCorner&#39;,this.checked);app.renderPropPanel()"> Her köşeye ayrı yarıçap</label></div>';
+        if (p.cornerPerCorner) {
+          const base = p.cornerRadius != null ? p.cornerRadius : 8;
+          h += '<div class="pg"><div class="pr"><div><label class="pl">Sol Üst</label><input type="number" class="pi" value="' + (p.cornerTL != null ? p.cornerTL : base) + '" onchange="app.updProp(&#39;cornerTL&#39;,this.value)"></div><div><label class="pl">Sağ Üst</label><input type="number" class="pi" value="' + (p.cornerTR != null ? p.cornerTR : base) + '" onchange="app.updProp(&#39;cornerTR&#39;,this.value)"></div></div><div class="pr" style="margin-top:8px"><div><label class="pl">Sol Alt</label><input type="number" class="pi" value="' + (p.cornerBL != null ? p.cornerBL : base) + '" onchange="app.updProp(&#39;cornerBL&#39;,this.value)"></div><div><label class="pl">Sağ Alt</label><input type="number" class="pi" value="' + (p.cornerBR != null ? p.cornerBR : base) + '" onchange="app.updProp(&#39;cornerBR&#39;,this.value)"></div></div></div>';
+        }
+      }
       h += '<div class="pg"><label class="pl">Object Fit</label><select class="ps" onchange="app.updProp(&#39;objectFit&#39;,this.value)"><option value="cover" ' + (p.objectFit === "cover" ? "selected" : "") + '>Cover</option><option value="contain" ' + (p.objectFit === "contain" ? "selected" : "") + '>Contain</option><option value="fill" ' + (p.objectFit === "fill" ? "selected" : "") + '>Fill</option></select></div>';
       h += '<div class="pg"><label class="pl">Döndürme (derece)</label><input type="number" class="pi" value="' + (p.rotation || 0) + '" onchange="app.updProp(&#39;rotation&#39;,this.value)"></div>';
-      h += '<div class="pg"><label class="pl">Köşe Yuvarlaklık (px)</label><input type="number" class="pi" value="' + (p.borderRadius || 0) + '" onchange="app.updProp(&#39;borderRadius&#39;,this.value)"></div>';
       h += '<div class="pg"><label class="pl">Kenarlık Kalınlığı</label><input type="number" class="pi" value="' + (p.borderWidth || 0) + '" onchange="app.updProp(&#39;borderWidth&#39;,this.value)"></div>';
+      h += '<div class="pg"><label class="pl">Kenarlık Stili</label><select class="ps" onchange="app.updProp(&#39;borderStyle&#39;,this.value)"><option value="solid" ' + ((p.borderStyle || "solid") === "solid" ? "selected" : "") + '>Düz</option><option value="dashed" ' + (p.borderStyle === "dashed" ? "selected" : "") + '>Kesikli</option><option value="dotted" ' + (p.borderStyle === "dotted" ? "selected" : "") + '>Noktalı</option><option value="double" ' + (p.borderStyle === "double" ? "selected" : "") + '>Çift Çizgi</option></select></div>';
       h += '<div class="pg"><label class="pl">Kenarlık Rengi</label><input type="color" class="pco" value="' + (p.borderColor || "#ffffff") + '" onchange="app.updProp(&#39;borderColor&#39;,this.value)"></div>';
       h += '<div class="pg"><label class="pl">Parlaklık (%)</label><input type="range" class="pra" min="0" max="200" value="' + (p.brightness || 100) + '" oninput="app.updProp(&#39;brightness&#39;,this.value)"></div>';
       h += '<div class="pg"><label class="pl">Kontrast (%)</label><input type="range" class="pra" min="0" max="200" value="' + (p.contrast || 100) + '" oninput="app.updProp(&#39;contrast&#39;,this.value)"></div>';
@@ -1857,7 +2018,22 @@ class App {
     }
     if (["box","shape","banner"].includes(el.type)) {
       h += '<div class="pg"><label class="pl">Arka Plan Rengi</label><input type="color" class="pco" value="' + (p.backgroundColor || "#0f3460") + '" onchange="app.updProp(&#39;backgroundColor&#39;,this.value)"></div>';
-      if (el.type === "shape") h += '<div class="pg"><label class="pl">Şekil</label><select class="ps" onchange="app.updProp(&#39;shape&#39;,this.value)"><option value="box" ' + (p.shape === "box" ? "selected" : "") + '>Kare</option><option value="circle" ' + (p.shape === "circle" ? "selected" : "") + '>Daire</option></select></div>';
+      if (["box","shape"].includes(el.type)) {
+        const curShape = p.shape === "box" ? "rect" : (p.shape || "rect");
+        h += '<div class="pg"><label class="pl">Şekil</label><select class="ps" onchange="app.updProp(&#39;shape&#39;,this.value);app.renderPropPanel()">' + Object.keys(App.SHAPE_LABELS).map(k => '<option value="' + k + '" ' + (curShape === k ? "selected" : "") + '>' + App.SHAPE_LABELS[k] + '</option>').join("") + '</select></div>';
+        if (curShape === "rect") {
+          h += '<div class="pg"><label class="pl">Köşe Yuvarlaklığı (px)</label><input type="range" class="pra" min="0" max="300" value="' + (p.cornerRadius != null ? p.cornerRadius : 8) + '" oninput="app.updProp(&#39;cornerRadius&#39;,this.value)"></div>';
+          h += '<div class="pg"><label class="pl">Köşe Ovallik Oranı (%)</label><input type="range" class="pra" min="20" max="300" value="' + (p.cornerRatio != null ? p.cornerRatio : 100) + '" oninput="app.updProp(&#39;cornerRatio&#39;,this.value)"><div class="help-note">100% = simetrik yuvarlak köşe. Değeri değiştirerek köşeleri oval/eliptik yapabilirsiniz.</div></div>';
+          h += '<div class="pg"><label class="pl"><input type="checkbox" ' + (p.cornerPerCorner ? "checked" : "") + ' onchange="app.updProp(&#39;cornerPerCorner&#39;,this.checked);app.renderPropPanel()"> Her köşeye ayrı yarıçap</label></div>';
+          if (p.cornerPerCorner) {
+            const base = p.cornerRadius != null ? p.cornerRadius : 8;
+            h += '<div class="pg"><div class="pr"><div><label class="pl">Sol Üst</label><input type="number" class="pi" value="' + (p.cornerTL != null ? p.cornerTL : base) + '" onchange="app.updProp(&#39;cornerTL&#39;,this.value)"></div><div><label class="pl">Sağ Üst</label><input type="number" class="pi" value="' + (p.cornerTR != null ? p.cornerTR : base) + '" onchange="app.updProp(&#39;cornerTR&#39;,this.value)"></div></div><div class="pr" style="margin-top:8px"><div><label class="pl">Sol Alt</label><input type="number" class="pi" value="' + (p.cornerBL != null ? p.cornerBL : base) + '" onchange="app.updProp(&#39;cornerBL&#39;,this.value)"></div><div><label class="pl">Sağ Alt</label><input type="number" class="pi" value="' + (p.cornerBR != null ? p.cornerBR : base) + '" onchange="app.updProp(&#39;cornerBR&#39;,this.value)"></div></div></div>';
+          }
+        }
+        h += '<div class="pg"><label class="pl">Kenarlık Kalınlığı</label><input type="number" class="pi" value="' + (p.borderWidth || 0) + '" onchange="app.updProp(&#39;borderWidth&#39;,this.value)"></div>';
+        h += '<div class="pg"><label class="pl">Kenarlık Stili</label><select class="ps" onchange="app.updProp(&#39;borderStyle&#39;,this.value)"><option value="solid" ' + ((p.borderStyle || "solid") === "solid" ? "selected" : "") + '>Düz</option><option value="dashed" ' + (p.borderStyle === "dashed" ? "selected" : "") + '>Kesikli</option><option value="dotted" ' + (p.borderStyle === "dotted" ? "selected" : "") + '>Noktalı</option><option value="double" ' + (p.borderStyle === "double" ? "selected" : "") + '>Çift Çizgi</option></select></div>';
+        h += '<div class="pg"><label class="pl">Kenarlık Rengi</label><input type="color" class="pco" value="' + (p.borderColor || "#ffffff") + '" onchange="app.updProp(&#39;borderColor&#39;,this.value)"></div>';
+      }
       h += '<div class="pg"><label class="pl">Opaklık</label><input type="range" class="pra" min="0" max="100" value="' + (p.opacity || 100) + '" oninput="app.updProp(&#39;opacity&#39;,this.value)"></div>';
     }
     if (el.type === "ticker") {
@@ -1874,6 +2050,7 @@ class App {
       h += '<div class="help-note">' + (isStatic ? "Sabit modda metin kaymadan bant üzerinde ortalanmış şekilde durur." : "İpucu: Bu bandı ekranın en altına, tam genişlikte yerleştirip \"Tam Ekran\" moduna geçerek klasik bir haber bandı gibi kullanabilirsiniz.") + '</div>';
     }
     pp.innerHTML = h;
+    if (["image","logo"].includes(el.type)) this._bindPhotoEditorBox(el);
   }
 
   updPropPanel() {
@@ -1960,6 +2137,95 @@ class App {
     this.save();
   }
 
+  /* ---- Fotoğraf Konumlandır & Yakınlaştır (Resim/Logo çerçeve düzenleyicisi) ----
+     Özellik panelindeki mini önizleme kutusu üzerinde fare/dokunma ile sürükleyerek
+     odak noktasını (panX/panY = object-position) değiştirmeyi ve tekerlek/kaydırıcı
+     ile yakınlaştırmayı (zoom = transform:scale) sağlar. Sürükleme sırasında
+     window'a TEK SEFER bağlanan global dinleyiciler kullanılır (renderPropPanel her
+     çağrıldığında yeniden dinleyici eklenmez — bellek sızıntısı önlenir). */
+  setupPhotoEditor() {
+    this._ppeActive = null;
+    const move = (x, y) => {
+      const a = this._ppeActive;
+      if (!a) return;
+      const el = this.els.find(e => e.id === a.id);
+      const box = document.getElementById("ppe_" + a.id);
+      if (!el || !box) { this._ppeActive = null; return; }
+      const rect = box.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+      const dxPct = ((x - a.lastX) / rect.width) * 100;
+      const dyPct = ((y - a.lastY) / rect.height) * 100;
+      const p = el.properties;
+      p.panX = Math.max(0, Math.min(100, (p.panX != null ? p.panX : 50) - dxPct));
+      p.panY = Math.max(0, Math.min(100, (p.panY != null ? p.panY : 50) - dyPct));
+      a.lastX = x; a.lastY = y;
+      const img = box.querySelector(".ppe-img");
+      if (img) img.style.objectPosition = p.panX + "% " + p.panY + "%";
+      this.renderEl(el);
+    };
+    const end = () => {
+      if (!this._ppeActive) return;
+      this._ppeActive = null;
+      this.save();
+    };
+    window.addEventListener("mousemove", e => move(e.clientX, e.clientY));
+    window.addEventListener("mouseup", end);
+    window.addEventListener("touchmove", e => { if (this._ppeActive && e.touches[0]) { move(e.touches[0].clientX, e.touches[0].clientY); e.preventDefault(); } }, { passive: false });
+    window.addEventListener("touchend", end);
+  }
+
+  // renderPropPanel içeriği DOM'a yazıldıktan SONRA çağrılır; mini önizleme
+  // kutusuna sürükleme (mousedown/touchstart) ve tekerlek-yakınlaştırma dinleyicilerini
+  // bağlar. Kutu her panel yenilenişinde yeniden oluşturulduğundan burada bağlanan
+  // mousedown/touchstart/wheel dinleyicileri düğümle birlikte silinir — sızıntı olmaz.
+  _bindPhotoEditorBox(el) {
+    const box = document.getElementById("ppe_" + el.id);
+    if (!box) return;
+    box.addEventListener("mousedown", e => {
+      e.preventDefault();
+      this._ppeActive = { id: el.id, lastX: e.clientX, lastY: e.clientY };
+    });
+    box.addEventListener("touchstart", e => {
+      const t = e.touches[0];
+      if (t) this._ppeActive = { id: el.id, lastX: t.clientX, lastY: t.clientY };
+    }, { passive: true });
+    box.addEventListener("wheel", e => {
+      e.preventDefault();
+      const p = el.properties;
+      const cur = p.zoom != null ? parseFloat(p.zoom) : 100;
+      const next = Math.max(100, Math.min(400, cur - Math.sign(e.deltaY) * 10));
+      p.zoom = next;
+      const img = box.querySelector(".ppe-img");
+      if (img) img.style.transform = "scale(" + (next / 100) + ")";
+      const zr = document.getElementById("ppeZoom_" + el.id);
+      if (zr) zr.value = next;
+      this.renderEl(el);
+      this.save();
+    }, { passive: false });
+  }
+
+  // Yakınlaştırma kaydırıcısı (range input) hareket ettikçe mini önizlemeyi anlık günceller.
+  updPhotoEditorPreview(id) {
+    const el = this.els.find(e => e.id === id);
+    const box = document.getElementById("ppe_" + id);
+    if (!el || !box) return;
+    const img = box.querySelector(".ppe-img");
+    if (img) img.style.transform = "scale(" + ((el.properties.zoom || 100) / 100) + ")";
+    this.renderEl(el);
+  }
+
+  // Seçili resim/logonun konum (pan) ve yakınlaştırma (zoom) ayarlarını varsayılana döndürür.
+  resetPhotoPosition() {
+    const el = this.els.find(x => x.id === this.sel);
+    if (!el) return;
+    el.properties.panX = 50;
+    el.properties.panY = 50;
+    el.properties.zoom = 100;
+    this.renderEl(el);
+    this.renderPropPanel();
+    this.save();
+  }
+
   updSlideProp(idx, prop, val) {
     const el = this.els.find(x => x.id === this.sel);
     if (!el || !el.slides || !el.slides[idx]) return;
@@ -1978,6 +2244,43 @@ class App {
     if (["image","logo"].includes(el.type) && Math.abs(parseFloat(p.rotation) || 0) > 0.001) return true;
     if (["heading","subheading","text","banner"].includes(el.type) && p.paperStyle) return true;
     return false;
+  }
+
+  // Şekil / çerçeve biçimlendirmesi: p.shape ve köşe ayarlarına göre bir
+  // { clipPath, borderRadius } döndürür. Resim/Logo çerçevesi ile Kutu/Şekil
+  // bileşenleri tarafından ortak kullanılır.
+  _shapeStyle(p, w, h) {
+    let shape = p.shape || "rect";
+    if (shape === "box") shape = "rect"; // eski kayıtlarla uyumluluk
+    let clipPath = "none";
+    let borderRadius = "0px";
+    if (shape === "circle") {
+      borderRadius = "50%";
+    } else if (shape === "pill") {
+      borderRadius = (Math.max(1, Math.min(w || 999, h || 999)) / 2) + "px";
+    } else if (shape === "arch") {
+      const r = Math.max(1, Math.min(w || 200, h || 200));
+      borderRadius = r + "px " + r + "px 0 0";
+    } else if (App.SHAPE_CLIP[shape]) {
+      clipPath = App.SHAPE_CLIP[shape];
+    } else {
+      // "rect": sade köşe yuvarlaklığı, oval köşe oranı ve (isteğe bağlı) köşe başına ayrı değer
+      const base = p.cornerRadius != null ? (parseFloat(p.cornerRadius) || 0) : 8;
+      const ratio = (p.cornerRatio != null ? (parseFloat(p.cornerRatio) || 100) : 100) / 100;
+      const ry = Math.round(base * ratio);
+      if (p.cornerPerCorner) {
+        const tl = p.cornerTL != null ? parseFloat(p.cornerTL) || 0 : base;
+        const tr = p.cornerTR != null ? parseFloat(p.cornerTR) || 0 : base;
+        const br = p.cornerBR != null ? parseFloat(p.cornerBR) || 0 : base;
+        const bl = p.cornerBL != null ? parseFloat(p.cornerBL) || 0 : base;
+        borderRadius = tl + "px " + tr + "px " + br + "px " + bl + "px";
+      } else if (Math.round(ratio * 100) !== 100) {
+        borderRadius = base + "px / " + ry + "px";
+      } else {
+        borderRadius = base + "px";
+      }
+    }
+    return { clipPath: clipPath, borderRadius: borderRadius };
   }
 
   _hexToRgba(hex, alpha) {

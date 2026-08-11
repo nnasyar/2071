@@ -299,7 +299,18 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--cb);color:v
       </div>
       <div class="mb-2" id="bgImgBox" style="display:none">
         <label class="pl">Resim URL</label>
-        <input type="text" class="pi" id="bgImg" placeholder="https://..." onchange="app.updBg()">
+        <input type="text" class="pi mb-2" id="bgImg" placeholder="https://..." onchange="app.updBg()">
+        <input type="file" id="bgImgUpload" accept="image/*" style="display:none" onchange="app.uploadBgImage(this)">
+        <button type="button" class="btn-sec" style="width:100%" onclick="document.getElementById('bgImgUpload').click()"><i class="fas fa-upload"></i> Bilgisayardan Yükle</button>
+        <div class="mt-2">
+          <label class="pl">Fotoğrafı Konumlandır &amp; Yakınlaştır</label>
+          <div class="pr">
+            <div><label class="pl">Yatay Konum</label><input type="range" class="pra" id="bgPosX" min="0" max="100" value="50" oninput="app.updBg()"></div>
+            <div><label class="pl">Dikey Konum</label><input type="range" class="pra" id="bgPosY" min="0" max="100" value="50" oninput="app.updBg()"></div>
+          </div>
+          <label class="pl">Yakınlaştır</label>
+          <input type="range" class="pra" id="bgZoom" min="100" max="250" value="100" oninput="app.updBg()">
+        </div>
       </div>
       <div class="mb-2" id="bgVidBox" style="display:none">
         <label class="pl">Video URL</label>
@@ -509,14 +520,25 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--cb);color:v
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 const THEME_PRESETS = {
-  kayit:    { label: "Kayıt",     grad1: "#12233d", grad2: "#1E3A5F", cork: "#1E3A5F", accent: "#3f7fd1" },
-  duyuru:   { label: "Duyuru",    grad1: "#3b2f12", grad2: "#5c4a1a", cork: "#3B3320", accent: "#d9a441" },
-  etkinlik: { label: "Etkinlik",  grad1: "#123420", grad2: "#1f4531", cork: "#1F4531", accent: "#3fa65b" },
-  nobetci:  { label: "Nöbetçi",   grad1: "#3a1216", grad2: "#4A1E24", cork: "#4A1E24", accent: "#e94560" },
-  sinav:    { label: "Sınav",     grad1: "#241533", grad2: "#3d2a5c", cork: "#2a1a3d", accent: "#8e5ce0" },
-  spor:     { label: "Spor",      grad1: "#3d2410", grad2: "#5c3a1a", cork: "#3d2410", accent: "#e0722f" },
-  kutlama:  { label: "Kutlama",   grad1: "#3d1a2e", grad2: "#5c2a45", cork: "#3d1a2e", accent: "#e04c8e" },
-  kis:      { label: "Kış / Tatil", grad1: "#0d2b3d", grad2: "#163f52", cork: "#0d2b3d", accent: "#4cc9e0" }
+  kayit:      { label: "Kayıt",         grad1: "#12233d", grad2: "#1E3A5F", cork: "#1E3A5F", accent: "#3f7fd1" },
+  duyuru:     { label: "Duyuru",        grad1: "#3b2f12", grad2: "#5c4a1a", cork: "#3B3320", accent: "#d9a441" },
+  etkinlik:   { label: "Etkinlik",      grad1: "#123420", grad2: "#1f4531", cork: "#1F4531", accent: "#3fa65b" },
+  nobetci:    { label: "Nöbetçi",       grad1: "#3a1216", grad2: "#4A1E24", cork: "#4A1E24", accent: "#e94560" },
+  sinav:      { label: "Sınav",         grad1: "#241533", grad2: "#3d2a5c", cork: "#2a1a3d", accent: "#8e5ce0" },
+  spor:       { label: "Spor",          grad1: "#3d2410", grad2: "#5c3a1a", cork: "#3d2410", accent: "#e0722f" },
+  kutlama:    { label: "Kutlama",       grad1: "#3d1a2e", grad2: "#5c2a45", cork: "#3d1a2e", accent: "#e04c8e" },
+  kis:        { label: "Kış / Tatil",   grad1: "#0d2b3d", grad2: "#163f52", cork: "#0d2b3d", accent: "#4cc9e0" },
+  // ---- Yeni / modern temalar ----
+  auroraGece: { label: "Aurora Gece",   grad1: "#04182c", grad2: "#0f5e59", cork: "#0a2540", accent: "#2dd4bf" },
+  gunBatimi:  { label: "Gün Batımı",    grad1: "#3a0f2e", grad2: "#c0392b", cork: "#3a0f2e", accent: "#ff7849" },
+  neonSehir:  { label: "Neon Şehir",    grad1: "#0b0c2a", grad2: "#3d0a5c", cork: "#12123a", accent: "#ff2fd0" },
+  okyanus:    { label: "Okyanus Derinliği", grad1: "#031e2e", grad2: "#0a4d68", cork: "#04283d", accent: "#00c2ff" },
+  pastelBulut:{ label: "Pastel Bulut",  grad1: "#2b2540", grad2: "#5b4b8a", cork: "#332b52", accent: "#c9a7ff" },
+  minimalGri: { label: "Minimal Gri",   grad1: "#1a1c22", grad2: "#2c2f38", cork: "#22242b", accent: "#8ab4f8" },
+  orman:      { label: "Orman",         grad1: "#0e2018", grad2: "#1f4d2f", cork: "#132a1e", accent: "#63d47a" },
+  camGorunum: { label: "Cam Görünüm",   grad1: "#141821", grad2: "#232a3b", cork: "#1a2030", accent: "#5eead4" },
+  korMercan:  { label: "Mercan",        grad1: "#2b0f14", grad2: "#7a2e2e", cork: "#2b0f14", accent: "#ff6b6b" },
+  altinLuks:  { label: "Altın Lüks",    grad1: "#141118", grad2: "#332616", cork: "#1c1712", accent: "#e8c468" }
 };
 
 const EDITOR_THEMES = {
@@ -966,6 +988,9 @@ class App {
       blur: document.getElementById("bgBlur").value,
       opacity: document.getElementById("bgOp").value,
       darken: document.getElementById("bgDark").value,
+      posX: document.getElementById("bgPosX") ? document.getElementById("bgPosX").value : 50,
+      posY: document.getElementById("bgPosY") ? document.getElementById("bgPosY").value : 50,
+      zoom: document.getElementById("bgZoom") ? document.getElementById("bgZoom").value : 100,
       accent: document.documentElement.style.getPropertyValue("--hl") || ""
     };
   }
@@ -981,8 +1006,26 @@ class App {
     document.getElementById("bgBlur").value = bg.blur || 0;
     document.getElementById("bgOp").value = bg.opacity || 100;
     document.getElementById("bgDark").value = bg.darken || 0;
+    if (document.getElementById("bgPosX")) document.getElementById("bgPosX").value = bg.posX != null ? bg.posX : 50;
+    if (document.getElementById("bgPosY")) document.getElementById("bgPosY").value = bg.posY != null ? bg.posY : 50;
+    if (document.getElementById("bgZoom")) document.getElementById("bgZoom").value = bg.zoom != null ? bg.zoom : 100;
     if (bg.accent) document.documentElement.style.setProperty("--hl", bg.accent);
     this.updBg();
+  }
+
+  /* ---- Arka plan fotoğrafını bilgisayardan yükle (base64) ---- */
+  uploadBgImage(inputEl) {
+    const file = inputEl.files && inputEl.files[0];
+    if (!file) return;
+    this._readFileAsDataURL(file, dataUrl => {
+      document.getElementById("bgImg").value = dataUrl;
+      document.getElementById("bgPosX").value = 50;
+      document.getElementById("bgPosY").value = 50;
+      document.getElementById("bgZoom").value = 100;
+      this.updBg();
+      this.save();
+      this.toast("Arka plan fotoğrafı yüklendi");
+    });
   }
 
   async autoSave() {
@@ -2668,7 +2711,12 @@ class App {
       const base = document.getElementById("bgColor").value || "#1E3A5F";
       s = "background-color:" + base + ";background-image:radial-gradient(rgba(255,255,255,.08) 1.6px, transparent 1.9px);background-size:18px 18px;";
     }
-    else if (t === "image") s = "background-image:url(" + document.getElementById("bgImg").value + ");background-size:cover;background-position:center;";
+    else if (t === "image") {
+      const px = document.getElementById("bgPosX") ? document.getElementById("bgPosX").value : 50;
+      const py = document.getElementById("bgPosY") ? document.getElementById("bgPosY").value : 50;
+      const zm = document.getElementById("bgZoom") ? document.getElementById("bgZoom").value : 100;
+      s = "background-image:url(" + document.getElementById("bgImg").value + ");background-size:" + zm + "%;background-position:" + px + "% " + py + "%;background-repeat:no-repeat;";
+    }
     else if (t === "video") {
       const v = document.getElementById("bgVid").value;
       bg.innerHTML = v ? '<video autoplay muted loop style="width:100%;height:100%;object-fit:cover"><source src="' + v + '"></video>' : "";
@@ -2885,6 +2933,13 @@ class App {
         this.renderCo(co, el);
       }
       d.appendChild(co);
+      // ÖNEMLİ: Editördeki render() metodu her bileşene applyFxEffect() çağırır
+      // (Parlama/Neon/Yanıp Sönme/Kenar Parıltısı/Gökkuşağı/Titreşim efektleri),
+      // ancak bu önizleme/tam ekran klonu ayrı bir yoldan (bu fonksiyon) inşa
+      // edildiğinden bu çağrı eksikti — bileşen efektleri tam ekranda hiç
+      // uygulanmıyordu. Aynı çağrıyı burada da yaparak tam ekranda da çalışmasını
+      // sağlıyoruz.
+      this.applyFxEffect(d, el);
       content.appendChild(d);
     });
 

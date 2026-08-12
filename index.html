@@ -30,10 +30,18 @@
   var ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx2cndwb25meXZkeHZ5cGVld253Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUxNjM1MDUsImV4cCI6MjEwMDczOTUwNX0.AqsnWHE3nPF_dQ8cxuqBGK_IIyqrK21gLFXgoGrGtls";
   var PANO49_TARGET = "pano49.html";
   var DUYURU_TARGET = "pano99.html?ekran=1";
+  // Hangi panonun (pano49 mu, duyuru mu) en son ekranda olduğunu tarayıcının
+  // kendi yerel deposuna (localStorage) da yazarız. TV internetsiz açılır/
+  // yeniden başlarsa (Supabase'e hiç ulaşılamazsa) bu sayede varsayılan olarak
+  // HER ZAMAN "pano49"a değil, EN SON GERÇEKTEN AKTİF OLAN panoya gidilir.
+  var LOCAL_KEY = "panoLastActive";
 
-  function go(target) {
+  function go(target, activeValue) {
     // replace() kullanılır ki geri tuşu bu yükleme sayfasında sonsuz döngüye
     // girmesin; kullanıcı geri gittiğinde bir önceki GERÇEK sayfaya döner.
+    if (activeValue) {
+      try { localStorage.setItem(LOCAL_KEY, activeValue); } catch (e) { /* depolama engelliyse sessizce geç */ }
+    }
     window.location.replace(target);
   }
 
@@ -43,11 +51,15 @@
     .then(function (r) { return r.ok ? r.json() : null; })
     .then(function (rows) {
       var active = (rows && rows[0] && rows[0].active) ? rows[0].active : "pano";
-      go(active === "duyuru" ? DUYURU_TARGET : PANO49_TARGET);
+      go(active === "duyuru" ? DUYURU_TARGET : PANO49_TARGET, active);
     })
     .catch(function () {
-      // Bulut erişilemezse (çevrimdışı vb.) güvenli varsayılan: pano49'u aç.
-      go(PANO49_TARGET);
+      // Bulut erişilemezse (çevrimdışı vb.): pano49'a sabit düşmek yerine, EN SON
+      // gerçekten aktif olduğu bilinen panoya (varsa) gidilir. Hiç yerel kayıt
+      // yoksa (ilk kurulum/ilk açılış) güvenli varsayılan: pano49.
+      var lastActive = null;
+      try { lastActive = localStorage.getItem(LOCAL_KEY); } catch (e) { /* depolama engelliyse yoksay */ }
+      go(lastActive === "duyuru" ? DUYURU_TARGET : PANO49_TARGET);
     });
 })();
 </script>

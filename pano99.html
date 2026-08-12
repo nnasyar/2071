@@ -282,6 +282,12 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--cb);color:v
           <option value="color">Tek Renk</option>
           <option value="gradient">Degrade</option>
           <option value="cork">Mantar Pano (Duyuru Tahtası)</option>
+          <option value="blackboard">Kara Tahta (Yazı Tahtası)</option>
+          <option value="greenboard">Yeşil Tahta (Yazı Tahtası)</option>
+          <option value="kraft">Kraft Kağıt</option>
+          <option value="wood">Ahşap Pano</option>
+          <option value="grid">Kareli Defter</option>
+          <option value="brick">Tuğla Duvar</option>
           <option value="image">Fotoğraf</option>
           <option value="video">Video</option>
           <option value="pattern">Desen</option>
@@ -322,8 +328,12 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--cb);color:v
       </div>
       <div class="mt-2"><label class="pl">Karartma</label><input type="range" class="pra" id="bgDark" min="0" max="100" value="0" oninput="app.updBg()"></div>
       <div class="mt-3">
-        <label class="pl">Hızlı Temalar</label>
+        <label class="pl">Hızlı Temalar (Renk)</label>
         <div class="cg" id="themePresets"></div>
+      </div>
+      <div class="mt-3">
+        <label class="pl">Desen &amp; Doku Temaları</label>
+        <div class="cg" id="texturePresets"></div>
       </div>
     </div>
   </div>
@@ -541,6 +551,26 @@ const THEME_PRESETS = {
   altinLuks:  { label: "Altın Lüks",    grad1: "#141118", grad2: "#332616", cork: "#1c1712", accent: "#e8c468" }
 };
 
+// ============================================================================
+// DESEN / DOKU TEMALARI (TEXTURE_THEMES)
+// ----------------------------------------------------------------------------
+// THEME_PRESETS'ten farklı olarak bunlar sadece renk değiştirmez; bgType'ı da
+// (arka plan TÜRÜNÜ) gerçek bir dokuya çevirir: kara tahta, yeşil tahta, ahşap,
+// kraft kağıt, kareli defter, tuğla duvar, mantar pano... Dokunun kendisi
+// _buildTextureBg() içinde saf CSS (katmanlı gradient) ile üretilir; dışarıdan
+// resim/texture dosyası YÜKLEMEZ, bu yüzden internet olmasa da her zaman çalışır
+// ve "color" alanındaki tek bir taban rengi bile dokuyu otomatik olarak
+// aydınlık/koyu tonlara ayarlar (bkz. _shadeColor / _isLightColor).
+const TEXTURE_THEMES = {
+  karaTahta:   { label: "Kara Tahta",     bgType: "blackboard", color: "#1f2421", accent: "#f1f1e8" },
+  yesilTahta:  { label: "Yeşil Tahta",    bgType: "greenboard", color: "#0e3d27", accent: "#ffe58a" },
+  mantarPano:  { label: "Mantar Pano",    bgType: "cork",       color: "#b5793a", accent: "#5c3a1a" },
+  kraftKagit:  { label: "Kraft Kağıt",    bgType: "kraft",      color: "#c9a066", accent: "#4a3218" },
+  ahsapPano:   { label: "Ahşap Pano",     bgType: "wood",       color: "#8a5a34", accent: "#3a2412" },
+  kareliDefter:{ label: "Kareli Defter",  bgType: "grid",       color: "#f4f1e8", accent: "#2c3e50" },
+  tuglaDuvar:  { label: "Tuğla Duvar",    bgType: "brick",      color: "#9c4a3c", accent: "#f5f1e6" }
+};
+
 const EDITOR_THEMES = {
   lacivert: { label: "Lacivert (Varsayılan)", cb: "#1a1a2e", pb: "#16213e", ac: "#0f3460", hl: "#e94560", tl: "#f1f1f1", bc: "#2a2a4a" },
   koyugri:  { label: "Koyu Gri",             cb: "#1c1c1e", pb: "#242426", ac: "#2f2f33", hl: "#0a84ff", tl: "#f2f2f2", bc: "#3a3a3d" },
@@ -613,15 +643,39 @@ let dpSyncVersion = 0;
 let dpCloudWriteTimer = null;
 let dpCloudPollTimer = null;
 
+// ============================================================================
+// YEREL YEDEK (localStorage) — TV/tarayıcı internetsiz açılsa/yeniden başlasa
+// bile, SON BİLİNEN (en son buluta ya da yerel olarak kaydedilmiş) tasarımın
+// ekrana anında gelmesini sağlar. Bulut (Supabase) her zaman "asıl" kaynaktır;
+// bu sadece bulut erişilemediğinde devreye giren bir GÜVENLİK AĞIDIR.
+// ============================================================================
+const DP_LOCAL_KEY = "duyuruPanoLocalV1";
+
+function dpLocalSave() {
+  try { localStorage.setItem(DP_LOCAL_KEY, JSON.stringify(dpCloudState)); }
+  catch (e) { /* depolama dolu/engelli olabilir — sessizce geç, bulut yazımı yine de denenir */ }
+}
+
+function dpLocalLoad() {
+  try {
+    const raw = localStorage.getItem(DP_LOCAL_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) { return null; }
+}
+
 // Yerel değişikliği (gecikmeli) buluta yazar; art arda hızlı değişikliklerde
 // (renk sürüklemek gibi) her karede değil, ~1 sn durduktan sonra tek seferde.
 function dpCloudPushDebounced() {
+  // Yerel yedek ANINDA (network beklemeden) güncellenir; 1 sn'lik bulut
+  // gecikmesi sırasında TV kapansa/yenilense bile son değişiklik kaybolmaz.
+  dpLocalSave();
   if (!supabaseClient) return;
   clearTimeout(dpCloudWriteTimer);
   dpCloudWriteTimer = setTimeout(dpCloudPushNow, 1000);
 }
 
 function dpCloudPushNow() {
+  dpLocalSave();
   if (!supabaseClient) return;
   dpSyncVersion++;
   dpLastSyncedVersion = dpSyncVersion;
@@ -635,7 +689,8 @@ function dpCloudPushNow() {
     })
     .then(({ error }) => {
       if (error) console.warn("Bulut kaydı başarısız (veri yerelde kaldı, bir sonraki değişiklikte tekrar denenecek):", error);
-    });
+    })
+    .catch(e => console.warn("Bulut kaydı başarısız — ağ hatası (veri yerelde güvende, internet gelince tekrar denenecek):", e));
 }
 
 // Başka bir cihazdan güncelleme geldiğinde kullanıcının çalışmasını yarıda
@@ -844,18 +899,44 @@ class App {
     this.setupKB();
     this.setupCM();
     this.setupThemePresets();
+    this.setupTexturePresets();
     this.setupEditorThemePresets();
-    // Bulut tabanlı ise (Supabase yapılandırılmışsa) önce TEK bir istekle tüm
-    // kayıtlı veriyi (autosave + şablonlar + tema) çekip belleğe alır; yoksa
-    // (veya bağlantı başarısızsa) sıfırdan/boş devam eder.
-    dpCloudState = (await dpCloudLoad()) || { autosave: null, templates: [], editorTheme: null };
-    dpSyncVersion = dpLastSyncedVersion;
-    await this.loadTplList();
-    const restored = await this.loadAutoSave();
-    if (!restored) this.demo();
-    // Uygulama (editör) teması, panonun kendi kayıtlı vurgu rengini geçersiz kılarak
-    // her zaman kullanıcının en son seçtiği arayüz temasının uygulanmasını sağlar.
-    await this.loadEditorTheme();
+
+    // 1) ÖNCE yereldeki (localStorage) son bilinen veriyle ANINDA çizim yapılır.
+    //    Bu sayede TV kapatılıp internetsiz açılsa/yeniden başlatılsa bile ekran
+    //    boş/varsayılan kalmaz — SON BAĞLI HALDEKİ görüntü hemen gelir.
+    const localCached = dpLocalLoad();
+    let renderedLocally = false;
+    if (localCached) {
+      dpCloudState = localCached;
+      dpSyncVersion = dpLastSyncedVersion;
+      await this.loadTplList();
+      renderedLocally = await this.loadAutoSave();
+      if (renderedLocally) await this.loadEditorTheme();
+    }
+
+    // 2) SONRA buluttan (Supabase) güncel veriyi çekmeyi dener. Başarılı olursa
+    //    (internet var) ekranı EN GÜNCEL bulut verisiyle günceller/senkronlar.
+    //    Başarısız olursa (internet yok) yereldeki görüntü olduğu gibi ekranda
+    //    kalmaya devam eder — kullanıcı hiçbir kesinti/boşluk görmez.
+    const cloudData = await dpCloudLoad();
+    if (cloudData) {
+      dpCloudState = cloudData;
+      dpSyncVersion = dpLastSyncedVersion;
+      dpLocalSave(); // yerel yedeği de bulutla aynı hizaya getir
+      await this.loadTplList();
+      const restored = await this.loadAutoSave();
+      if (!restored && !renderedLocally) this.demo();
+      // Uygulama (editör) teması, panonun kendi kayıtlı vurgu rengini geçersiz kılarak
+      // her zaman kullanıcının en son seçtiği arayüz temasının uygulanmasını sağlar.
+      await this.loadEditorTheme();
+    } else if (!renderedLocally) {
+      // Ne bulut ne de yerel bir yedek var (ilk kurulum / hiç kaydedilmemiş) →
+      // örnek/demo içerikle başla.
+      dpCloudState = { autosave: null, templates: [], editorTheme: null };
+      this.demo();
+    }
+
     this.save();
     this.updLay();
     this.startClock();
@@ -1103,6 +1184,7 @@ class App {
         templates: restored.templates || [],
         editorTheme: restored.editorTheme || null
       };
+      dpLocalSave(); // yerel yedeği de hemen güncelle (bulut yazımı başarısız olsa bile kaybolmasın)
       dpCloudPushNow(); // buluta HEMEN yaz (debounce beklemeden) — diğer cihazlar da alsın
       this.toast("Yedek geri yüklendi. Sayfa yenileniyor...");
       setTimeout(() => location.reload(), 1200);
@@ -1365,6 +1447,15 @@ class App {
   applyFxEffect(d, el) {
     d.classList.remove("fx-glow", "fx-glowPulse", "fx-neon", "fx-blink", "fx-borderGlow", "fx-rainbow", "fx-shake");
     const p = el.properties || {};
+    // "Kenar Parıltısı" (fx-borderGlow) box-shadow KULLANIR ve box-shadow, o
+    // öğenin KENDİ border-radius'una göre şekillenir. Dış kapsayıcı "d" (.ce)
+    // eskiden HİÇBİR köşe yuvarlaklığına sahip değildi — bu yüzden metin/kutu
+    // içi oval/yuvarlak köşeli olsa bile parıltı her zaman KÖŞELİ DİKDÖRTGEN
+    // görünüyordu. Burada "d"nin köşe yarıçapı, içerideki gerçek şekille
+    // (oval oran + her köşeye ayrı yarıçap dahil) HER ZAMAN senkron tutulur —
+    // sadece efekt varken değil, her renderEl çağrısında (basit ve tutarlı
+    // olsun diye) — ekstra bir görsel yan etkisi yoktur (overflow kırpmaz).
+    d.style.borderRadius = this._outerRadiusFor(el);
     const fx = p.fxType || "none";
     if (fx === "none") {
       d.style.removeProperty("--fx-color");
@@ -1407,7 +1498,23 @@ class App {
         // yapılır (dikey eksende justify-content ortalamayı sağlar).
         const alignItemsMap = { left: "flex-start", center: "center", right: "flex-end", justify: "stretch" };
         const hAlign = alignItemsMap[p.textAlign] || "center";
-        t.style.cssText = "width:100%;height:100%;display:flex;flex-direction:column;align-items:" + hAlign + ";justify-content:center;font-family:" + (p.fontFamily || "Inter") + ";font-size:" + (p.fontSize || 16) + "px;color:" + (p.color || "#fff") + ";font-weight:" + (p.fontWeight || "400") + ";text-align:" + (p.textAlign || "center") + ";line-height:" + (p.lineHeight || 1.4) + ";letter-spacing:" + (p.letterSpacing || 0) + "px;padding:" + (p.padding || 10) + "px;text-transform:" + (p.textTransform || "none") + ";font-style:" + (p.fontStyle || "normal") + ";text-decoration:" + (p.textDecoration || "none") + ";text-shadow:" + (p.textShadow || "none") + ";opacity:" + ((p.opacity || 100) / 100) + ";transform:rotate(" + (p.rotation || 0) + "deg) skew(" + (p.skew || 0) + "deg);word-wrap:break-word;overflow-wrap:break-word";
+        // Metin kutusu ARKA PLAN / KENARLIK / KÖŞE YUVARLAKLIĞI: kutu/şekil
+        // bileşenleriyle AYNI _shapeStyle() mantığını kullanır (oval oran +
+        // her köşeye ayrı yarıçap dahil), böylece "Başlık", "Alt Başlık",
+        // "Metin" ve "Banner" bileşenleri de artık gerçek bir çerçeveli kutu
+        // gibi davranabilir. Arka plan rengi SADECE p.hasBg (veya banner için
+        // her zaman) açıkken; kenarlık ise borderWidth > 0 olduğunda görünür —
+        // varsayılan olarak ikisi de kapalı/0 olduğundan ESKİ tasarımlarda
+        // hiçbir görsel değişiklik OLMAZ.
+        const boxShp = this._shapeStyle(p, el.width, el.height);
+        // Kağıt Not (paperStyle) görünümü zaten KENDİ arka planına/köşe
+        // yuvarlaklığına sahip olduğundan, iki görsel çakışmasın diye kutu/
+        // kenarlık stili SADECE paperStyle KAPALIYKEN uygulanır.
+        const showBg = !p.paperStyle && (el.type === "banner" ? true : !!p.hasBg);
+        const boxBg = showBg ? (p.backgroundColor || "#0f3460") : "transparent";
+        const boxRadius = p.paperStyle ? "0px" : boxShp.borderRadius;
+        const boxBorder = p.paperStyle ? "0" : ((p.borderWidth || 0) + "px " + (p.borderStyle || "solid") + " " + (p.borderColor || "#ffffff"));
+        t.style.cssText = "width:100%;height:100%;box-sizing:border-box;display:flex;flex-direction:column;align-items:" + hAlign + ";justify-content:center;font-family:" + (p.fontFamily || "Inter") + ";font-size:" + (p.fontSize || 16) + "px;color:" + (p.color || "#fff") + ";font-weight:" + (p.fontWeight || "400") + ";text-align:" + (p.textAlign || "center") + ";line-height:" + (p.lineHeight || 1.4) + ";letter-spacing:" + (p.letterSpacing || 0) + "px;padding:" + (p.padding || 10) + "px;text-transform:" + (p.textTransform || "none") + ";font-style:" + (p.fontStyle || "normal") + ";text-decoration:" + (p.textDecoration || "none") + ";text-shadow:" + (p.textShadow || "none") + ";opacity:" + ((p.opacity || 100) / 100) + ";transform:rotate(" + (p.rotation || 0) + "deg) skew(" + (p.skew || 0) + "deg);word-wrap:break-word;overflow-wrap:break-word;background:" + boxBg + ";border-radius:" + boxRadius + ";border:" + boxBorder;
         // NOT: textContent DEĞİL innerHTML kullanılır — böylece Metin özellik panelindeki
         // zengin metin araç çubuğuyla (bkz. rteExec) eklenen <b>/<span style="color:..."> gibi
         // satır-içi biçimlendirme, hem tasarım tuvalinde hem de yayınlanan panoda görünür.
@@ -1483,7 +1590,7 @@ class App {
         // sabit bu çerçevede durur).
         const shp = this._shapeStyle(p, el.width, el.height);
         const frame = document.createElement("div");
-        frame.style.cssText = "position:absolute;inset:0;overflow:hidden;border-radius:" + shp.borderRadius + ";clip-path:" + shp.clipPath + ";border:" + (p.borderWidth || 0) + "px " + (p.borderStyle || "solid") + " " + (p.borderColor || "transparent") + ";opacity:" + ((p.opacity || 100) / 100);
+        frame.style.cssText = "position:absolute;inset:0;overflow:hidden;border-radius:" + shp.borderRadius + ";clip-path:" + shp.clipPath + ";border:" + (p.borderWidth || 0) + "px " + (p.borderStyle || "solid") + " " + (p.borderColor || "#ffffff") + ";opacity:" + ((p.opacity || 100) / 100);
         const i = document.createElement("img");
         i.src = p.src || "";
         // Yakınlaştırma (zoom) + konumlandırma (pan/odak noktası): object-position
@@ -1523,7 +1630,7 @@ class App {
         wrap.style.cssText = "position:relative;width:100%;height:100%;transform:rotate(" + (p.rotation || 0) + "deg)";
         const shp = this._shapeStyle(p, el.width, el.height);
         const frame = document.createElement("div");
-        frame.style.cssText = "position:absolute;inset:0;overflow:hidden;border-radius:" + shp.borderRadius + ";clip-path:" + shp.clipPath + ";border:" + (p.borderWidth || 0) + "px " + (p.borderStyle || "solid") + " " + (p.borderColor || "transparent") + ";opacity:" + ((p.opacity || 100) / 100);
+        frame.style.cssText = "position:absolute;inset:0;overflow:hidden;border-radius:" + shp.borderRadius + ";clip-path:" + shp.clipPath + ";border:" + (p.borderWidth || 0) + "px " + (p.borderStyle || "solid") + " " + (p.borderColor || "#ffffff") + ";opacity:" + ((p.opacity || 100) / 100);
         const i = document.createElement("img");
         i.src = p.src || "";
         i.style.cssText = "width:100%;height:100%;object-fit:" + (p.objectFit || "cover") + ";object-position:" + (p.panX != null ? p.panX : 50) + "% " + (p.panY != null ? p.panY : 50) + "%;transform:scale(" + ((p.zoom || 100) / 100) + ");transform-origin:center center;filter:brightness(" + (p.brightness || 100) + "%) contrast(" + (p.contrast || 100) + "%) blur(" + (p.blur || 0) + "px);display:block";
@@ -1562,7 +1669,7 @@ class App {
         v.muted = p.muted !== false;
         v.loop = p.loop !== false;
         v.controls = p.controls === true;
-        v.style.cssText = "width:100%;height:100%;object-fit:cover;background:" + (p.bgColor || "#000000") + ";border-radius:" + (p.borderRadius || 0) + "px;border:" + (p.borderWidth || 0) + "px solid " + (p.borderColor || "transparent");
+        v.style.cssText = "width:100%;height:100%;object-fit:cover;background:" + (p.bgColor || "#000000") + ";border-radius:" + (p.borderRadius || 0) + "px;border:" + (p.borderWidth || 0) + "px solid " + (p.borderColor || "#ffffff");
         c.appendChild(v);
         break;
       }
@@ -1624,14 +1731,14 @@ class App {
       case "box": {
         const bx = document.createElement("div");
         const bshp = this._shapeStyle(p, el.width, el.height);
-        bx.style.cssText = "width:100%;height:100%;background:" + (p.backgroundColor || "#0f3460") + ";border-radius:" + bshp.borderRadius + ";clip-path:" + bshp.clipPath + ";border:" + (p.borderWidth || 0) + "px " + (p.borderStyle || "solid") + " " + (p.borderColor || "transparent") + ";opacity:" + ((p.opacity || 100) / 100);
+        bx.style.cssText = "width:100%;height:100%;background:" + (p.backgroundColor || "#0f3460") + ";border-radius:" + bshp.borderRadius + ";clip-path:" + bshp.clipPath + ";border:" + (p.borderWidth || 0) + "px " + (p.borderStyle || "solid") + " " + (p.borderColor || "#ffffff") + ";opacity:" + ((p.opacity || 100) / 100);
         c.appendChild(bx);
         break;
       }
       case "shape": {
         const sh = document.createElement("div");
         const sshp = this._shapeStyle(p, el.width, el.height);
-        sh.style.cssText = "width:100%;height:100%;background:" + (p.backgroundColor || "#e94560") + ";border-radius:" + sshp.borderRadius + ";clip-path:" + sshp.clipPath + ";border:" + (p.borderWidth || 0) + "px " + (p.borderStyle || "solid") + " " + (p.borderColor || "transparent") + ";opacity:" + ((p.opacity || 100) / 100);
+        sh.style.cssText = "width:100%;height:100%;background:" + (p.backgroundColor || "#e94560") + ";border-radius:" + sshp.borderRadius + ";clip-path:" + sshp.clipPath + ";border:" + (p.borderWidth || 0) + "px " + (p.borderStyle || "solid") + " " + (p.borderColor || "#ffffff") + ";opacity:" + ((p.opacity || 100) / 100);
         c.appendChild(sh);
         break;
       }
@@ -1883,6 +1990,30 @@ class App {
       h += '<div class="pg"><label class="pl">Döndürme (derece)</label><input type="number" class="pi" value="' + (p.rotation || 0) + '" onchange="app.updProp(&#39;rotation&#39;,this.value)"></div>';
       h += '<div class="pg"><label class="pl">Eğme (derece)</label><input type="number" class="pi" value="' + (p.skew || 0) + '" onchange="app.updProp(&#39;skew&#39;,this.value)"></div>';
       h += '<div class="pg"><label class="pl">Opaklık</label><input type="range" class="pra" min="0" max="100" value="' + (p.opacity || 100) + '" oninput="app.updProp(&#39;opacity&#39;,this.value)"></div>';
+      // ---- Metin Kutusu: Arka Plan / Kenarlık / Köşe Yuvarlaklığı ----
+      // Kutu/Şekil bileşenlerindeki ile AYNI kenarlık ve köşe yuvarlaklığı
+      // (oval oran + her köşeye ayrı yarıçap dahil) kontrolleri; "Metin",
+      // "Başlık", "Alt Başlık" ve "Banner" için de kullanılabilir hale getirir.
+      h += '<div class="pg" style="border-top:1px solid var(--bc);padding-top:10px;margin-top:4px"><label class="pl">🔲 Kutu / Çerçeve</label></div>';
+      if (el.type !== "banner") {
+        h += '<div class="pg"><label class="pl"><input type="checkbox" ' + (p.hasBg ? "checked" : "") + ' onchange="app.updProp(&#39;hasBg&#39;,this.checked);app.renderPropPanel()"> Arka Plan Rengi Kullan</label></div>';
+      }
+      if (el.type === "banner" || p.hasBg) {
+        h += '<div class="pg"><label class="pl">Arka Plan Rengi</label><input type="color" class="pco" value="' + (p.backgroundColor || "#0f3460") + '" onchange="app.updProp(&#39;backgroundColor&#39;,this.value)"></div>';
+      }
+      h += '<div class="pg"><label class="pl">Köşe Yuvarlaklığı (px)</label><input type="range" class="pra" min="0" max="300" value="' + (p.cornerRadius != null ? p.cornerRadius : 8) + '" oninput="app.updProp(&#39;cornerRadius&#39;,this.value)"></div>';
+      h += '<div class="pg"><label class="pl">Köşe Ovallik Oranı (%)</label><input type="range" class="pra" min="20" max="300" value="' + (p.cornerRatio != null ? p.cornerRatio : 100) + '" oninput="app.updProp(&#39;cornerRatio&#39;,this.value)"><div class="help-note">100% = simetrik yuvarlak köşe. Düşürüp yükselterek köşeleri oval/eliptik yapabilirsiniz.</div></div>';
+      h += '<div class="pg"><label class="pl"><input type="checkbox" ' + (p.cornerPerCorner ? "checked" : "") + ' onchange="app.updProp(&#39;cornerPerCorner&#39;,this.checked);app.renderPropPanel()"> Her köşeye ayrı yarıçap</label></div>';
+      if (p.cornerPerCorner) {
+        const tbase = p.cornerRadius != null ? p.cornerRadius : 8;
+        h += '<div class="pg"><div class="pr"><div><label class="pl">Sol Üst</label><input type="number" class="pi" value="' + (p.cornerTL != null ? p.cornerTL : tbase) + '" onchange="app.updProp(&#39;cornerTL&#39;,this.value)"></div><div><label class="pl">Sağ Üst</label><input type="number" class="pi" value="' + (p.cornerTR != null ? p.cornerTR : tbase) + '" onchange="app.updProp(&#39;cornerTR&#39;,this.value)"></div></div><div class="pr" style="margin-top:8px"><div><label class="pl">Sol Alt</label><input type="number" class="pi" value="' + (p.cornerBL != null ? p.cornerBL : tbase) + '" onchange="app.updProp(&#39;cornerBL&#39;,this.value)"></div><div><label class="pl">Sağ Alt</label><input type="number" class="pi" value="' + (p.cornerBR != null ? p.cornerBR : tbase) + '" onchange="app.updProp(&#39;cornerBR&#39;,this.value)"></div></div></div>';
+      }
+      h += '<div class="pg"><label class="pl">Kenarlık Kalınlığı</label><input type="number" class="pi" value="' + (p.borderWidth || 0) + '" onchange="app.updProp(&#39;borderWidth&#39;,this.value)"></div>';
+      h += '<div class="pg"><label class="pl">Kenarlık Stili</label><select class="ps" onchange="app.updProp(&#39;borderStyle&#39;,this.value)"><option value="solid" ' + ((p.borderStyle || "solid") === "solid" ? "selected" : "") + '>Düz</option><option value="dashed" ' + (p.borderStyle === "dashed" ? "selected" : "") + '>Kesikli</option><option value="dotted" ' + (p.borderStyle === "dotted" ? "selected" : "") + '>Noktalı</option><option value="double" ' + (p.borderStyle === "double" ? "selected" : "") + '>Çift Çizgi</option></select></div>';
+      h += '<div class="pg"><label class="pl">Kenarlık Rengi</label><input type="color" class="pco" value="' + (p.borderColor || "#ffffff") + '" onchange="app.updProp(&#39;borderColor&#39;,this.value)"></div>';
+      if (p.paperStyle) {
+        h += '<div class="help-note">Not: "📌 Kağıt Not Görünümü" açıkken kutu/kenarlık ayarları görünmez — kağıt notun kendi arka planı/köşesi kullanılır.</div>';
+      }
       h += '<div class="pg"><label class="pl"><input type="checkbox" ' + (p.paperStyle ? "checked" : "") + ' onchange="app.updProp(&#39;paperStyle&#39;,this.checked)"> 📌 Kağıt Not Görünümü</label></div>';
       if (p.paperStyle) {
         const paperNames = App.PAPER_COLOR_NAMES;
@@ -2059,9 +2190,9 @@ class App {
       }
       h += '<button class="btn-tb" style="width:100%;margin-top:8px" onclick="app.addSlide()">+ Yeni Slayt</button></div>';
     }
-    if (["box","shape","banner"].includes(el.type)) {
+    if (["box","shape"].includes(el.type)) {
       h += '<div class="pg"><label class="pl">Arka Plan Rengi</label><input type="color" class="pco" value="' + (p.backgroundColor || "#0f3460") + '" onchange="app.updProp(&#39;backgroundColor&#39;,this.value)"></div>';
-      if (["box","shape"].includes(el.type)) {
+      {
         const curShape = p.shape === "box" ? "rect" : (p.shape || "rect");
         h += '<div class="pg"><label class="pl">Şekil</label><select class="ps" onchange="app.updProp(&#39;shape&#39;,this.value);app.renderPropPanel()">' + Object.keys(App.SHAPE_LABELS).map(k => '<option value="' + k + '" ' + (curShape === k ? "selected" : "") + '>' + App.SHAPE_LABELS[k] + '</option>').join("") + '</select></div>';
         if (curShape === "rect") {
@@ -2326,6 +2457,27 @@ class App {
     return { clipPath: clipPath, borderRadius: borderRadius };
   }
 
+  // "d" (dış .ce kapsayıcısı, box-shadow tabanlı "Kenar Parıltısı" efektinin
+  // uygulandığı yer) için, o elemanın GERÇEKTE görünen köşe yuvarlaklığını
+  // döndürür. Böylece box-shadow her zaman içerideki gerçek şekle (oval oran,
+  // her köşeye ayrı yarıçap, daire/hap vb.) UYUM SAĞLAR — köşeli kalmaz.
+  _outerRadiusFor(el) {
+    const p = el.properties || {};
+    if (["heading", "subheading", "text", "banner"].includes(el.type)) {
+      // Kağıt Not (paperStyle) kendi köşesini/gölgesini kullanır; dış
+      // kapsayıcıya ekstra bir yarıçap eklemeye gerek yok.
+      if (p.paperStyle) return "0px";
+      return this._shapeStyle(p, el.width, el.height).borderRadius;
+    }
+    if (["box", "shape", "image", "logo"].includes(el.type)) {
+      return this._shapeStyle(p, el.width, el.height).borderRadius;
+    }
+    if (el.type === "video" || el.type === "gallery") {
+      return (p.borderRadius || 0) + "px";
+    }
+    return "0px";
+  }
+
   _hexToRgba(hex, alpha) {
     hex = String(hex || "#000000").replace("#", "");
     if (hex.length === 3) hex = hex.split("").map(ch => ch + ch).join("");
@@ -2333,6 +2485,121 @@ class App {
     const g = parseInt(hex.substring(2, 4), 16) || 0;
     const b = parseInt(hex.substring(4, 6), 16) || 0;
     return "rgba(" + r + "," + g + "," + b + "," + alpha + ")";
+  }
+
+  // hex rengi percent kadar aydınlatır (pozitif) ya da koyulaştırır (negatif).
+  // Doku temalarında TEK bir taban rengi verilse bile (bgColor) buradan türeyen
+  // açık/koyu tonlarla desenin (tahta çıtası, ahşap damarı, tuğla harcı vb.)
+  // kendi başına anlamlı görünmesini sağlar.
+  _shadeColor(hex, percent) {
+    hex = String(hex || "#808080").replace("#", "");
+    if (hex.length === 3) hex = hex.split("").map(ch => ch + ch).join("");
+    let r = parseInt(hex.substring(0, 2), 16) || 0;
+    let g = parseInt(hex.substring(2, 4), 16) || 0;
+    let b = parseInt(hex.substring(4, 6), 16) || 0;
+    const t = percent < 0 ? 0 : 255;
+    const p = Math.abs(percent) / 100;
+    r = Math.round((t - r) * p) + r;
+    g = Math.round((t - g) * p) + g;
+    b = Math.round((t - b) * p) + b;
+    const h = n => n.toString(16).padStart(2, "0");
+    return "#" + h(r) + h(g) + h(b);
+  }
+
+  // Bir rengin "açık" mı "koyu" mu olduğuna (algısal parlaklık) bakar; kareli
+  // defter gibi temalarda çizgi rengini (koyu zemine açık, açık zemine koyu)
+  // otomatik seçmek için kullanılır.
+  _isLightColor(hex) {
+    hex = String(hex || "#000000").replace("#", "");
+    if (hex.length === 3) hex = hex.split("").map(ch => ch + ch).join("");
+    const r = parseInt(hex.substring(0, 2), 16) || 0;
+    const g = parseInt(hex.substring(2, 4), 16) || 0;
+    const b = parseInt(hex.substring(4, 6), 16) || 0;
+    return (0.299 * r + 0.587 * g + 0.114 * b) > 150;
+  }
+
+  // ============================================================================
+  // DOKULU ARKA PLAN ÜRETİCİ — sadece renk yerine gerçek bir DESEN/DOKU üretir.
+  // Tamamı katmanlı CSS gradient'lerle yapılır (harici resim/texture dosyası
+  // İNDİRMEZ), böylece internet bağlantısı olmadan da, her zaman aynı hızda
+  // çalışır. Dönen string hem gerçek canvas arka planında (updBg) hem de
+  // "Desen & Doku Temaları" önizleme kutucuklarında (setupTexturePresets)
+  // BİREBİR aynı şekilde kullanılır ki önizleme her zaman gerçeği yansıtsın.
+  _buildTextureBg(type, baseColor) {
+    const base = baseColor || "#808080";
+    if (type === "blackboard" || type === "greenboard") {
+      // Kara/yeşil tahta: mat taban + tebeşir tozu benekleri + silik silgi izleri.
+      const dust = this._isLightColor(base) ? "rgba(0,0,0,.05)" : "rgba(255,255,255,.05)";
+      const dust2 = this._isLightColor(base) ? "rgba(0,0,0,.035)" : "rgba(255,255,255,.035)";
+      return "background-color:" + base + ";" +
+        "background-image:" +
+          "radial-gradient(circle at 18% 24%," + dust + " 0%,transparent 2.5%)," +
+          "radial-gradient(circle at 63% 71%," + dust2 + " 0%,transparent 3%)," +
+          "radial-gradient(circle at 82% 15%," + dust + " 0%,transparent 2%)," +
+          "radial-gradient(circle at 38% 88%," + dust2 + " 0%,transparent 2.5%)," +
+          "repeating-linear-gradient(115deg," + dust2 + " 0px," + dust2 + " 1px,transparent 1px,transparent 7px)," +
+          "repeating-linear-gradient(5deg,rgba(255,255,255,.015) 0px,rgba(255,255,255,.015) 2px,transparent 2px,transparent 42px);" +
+        "background-size:auto,auto,auto,auto,auto,auto;";
+    }
+    if (type === "cork") {
+      // Mantar pano: iki katmanlı benek (küçük+büyük) ile daha gerçekçi doku.
+      return "background-color:" + base + ";" +
+        "background-image:" +
+          "radial-gradient(rgba(0,0,0,.14) 1px,transparent 1.6px)," +
+          "radial-gradient(rgba(255,255,255,.07) 1.4px,transparent 2px)," +
+          "radial-gradient(rgba(0,0,0,.08) 2.5px,transparent 3.2px);" +
+        "background-size:9px 9px,18px 18px,34px 34px;" +
+        "background-position:0 0,4px 6px,12px 16px;";
+    }
+    if (type === "kraft") {
+      // Kraft kağıt: çapraz kağıt lifi + hafif eskitme (vignette).
+      const fiber1 = "rgba(255,255,255,.05)";
+      const fiber2 = "rgba(0,0,0,.045)";
+      return "background-color:" + base + ";" +
+        "background-image:" +
+          "repeating-linear-gradient(48deg," + fiber1 + " 0px,transparent 1px,transparent 3px)," +
+          "repeating-linear-gradient(-42deg," + fiber2 + " 0px,transparent 1px,transparent 4px)," +
+          "radial-gradient(ellipse at center,rgba(255,255,255,.06),rgba(0,0,0,.10));";
+    }
+    if (type === "wood") {
+      // Ahşap: taban rengiyle orantılı, dar aralıklarla değişen açık/koyu damar çizgileri.
+      const s1 = this._shadeColor(base, 10);
+      const s2 = this._shadeColor(base, -14);
+      const s3 = this._shadeColor(base, -26);
+      return "background-color:" + base + ";" +
+        "background-image:" +
+          "repeating-linear-gradient(90deg," + s1 + " 0px," + base + " 3px," + s2 + " 6px," + base + " 9px," + s3 + " 13px," + base + " 17px)," +
+          "linear-gradient(180deg,rgba(255,255,255,.05),rgba(0,0,0,.08));" +
+        "background-size:100% 100%,100% 100%;";
+    }
+    if (type === "grid") {
+      // Kareli defter: taban açık/koyu olsun, çizgi rengi otomatik kontrastlı seçilir.
+      const line = this._isLightColor(base) ? "rgba(0,0,0,.11)" : "rgba(255,255,255,.14)";
+      const lineBold = this._isLightColor(base) ? "rgba(0,0,0,.2)" : "rgba(255,255,255,.24)";
+      return "background-color:" + base + ";" +
+        "background-image:" +
+          "linear-gradient(" + lineBold + " 1.5px,transparent 1.5px)," +
+          "linear-gradient(90deg," + lineBold + " 1.5px,transparent 1.5px)," +
+          "linear-gradient(" + line + " 1px,transparent 1px)," +
+          "linear-gradient(90deg," + line + " 1px,transparent 1px);" +
+        "background-size:140px 140px,140px 140px,28px 28px,28px 28px;";
+    }
+    if (type === "brick") {
+      // Tuğla duvar: klasik iki-yönlü paralelkenar tekniğiyle harç dolgulu tuğla deseni.
+      const mortar = this._shadeColor(base, 55);
+      return "background-color:" + mortar + ";" +
+        "background-image:" +
+          "linear-gradient(335deg," + base + " 23px,transparent 23px)," +
+          "linear-gradient(155deg," + base + " 23px,transparent 23px)," +
+          "linear-gradient(335deg," + base + " 23px,transparent 23px)," +
+          "linear-gradient(155deg," + base + " 23px,transparent 23px);" +
+        "background-size:58px 58px;" +
+        "background-position:0px 2px,4px 35px,29px 37px,34px 6px;";
+    }
+    if (type === "pattern") {
+      return "background-image:repeating-linear-gradient(45deg,#0f3460 25%,transparent 25%,transparent 75%,#0f3460 75%,#0f3460),repeating-linear-gradient(45deg,#0f3460 25%,#16213e 25%,#16213e 75%,#0f3460 75%,#0f3460);background-position:0 0,10px 10px;background-size:20px 20px;";
+    }
+    return "background-color:" + base + ";";
   }
 
   _escHtml(str) {
@@ -2624,6 +2891,30 @@ class App {
     box.innerHTML = h;
   }
 
+  /* ---- Desen & Doku Temaları (renk yerine gerçek doku uygular) ---- */
+  setupTexturePresets() {
+    const box = document.getElementById("texturePresets");
+    if (!box) return;
+    let h = "";
+    Object.keys(TEXTURE_THEMES).forEach(k => {
+      const t = TEXTURE_THEMES[k];
+      const previewCss = this._buildTextureBg(t.bgType, t.color);
+      h += '<div class="ci" style="' + previewCss + 'border-color:' + t.accent + ';text-shadow:0 1px 3px rgba(0,0,0,.85)" onclick="app.applyTexturePreset(&#39;' + k + '&#39;)" title="' + t.label + ' dokusu"><i class="fas fa-layer-group" style="color:' + t.accent + ';text-shadow:0 1px 3px rgba(0,0,0,.85)"></i>' + t.label + '</div>';
+    });
+    box.innerHTML = h;
+  }
+
+  applyTexturePreset(key) {
+    const t = TEXTURE_THEMES[key];
+    if (!t) return;
+    document.getElementById("bgType").value = t.bgType;
+    document.getElementById("bgColor").value = t.color;
+    document.documentElement.style.setProperty("--hl", t.accent);
+    this.updBg();
+    this.save();
+    this.toast(t.label + " dokusu uygulandı");
+  }
+
   /* ---- Uygulama (editör) rengi / teması ---- */
   setupEditorThemePresets() {
     const box = document.getElementById("editorThemePresets");
@@ -2700,16 +2991,18 @@ class App {
     const bl = document.getElementById("bgBlur").value;
     const op = document.getElementById("bgOp").value;
     const dk = document.getElementById("bgDark").value;
-    document.getElementById("bgColorBox").style.display = (t === "color" || t === "cork") ? "block" : "none";
+    const TEXTURE_TYPES = ["cork", "blackboard", "greenboard", "kraft", "wood", "grid", "brick"];
+    document.getElementById("bgColorBox").style.display = (t === "color" || TEXTURE_TYPES.includes(t)) ? "block" : "none";
     document.getElementById("bgGradBox").style.display = t === "gradient" ? "block" : "none";
     document.getElementById("bgImgBox").style.display = t === "image" ? "block" : "none";
     document.getElementById("bgVidBox").style.display = t === "video" ? "block" : "none";
     let s = "";
     if (t === "color") s = "background-color:" + document.getElementById("bgColor").value + ";";
     else if (t === "gradient") s = "background:linear-gradient(135deg," + document.getElementById("bgGrad1").value + "," + document.getElementById("bgGrad2").value + ");";
-    else if (t === "cork") {
-      const base = document.getElementById("bgColor").value || "#1E3A5F";
-      s = "background-color:" + base + ";background-image:radial-gradient(rgba(255,255,255,.08) 1.6px, transparent 1.9px);background-size:18px 18px;";
+    else if (TEXTURE_TYPES.includes(t)) {
+      const defaults = { cork: "#1E3A5F", blackboard: "#1f2421", greenboard: "#0e3d27", kraft: "#c9a066", wood: "#8a5a34", grid: "#f4f1e8", brick: "#9c4a3c" };
+      const base = document.getElementById("bgColor").value || defaults[t];
+      s = this._buildTextureBg(t, base);
     }
     else if (t === "image") {
       const px = document.getElementById("bgPosX") ? document.getElementById("bgPosX").value : 50;
@@ -2721,7 +3014,7 @@ class App {
       const v = document.getElementById("bgVid").value;
       bg.innerHTML = v ? '<video autoplay muted loop style="width:100%;height:100%;object-fit:cover"><source src="' + v + '"></video>' : "";
     } else if (t === "pattern") {
-      s = "background-image:repeating-linear-gradient(45deg,#0f3460 25%,transparent 25%,transparent 75%,#0f3460 75%,#0f3460),repeating-linear-gradient(45deg,#0f3460 25%,#16213e 25%,#16213e 75%,#0f3460 75%,#0f3460);background-position:0 0,10px 10px;background-size:20px 20px;";
+      s = this._buildTextureBg("pattern");
     }
     if (t !== "video") bg.innerHTML = "";
     bg.style.cssText = s + "filter:blur(" + bl + "px);opacity:" + (op / 100) + ";";

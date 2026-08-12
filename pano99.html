@@ -3204,20 +3204,43 @@ class App {
   async saveTemplate() {
     const name = prompt("Şablon adı:", this.boardName || "");
     if (!name) return;
+    const trimmedName = name.trim();
+    const existingIndex = this.tpl.findIndex(t => (t.name || "").trim().toLowerCase() === trimmedName.toLowerCase());
+
+    if (existingIndex !== -1) {
+      if (!confirm('"' + trimmedName + '" adında bir şablon zaten kayıtlı. Üzerine yazılsın mı?')) return;
+      const existing = this.tpl[existingIndex];
+      const tpl = {
+        id: existing.id || ("tpl_" + Date.now()),
+        name: trimmedName,
+        date: new Date().toLocaleString("tr-TR"),
+        elements: JSON.parse(JSON.stringify(this.els)),
+        bg: this.getBgState(),
+        canvasW: this.canvasW,
+        canvasH: this.canvasH,
+        boardName: this.boardName || trimmedName,
+        boardDesc: this.boardDesc || ""
+      };
+      this.tpl[existingIndex] = tpl;
+      await this.persistTplList();
+      this.toast("Şablon güncellendi: " + trimmedName);
+      return;
+    }
+
     const tpl = {
       id: "tpl_" + Date.now(),
-      name: name,
+      name: trimmedName,
       date: new Date().toLocaleString("tr-TR"),
       elements: JSON.parse(JSON.stringify(this.els)),
       bg: this.getBgState(),
       canvasW: this.canvasW,
       canvasH: this.canvasH,
-      boardName: this.boardName || name,
+      boardName: this.boardName || trimmedName,
       boardDesc: this.boardDesc || ""
     };
     this.tpl.push(tpl);
     await this.persistTplList();
-    this.toast("Şablon kaydedildi: " + name);
+    this.toast("Şablon kaydedildi: " + trimmedName);
   }
 
   loadTemplate() {

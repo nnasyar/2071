@@ -1641,7 +1641,8 @@ class App {
       }
       case "gallery": {
         const g = document.createElement("div");
-        g.style.cssText = "width:100%;height:100%;position:relative;overflow:hidden;background:" + (p.bgColor || "#000000") + ";border-radius:" + (p.borderRadius || 0) + "px";
+        const gbox = this._boxStyleCss(p, el.width, el.height, { withBgToggle: false, legacyRadiusField: "borderRadius" });
+        g.style.cssText = "width:100%;height:100%;box-sizing:border-box;position:relative;overflow:hidden;background:" + (p.bgColor || "#000000") + ";border-radius:" + gbox.borderRadius + ";border:" + gbox.border;
         const imgs = p.images || [];
         let ci = 0;
         imgs.forEach((src, idx) => {
@@ -1669,7 +1670,8 @@ class App {
         v.muted = p.muted !== false;
         v.loop = p.loop !== false;
         v.controls = p.controls === true;
-        v.style.cssText = "width:100%;height:100%;object-fit:cover;background:" + (p.bgColor || "#000000") + ";border-radius:" + (p.borderRadius || 0) + "px;border:" + (p.borderWidth || 0) + "px solid " + (p.borderColor || "#ffffff");
+        const vbox = this._boxStyleCss(p, el.width, el.height, { withBgToggle: false, legacyRadiusField: "borderRadius" });
+        v.style.cssText = "width:100%;height:100%;box-sizing:border-box;object-fit:cover;background:" + (p.bgColor || "#000000") + ";border-radius:" + vbox.borderRadius + ";border:" + vbox.border;
         c.appendChild(v);
         break;
       }
@@ -1680,7 +1682,8 @@ class App {
       case "date": {
         const dd = document.createElement("div");
         dd.id = "date-" + el.id;
-        dd.style.cssText = "width:100%;height:100%;display:flex;align-items:center;justify-content:" + (p.textAlign || "center") + ";font-family:" + (p.fontFamily || "Inter") + ";font-size:" + (p.fontSize || 24) + "px;color:" + (p.color || "#fff");
+        const dbox = this._boxStyleCss(p, el.width, el.height, { withBgToggle: true, bgDefault: "#0f3460" });
+        dd.style.cssText = "width:100%;height:100%;box-sizing:border-box;display:flex;align-items:center;justify-content:" + (p.textAlign || "center") + ";font-family:" + (p.fontFamily || "Inter") + ";font-size:" + (p.fontSize || 24) + "px;color:" + (p.color || "#fff") + ";background:" + dbox.background + ";border-radius:" + dbox.borderRadius + ";border:" + dbox.border + ";padding:0 12px";
         dd.textContent = this.fmtDate(new Date(), p.format);
         c.appendChild(dd);
         break;
@@ -1688,7 +1691,8 @@ class App {
       case "clock": {
         const cd = document.createElement("div");
         cd.id = "clock-" + el.id;
-        cd.style.cssText = "width:100%;height:100%;display:flex;align-items:center;justify-content:" + (p.textAlign || "center") + ";font-family:" + (p.fontFamily || "Roboto") + ";font-size:" + (p.fontSize || 36) + "px;color:" + (p.color || "#fff");
+        const cbox = this._boxStyleCss(p, el.width, el.height, { withBgToggle: true, bgDefault: "#0f3460" });
+        cd.style.cssText = "width:100%;height:100%;box-sizing:border-box;display:flex;align-items:center;justify-content:" + (p.textAlign || "center") + ";font-family:" + (p.fontFamily || "Roboto") + ";font-size:" + (p.fontSize || 36) + "px;color:" + (p.color || "#fff") + ";background:" + cbox.background + ";border-radius:" + cbox.borderRadius + ";border:" + cbox.border + ";padding:0 12px";
         // Başlangıç değeri hemen yazılır; aksi halde startClock()'un ilk periyodik
         // güncellemesi gelene kadar (en fazla 1 saniye) saat boş görünürdü —
         // özellikle tam ekran önizlemesi yeni açıldığında fark edilir bir gecikme
@@ -1700,14 +1704,16 @@ class App {
       case "qr": {
         const qd = document.createElement("div");
         qd.id = "qr-" + el.id;
-        qd.style.cssText = "width:100%;height:100%;display:flex;align-items:center;justify-content:center";
+        const qbox = this._boxStyleCss(p, el.width, el.height, { withBgToggle: true, bgDefault: "#ffffff" });
+        const qpad = p.padding != null ? parseFloat(p.padding) || 0 : 0;
+        qd.style.cssText = "width:100%;height:100%;box-sizing:border-box;display:flex;align-items:center;justify-content:center;background:" + qbox.background + ";border-radius:" + qbox.borderRadius + ";border:" + qbox.border + ";padding:" + qpad + "px";
         c.appendChild(qd);
         setTimeout(() => {
           if (window.QRCode) {
             new QRCode(qd, {
               text: p.text || "https://okul.edu.tr",
-              width: Math.min(el.width, el.height) - 20,
-              height: Math.min(el.width, el.height) - 20,
+              width: Math.max(20, Math.min(el.width, el.height) - 20 - qpad * 2),
+              height: Math.max(20, Math.min(el.width, el.height) - 20 - qpad * 2),
               colorDark: p.color || "#000",
               colorLight: p.bgColor || "#fff"
             });
@@ -1717,7 +1723,8 @@ class App {
       }
       case "icon": {
         const ic = document.createElement("div");
-        ic.style.cssText = "width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:" + (p.fontSize || 48) + "px;color:" + (p.color || "#e94560");
+        const ibox = this._boxStyleCss(p, el.width, el.height, { withBgToggle: true, bgDefault: "#0f3460" });
+        ic.style.cssText = "width:100%;height:100%;box-sizing:border-box;display:flex;align-items:center;justify-content:center;font-size:" + (p.fontSize || 48) + "px;color:" + (p.color || "#e94560") + ";background:" + ibox.background + ";border-radius:" + ibox.borderRadius + ";border:" + ibox.border;
         ic.innerHTML = '<i class="fas ' + (p.icon || "fa-star") + '"></i>';
         c.appendChild(ic);
         break;
@@ -1744,7 +1751,8 @@ class App {
       }
       case "ticker": {
         const band = document.createElement("div");
-        band.style.cssText = "width:100%;height:100%;overflow:hidden;position:relative;display:flex;align-items:center;background:" + (p.bgColor || "#0f3460") + ";";
+        const tbox = this._boxStyleCss(p, el.width, el.height, { withBgToggle: false });
+        band.style.cssText = "width:100%;height:100%;box-sizing:border-box;overflow:hidden;position:relative;display:flex;align-items:center;background:" + (p.bgColor || "#0f3460") + ";border-radius:" + tbox.borderRadius + ";border:" + tbox.border + ";";
         const sep = p.separator || "   •   ";
         const isStatic = p.mode === "static";
         if (isStatic) {
@@ -2078,7 +2086,6 @@ class App {
     if (el.type === "gallery") {
       h += '<div class="pg"><label class="pl">Geçiş Süresi (sn)</label><input type="number" class="pi" min="1" value="' + (p.interval || 3) + '" onchange="app.updProp(&#39;interval&#39;,this.value)"></div>';
       h += '<div class="pg"><label class="pl">Arkaplan Rengi</label><input type="color" class="pco" value="' + (p.bgColor || "#000000") + '" onchange="app.updProp(&#39;bgColor&#39;,this.value)"></div>';
-      h += '<div class="pg"><label class="pl">Köşe Yuvarlaklık (px)</label><input type="number" class="pi" value="' + (p.borderRadius || 0) + '" onchange="app.updProp(&#39;borderRadius&#39;,this.value)"></div>';
       const imgs = p.images || [];
       h += '<div class="pg"><label class="pl">Galeri Görselleri (' + imgs.length + ')</label>';
       imgs.forEach((src, i) => {
@@ -2092,6 +2099,7 @@ class App {
       h += '<input type="file" id="galUpload" accept="image/*" multiple style="display:none" onchange="app.addGalleryImgFiles(this)">';
       h += '<button type="button" class="btn-sec" style="width:100%;margin-top:6px" onclick="document.getElementById(&#39;galUpload&#39;).click()"><i class="fas fa-upload"></i> Bilgisayardan Yükle</button>';
       h += '</div>';
+      h += this._renderBoxControlsHTML(p, { withBgToggle: false, legacyRadiusField: "borderRadius" });
     }
     if (el.type === "date") {
       h += '<div class="pg"><label class="pl">Format</label><select class="ps" onchange="app.updProp(&#39;format&#39;,this.value)"><option value="DD.MM.YYYY" ' + (p.format === "DD.MM.YYYY" ? "selected" : "") + '>31.12.2026</option><option value="DD/MM/YYYY" ' + (p.format === "DD/MM/YYYY" ? "selected" : "") + '>31/12/2026</option><option value="LONG" ' + (p.format === "LONG" ? "selected" : "") + '>31 Aralık 2026</option><option value="DAY_LONG" ' + (p.format === "DAY_LONG" ? "selected" : "") + '>Perşembe, 31 Aralık</option></select></div>';
@@ -2099,6 +2107,7 @@ class App {
       h += '<div class="pg"><label class="pl">Boyut (px)</label><input type="number" class="pi" value="' + (p.fontSize || 24) + '" onchange="app.updProp(&#39;fontSize&#39;,this.value)"></div>';
       h += '<div class="pg"><label class="pl">Renk</label><input type="color" class="pco" value="' + (p.color || "#ffffff") + '" onchange="app.updProp(&#39;color&#39;,this.value)"></div>';
       h += '<div class="pg"><label class="pl">Hizalama</label><select class="ps" onchange="app.updProp(&#39;textAlign&#39;,this.value)"><option value="left" ' + (p.textAlign === "left" ? "selected" : "") + '>Sol</option><option value="center" ' + (p.textAlign === "center" ? "selected" : "") + '>Orta</option><option value="right" ' + (p.textAlign === "right" ? "selected" : "") + '>Sağ</option></select></div>';
+      h += this._renderBoxControlsHTML(p, { withBgToggle: true, bgDefault: "#0f3460" });
     }
     if (el.type === "clock") {
       h += '<div class="pg"><label class="pl">Saat Formatı</label><select class="ps" onchange="app.updProp(&#39;format&#39;,this.value)"><option value="24" ' + (p.format === "24" ? "selected" : "") + '>24 Saat</option><option value="12" ' + (p.format === "12" ? "selected" : "") + '>12 Saat</option></select></div>';
@@ -2107,12 +2116,14 @@ class App {
       h += '<div class="pg"><label class="pl">Boyut (px)</label><input type="number" class="pi" value="' + (p.fontSize || 36) + '" onchange="app.updProp(&#39;fontSize&#39;,this.value)"></div>';
       h += '<div class="pg"><label class="pl">Renk</label><input type="color" class="pco" value="' + (p.color || "#ffffff") + '" onchange="app.updProp(&#39;color&#39;,this.value)"></div>';
       h += '<div class="pg"><label class="pl">Hizalama</label><select class="ps" onchange="app.updProp(&#39;textAlign&#39;,this.value)"><option value="left" ' + (p.textAlign === "left" ? "selected" : "") + '>Sol</option><option value="center" ' + (p.textAlign === "center" ? "selected" : "") + '>Orta</option><option value="right" ' + (p.textAlign === "right" ? "selected" : "") + '>Sağ</option></select></div>';
+      h += this._renderBoxControlsHTML(p, { withBgToggle: true, bgDefault: "#0f3460" });
     }
     if (el.type === "icon") {
       const iconChoices = ["fa-star","fa-bell","fa-bullhorn","fa-heart","fa-check-circle","fa-exclamation-triangle","fa-info-circle","fa-graduation-cap","fa-book","fa-flag","fa-trophy","fa-calendar-check","fa-user","fa-users","fa-map-marker-alt","fa-thumbs-up"];
       h += '<div class="pg"><label class="pl">İkon</label><select class="ps" onchange="app.updProp(&#39;icon&#39;,this.value)">' + iconChoices.map(ic => '<option value="' + ic + '" ' + ((p.icon || "fa-star") === ic ? "selected" : "") + '>' + ic.replace("fa-", "") + '</option>').join("") + '</select></div>';
       h += '<div class="pg"><label class="pl">Boyut (px)</label><input type="number" class="pi" value="' + (p.fontSize || 48) + '" onchange="app.updProp(&#39;fontSize&#39;,this.value)"></div>';
       h += '<div class="pg"><label class="pl">Renk</label><input type="color" class="pco" value="' + (p.color || "#e94560") + '" onchange="app.updProp(&#39;color&#39;,this.value)"></div>';
+      h += this._renderBoxControlsHTML(p, { withBgToggle: true, bgDefault: "#0f3460" });
     }
     if (el.type === "line") {
       h += '<div class="pg"><label class="pl">Kalınlık (px)</label><input type="number" class="pi" min="1" value="' + (p.thickness || 4) + '" onchange="app.updProp(&#39;thickness&#39;,this.value)"></div>';
@@ -2123,7 +2134,9 @@ class App {
       h += '<div class="pg"><label class="pl">İçerik / Bağlantı</label><input type="text" class="pi" value="' + (p.text || "") + '" onchange="app.updProp(&#39;text&#39;,this.value)"></div>';
       h += '<div class="pg"><label class="pl">Karekod Boyutu (<span id="qrSizeLbl">' + Math.round(el.width) + '</span> px)</label><input type="range" class="pra" min="60" max="600" value="' + Math.round(el.width) + '" oninput="document.getElementById(&#39;qrSizeLbl&#39;).textContent=this.value;app.updQrSize(this.value)"></div>';
       h += '<div class="pg"><label class="pl">Kod Rengi</label><input type="color" class="pco" value="' + (p.color || "#000000") + '" onchange="app.updProp(&#39;color&#39;,this.value)"></div>';
-      h += '<div class="pg"><label class="pl">Arkaplan Rengi</label><input type="color" class="pco" value="' + (p.bgColor || "#ffffff") + '" onchange="app.updProp(&#39;bgColor&#39;,this.value)"></div>';
+      h += '<div class="pg"><label class="pl">Kod Zemin Rengi</label><input type="color" class="pco" value="' + (p.bgColor || "#ffffff") + '" onchange="app.updProp(&#39;bgColor&#39;,this.value)"></div>';
+      h += '<div class="pg"><label class="pl">İç Boşluk / Dolgu (px)</label><input type="number" class="pi" min="0" value="' + (p.padding != null ? p.padding : 0) + '" onchange="app.updProp(&#39;padding&#39;,this.value)"></div>';
+      h += this._renderBoxControlsHTML(p, { withBgToggle: true, bgLabel: "Kutu Arka Plan Rengi", bgDefault: "#ffffff" });
     }
     if (el.type === "video") {
       h += '<div class="pg"><label class="pl">Video URL</label><input type="text" class="pi" value="' + (p.src || "") + '" onchange="app.updProp(&#39;src&#39;,this.value)"></div>';
@@ -2131,9 +2144,7 @@ class App {
       h += '<div class="pg"><label class="pl"><input type="checkbox" ' + (p.muted !== false ? "checked" : "") + ' onchange="app.updProp(&#39;muted&#39;,this.checked)"> Sessiz</label></div>';
       h += '<div class="pg"><label class="pl"><input type="checkbox" ' + (p.loop !== false ? "checked" : "") + ' onchange="app.updProp(&#39;loop&#39;,this.checked)"> Döngü</label></div>';
       h += '<div class="pg"><label class="pl">Arkaplan Rengi</label><input type="color" class="pco" value="' + (p.bgColor || "#000000") + '" onchange="app.updProp(&#39;bgColor&#39;,this.value)"></div>';
-      h += '<div class="pg"><label class="pl">Köşe Yuvarlaklık (px)</label><input type="number" class="pi" value="' + (p.borderRadius || 0) + '" onchange="app.updProp(&#39;borderRadius&#39;,this.value)"></div>';
-      h += '<div class="pg"><label class="pl">Kenarlık Kalınlığı</label><input type="number" class="pi" value="' + (p.borderWidth || 0) + '" onchange="app.updProp(&#39;borderWidth&#39;,this.value)"></div>';
-      h += '<div class="pg"><label class="pl">Kenarlık Rengi</label><input type="color" class="pco" value="' + (p.borderColor || "#ffffff") + '" onchange="app.updProp(&#39;borderColor&#39;,this.value)"></div>';
+      h += this._renderBoxControlsHTML(p, { withBgToggle: false, legacyRadiusField: "borderRadius" });
     }
     if (el.type === "slide") {
       h += '<div class="pg"><label class="pl">Slayt Ayarları</label><div class="pr"><div><label class="pl">Süre (sn)</label><input type="number" class="pi" value="' + (p.interval || 5) + '" onchange="app.updProp(&#39;interval&#39;,this.value)"></div><div><label class="pl">Geçiş</label><select class="ps" onchange="app.updProp(&#39;transition&#39;,this.value)"><option value="fade" ' + (p.transition === "fade" ? "selected" : "") + '>Fade</option><option value="slide" ' + (p.transition === "slide" ? "selected" : "") + '>Slide</option></select></div></div></div>';
@@ -2222,6 +2233,7 @@ class App {
       h += '<div class="pg"><label class="pl">Yazı Rengi</label><input type="color" class="pco" value="' + (p.color || "#ffffff") + '" onchange="app.updProp(&#39;color&#39;,this.value)"></div>';
       h += '<div class="pg"><label class="pl">Şerit Rengi</label><input type="color" class="pco" value="' + (p.bgColor || "#0f3460") + '" onchange="app.updProp(&#39;bgColor&#39;,this.value)"></div>';
       h += '<div class="help-note">' + (isStatic ? "Sabit modda metin kaymadan bant üzerinde ortalanmış şekilde durur." : "İpucu: Bu bandı ekranın en altına, tam genişlikte yerleştirip \"Tam Ekran\" moduna geçerek klasik bir haber bandı gibi kullanabilirsiniz.") + '</div>';
+      h += this._renderBoxControlsHTML(p, { withBgToggle: false });
     }
     pp.innerHTML = h;
     if (["image","logo"].includes(el.type)) this._bindPhotoEditorBox(el);
@@ -2469,13 +2481,74 @@ class App {
       if (p.paperStyle) return "0px";
       return this._shapeStyle(p, el.width, el.height).borderRadius;
     }
-    if (["box", "shape", "image", "logo"].includes(el.type)) {
+    if (["box", "shape", "image", "logo", "clock", "date", "icon", "qr", "ticker"].includes(el.type)) {
       return this._shapeStyle(p, el.width, el.height).borderRadius;
     }
     if (el.type === "video" || el.type === "gallery") {
-      return (p.borderRadius || 0) + "px";
+      const pFor = (p.cornerRadius == null && p.borderRadius != null) ? Object.assign({}, p, { cornerRadius: p.borderRadius }) : p;
+      return this._shapeStyle(pFor, el.width, el.height).borderRadius;
     }
     return "0px";
+  }
+
+  // ============================================================================
+  // PAYLAŞILAN "🔲 Kutu / Çerçeve" ÖZELLİK PANELİ ÜRETİCİSİ
+  // ----------------------------------------------------------------------------
+  // Metin/Kutu/Şekil'de kullanılan (arka plan aç/kapa + köşe yuvarlaklığı + oval
+  // oran + her köşeye ayrı yarıçap + kenarlık kalınlığı/stili/rengi) AYNI kontrol
+  // setini, Saat/Tarih/İkon/QR/Bant/Galeri/Video gibi diğer bileşenlere de tek bir
+  // yerden, tekrar kod yazmadan eklemek için kullanılır.
+  //   opts.withBgToggle  : true ise "Arka Plan Rengi Kullan" onay kutusu + renk
+  //                        alanı da eklenir (Saat/Tarih/İkon/QR gibi, varsayılan
+  //                        olarak SAYDAM olan bileşenler için). false ise (Bant/
+  //                        Galeri/Video gibi zaten KENDİ "Arkaplan Rengi" alanına
+  //                        sahip bileşenler için) sadece köşe+kenarlık eklenir.
+  //   opts.legacyRadiusField : eski (tek sayı) "borderRadius" alanına sahip
+  //                        bileşenlerde (Galeri/Video), henüz "cornerRadius"
+  //                        girilmemişse eski değeri panelde başlangıç değeri
+  //                        olarak göstermek için kullanılır (geriye dönük uyum).
+  // ============================================================================
+  _renderBoxControlsHTML(p, opts) {
+    opts = opts || {};
+    const withBgToggle = opts.withBgToggle !== false;
+    let h = '<div class="pg" style="border-top:1px solid var(--bc);padding-top:10px;margin-top:4px"><label class="pl">🔲 Kutu / Çerçeve</label></div>';
+    if (withBgToggle) {
+      h += '<div class="pg"><label class="pl"><input type="checkbox" ' + (p.hasBg ? "checked" : "") + ' onchange="app.updProp(&#39;hasBg&#39;,this.checked);app.renderPropPanel()"> Arka Plan Rengi Kullan</label></div>';
+      if (p.hasBg) {
+        h += '<div class="pg"><label class="pl">' + (opts.bgLabel || "Arka Plan Rengi") + '</label><input type="color" class="pco" value="' + (p.backgroundColor || opts.bgDefault || "#0f3460") + '" onchange="app.updProp(&#39;backgroundColor&#39;,this.value)"></div>';
+      }
+    }
+    const legacy = opts.legacyRadiusField;
+    const baseRadius = p.cornerRadius != null ? p.cornerRadius : (legacy && p[legacy] != null ? p[legacy] : 8);
+    h += '<div class="pg"><label class="pl">Köşe Yuvarlaklığı (px)</label><input type="range" class="pra" min="0" max="300" value="' + baseRadius + '" oninput="app.updProp(&#39;cornerRadius&#39;,this.value)"></div>';
+    h += '<div class="pg"><label class="pl">Köşe Ovallik Oranı (%)</label><input type="range" class="pra" min="20" max="300" value="' + (p.cornerRatio != null ? p.cornerRatio : 100) + '" oninput="app.updProp(&#39;cornerRatio&#39;,this.value)"><div class="help-note">100% = simetrik yuvarlak köşe. Düşürüp yükselterek köşeleri oval/eliptik yapabilirsiniz.</div></div>';
+    h += '<div class="pg"><label class="pl"><input type="checkbox" ' + (p.cornerPerCorner ? "checked" : "") + ' onchange="app.updProp(&#39;cornerPerCorner&#39;,this.checked);app.renderPropPanel()"> Her köşeye ayrı yarıçap</label></div>';
+    if (p.cornerPerCorner) {
+      const base = baseRadius;
+      h += '<div class="pg"><div class="pr"><div><label class="pl">Sol Üst</label><input type="number" class="pi" value="' + (p.cornerTL != null ? p.cornerTL : base) + '" onchange="app.updProp(&#39;cornerTL&#39;,this.value)"></div><div><label class="pl">Sağ Üst</label><input type="number" class="pi" value="' + (p.cornerTR != null ? p.cornerTR : base) + '" onchange="app.updProp(&#39;cornerTR&#39;,this.value)"></div></div><div class="pr" style="margin-top:8px"><div><label class="pl">Sol Alt</label><input type="number" class="pi" value="' + (p.cornerBL != null ? p.cornerBL : base) + '" onchange="app.updProp(&#39;cornerBL&#39;,this.value)"></div><div><label class="pl">Sağ Alt</label><input type="number" class="pi" value="' + (p.cornerBR != null ? p.cornerBR : base) + '" onchange="app.updProp(&#39;cornerBR&#39;,this.value)"></div></div></div>';
+    }
+    h += '<div class="pg"><label class="pl">Kenarlık Kalınlığı</label><input type="number" class="pi" value="' + (p.borderWidth || 0) + '" onchange="app.updProp(&#39;borderWidth&#39;,this.value)"></div>';
+    h += '<div class="pg"><label class="pl">Kenarlık Stili</label><select class="ps" onchange="app.updProp(&#39;borderStyle&#39;,this.value)"><option value="solid" ' + ((p.borderStyle || "solid") === "solid" ? "selected" : "") + '>Düz</option><option value="dashed" ' + (p.borderStyle === "dashed" ? "selected" : "") + '>Kesikli</option><option value="dotted" ' + (p.borderStyle === "dotted" ? "selected" : "") + '>Noktalı</option><option value="double" ' + (p.borderStyle === "double" ? "selected" : "") + '>Çift Çizgi</option></select></div>';
+    h += '<div class="pg"><label class="pl">Kenarlık Rengi</label><input type="color" class="pco" value="' + (p.borderColor || "#ffffff") + '" onchange="app.updProp(&#39;borderColor&#39;,this.value)"></div>';
+    return h;
+  }
+
+  // Render tarafında AYNI kutu/kenarlık CSS'ini üretir (panel yardımcısıyla eşleşir).
+  // legacyRadiusField verilirse ve p.cornerRadius henüz girilmemişse eski tek-
+  // sayılık alanı (Galeri/Video'nun eski "borderRadius"u) taban değer olarak kabul
+  // eder — böylece eski kayıtlı panolar köşelerini KAYBETMEZ.
+  _boxStyleCss(p, w, h, opts) {
+    opts = opts || {};
+    const legacy = opts.legacyRadiusField;
+    const pFor = (legacy && p.cornerRadius == null && p[legacy] != null) ? Object.assign({}, p, { cornerRadius: p[legacy] }) : p;
+    const shp = this._shapeStyle(pFor, w, h);
+    const withBgToggle = opts.withBgToggle !== false;
+    const bg = withBgToggle ? (p.hasBg ? (p.backgroundColor || opts.bgDefault || "#0f3460") : "transparent") : null;
+    return {
+      background: bg,
+      borderRadius: shp.borderRadius,
+      border: (p.borderWidth || 0) + "px " + (p.borderStyle || "solid") + " " + (p.borderColor || "#ffffff")
+    };
   }
 
   _hexToRgba(hex, alpha) {

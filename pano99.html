@@ -395,6 +395,60 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--cb);color:v
   </div>
 </div>
 
+<!-- Şablon Kaydet: native prompt()/confirm() yerine, TÜM ortamlarda (bazı TV/
+     kiosk tarayıcıları native prompt/confirm penceresini hiç göstermez ya da
+     anında iptal eder — bu, "aynı isimle kaydedince güncellenmiyor" şikayetinin
+     asıl nedeniydi) güvenilir çalışan kendi modalimiz. Girilen isim mevcut bir
+     şablonla eşleşirse buton metni ve altındaki uyarı otomatik değişir. -->
+<div class="modal fade" id="saveTplModal" tabindex="-1" data-bs-backdrop="static">
+  <div class="modal-dialog">
+    <div class="modal-content md-content">
+      <div class="modal-header md-header"><h5 class="modal-title">Şablon Kaydet</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="pl">Şablon Adı</label>
+          <input type="text" class="pi" id="saveTplName" placeholder="ör. Kayıt Duyurusu" oninput="app.checkSaveTplNameCollision()" onkeydown="if(event.key==='Enter'){event.preventDefault();app.confirmSaveTemplate();}">
+        </div>
+        <div id="saveTplWarning" style="display:none;background:rgba(233,69,96,.12);border:1px solid var(--hl);border-radius:8px;padding:10px 12px;font-size:.82rem;color:#f1f1f1">
+          <i class="fas fa-triangle-exclamation" style="color:var(--hl);margin-right:6px"></i><span id="saveTplWarningText"></span>
+        </div>
+      </div>
+      <div class="modal-footer md-footer">
+        <button type="button" class="btn-sec" data-bs-dismiss="modal">İptal</button>
+        <button type="button" class="btn-pri" id="saveTplConfirmBtn" onclick="app.confirmSaveTemplate()">Kaydet</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- "+ Yeni" tıklanınca çıkan uyarı: artık sadece "sil" değil, mevcut çalışmayı
+     KAYDET ya da (bir şablon üzerinde çalışılıyorsa) GÜNCELLE seçeneğini de
+     sunar; kullanıcı işini kaybetmeden yeni bir projeye geçebilir. -->
+<div class="modal fade" id="newProjectModal" tabindex="-1" data-bs-backdrop="static">
+  <div class="modal-dialog">
+    <div class="modal-content md-content">
+      <div class="modal-header md-header"><h5 class="modal-title">Yeni Proje</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <p style="margin:0">Mevcut pano temizlenip yepyeni, boş bir proje açılacak. Devam etmeden önce şu anki çalışmanızı korumak ister misiniz?</p>
+      </div>
+      <div class="modal-footer md-footer" style="flex-wrap:wrap;gap:8px;justify-content:flex-end" id="newProjectFooter"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Genel amaçlı (Sil / Üzerine Yaz vb.) ONAY modalı — native confirm() bazı
+     TV/kiosk tarayıcılarında güvenilir çalışmadığından tüm uygulama genelinde
+     bunun yerine kullanılır. -->
+<div class="modal fade" id="genConfirmModal" tabindex="-1" data-bs-backdrop="static">
+  <div class="modal-dialog">
+    <div class="modal-content md-content">
+      <div class="modal-header md-header"><h5 class="modal-title" id="genConfirmTitle">Onay</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body"><p id="genConfirmMsg" style="margin:0;white-space:pre-line"></p></div>
+      <div class="modal-footer md-footer" id="genConfirmFooter"></div>
+    </div>
+  </div>
+</div>
+
 <div class="modal fade" id="pubModal" tabindex="-1">
   <div class="modal-dialog">
     <div class="modal-content md-content">
@@ -888,6 +942,11 @@ class App {
     this.boardName = "";
     this.boardDesc = "";
     this.tpl = [];
+    // Şu an ekranda AÇIK OLAN şablonun id'si (varsa). "Şablonlar" listesinden
+    // bir şablon yüklendiğinde set edilir; "+ Yeni" ile boş projeye geçildiğinde
+    // veya yeni (isimsiz) bir tasarıma başlandığında null'a döner. "+ Yeni"
+    // uyarısında "Güncelle" seçeneğinin görünüp görünmeyeceğini belirler.
+    this.curTplId = null;
     this.zoomOverride = null; // null => alana otomatik sığdır, sayı => kullanıcı ölçeği
     this.focusMode = false;
     this.init().catch(e => console.error("Pano başlatılamadı; güvenlik perdesi kasıtlı olarak kaldırılmadı:", e));
@@ -1161,35 +1220,37 @@ class App {
   importBackupJSONFile(event) {
     const file = event.target.files && event.target.files[0];
     if (!file) return;
-    if (!confirm("Bu yedek, Duyuru Panosu'ndaki MEVCUT tüm tasarımı/ayarları/şablonları üzerine yazacak. Devam edilsin mi?")) {
-      event.target.value = "";
-      return;
-    }
-    const reader = new FileReader();
-    reader.onerror = () => alert("Yedek dosyası okunamadı.");
-    reader.onload = () => {
-      let restored;
-      try {
-        restored = JSON.parse(reader.result);
-      } catch (e) {
-        alert("Geçersiz JSON dosyası.");
+    this._showConfirm("Yedek Geri Yükle", "Bu yedek, Duyuru Panosu'ndaki MEVCUT tüm tasarımı/ayarları/şablonları üzerine yazacak. Devam edilsin mi?", { okLabel: "Devam Et" }).then(ok => {
+      if (!ok) {
+        event.target.value = "";
         return;
       }
-      if (!restored || typeof restored !== "object") {
-        alert("Geçersiz yedek içeriği.");
-        return;
-      }
-      dpCloudState = {
-        autosave: restored.autosave || null,
-        templates: restored.templates || [],
-        editorTheme: restored.editorTheme || null
+      const reader = new FileReader();
+      reader.onerror = () => alert("Yedek dosyası okunamadı.");
+      reader.onload = () => {
+        let restored;
+        try {
+          restored = JSON.parse(reader.result);
+        } catch (e) {
+          alert("Geçersiz JSON dosyası.");
+          return;
+        }
+        if (!restored || typeof restored !== "object") {
+          alert("Geçersiz yedek içeriği.");
+          return;
+        }
+        dpCloudState = {
+          autosave: restored.autosave || null,
+          templates: restored.templates || [],
+          editorTheme: restored.editorTheme || null
+        };
+        dpLocalSave(); // yerel yedeği de hemen güncelle (bulut yazımı başarısız olsa bile kaybolmasın)
+        dpCloudPushNow(); // buluta HEMEN yaz (debounce beklemeden) — diğer cihazlar da alsın
+        this.toast("Yedek geri yüklendi. Sayfa yenileniyor...");
+        setTimeout(() => location.reload(), 1200);
       };
-      dpLocalSave(); // yerel yedeği de hemen güncelle (bulut yazımı başarısız olsa bile kaybolmasın)
-      dpCloudPushNow(); // buluta HEMEN yaz (debounce beklemeden) — diğer cihazlar da alsın
-      this.toast("Yedek geri yüklendi. Sayfa yenileniyor...");
-      setTimeout(() => location.reload(), 1200);
-    };
-    reader.readAsText(file);
+      reader.readAsText(file);
+    });
   }
 
   gid() { return "el_" + (++this.ec) + "_" + Date.now(); }
@@ -3172,22 +3233,99 @@ class App {
     return d.toLocaleDateString("tr-TR");
   }
 
+  // ============================================================================
+  // GENEL AMAÇLI ONAY MODALI — native confirm() bazı TV/kiosk/gömülü
+  // tarayıcılarda ya HİÇ görünmez ya da anında otomatik iptal edilmiş gibi
+  // davranır (muhtemelen "aynı isimle kaydet → güncelleme çalışmıyor" ve
+  // "+ Yeni uyarısı" şikayetlerinin asıl nedeni buydu). Bunun yerine, mevcut
+  // bootstrap modal altyapısını kullanan, HER ortamda güvenilir çalışan bu
+  // Promise tabanlı onay penceresi kullanılır: `await this._showConfirm(...)`.
+  // ============================================================================
+  _showConfirm(title, message, opts) {
+    opts = opts || {};
+    return new Promise(resolve => {
+      document.getElementById("genConfirmTitle").textContent = title;
+      document.getElementById("genConfirmMsg").textContent = message;
+      const footer = document.getElementById("genConfirmFooter");
+      footer.innerHTML = "";
+      const modalEl = document.getElementById("genConfirmModal");
+      const modal = new bootstrap.Modal(modalEl);
+      let settled = false;
+      const finish = val => { if (settled) return; settled = true; modal.hide(); resolve(val); };
+      const cancelBtn = document.createElement("button");
+      cancelBtn.type = "button"; cancelBtn.className = "btn-sec"; cancelBtn.textContent = opts.cancelLabel || "İptal";
+      cancelBtn.onclick = () => finish(false);
+      const okBtn = document.createElement("button");
+      okBtn.type = "button"; okBtn.className = "btn-pri"; okBtn.textContent = opts.okLabel || "Evet";
+      okBtn.onclick = () => finish(true);
+      footer.appendChild(cancelBtn);
+      footer.appendChild(okBtn);
+      modalEl.addEventListener("hidden.bs.modal", () => finish(false), { once: true });
+      modal.show();
+    });
+  }
+
+  // "+ Yeni" tıklandığında: artık doğrudan silmek yerine, mevcut çalışmayı
+  // KAYDET / GÜNCELLE / KAYDETMEDEN SİL seçeneklerini sunan bir modal açar.
   newProject() {
-    if (confirm("Mevcut proje silinecek. Emin misiniz?")) {
-      this.els = [];
-      document.getElementById("cContent").innerHTML = "";
-      this.sel = null;
-      this.renderPropPanel();
-      this.updLay();
-      this.save();
-      this.autoSave();
-      this.toast("Yeni proje oluşturuldu");
+    const footer = document.getElementById("newProjectFooter");
+    let h = '<button type="button" class="btn-sec" data-bs-dismiss="modal">İptal</button>';
+    const hasActiveTpl = this.curTplId && this.tpl.some(t => t.id === this.curTplId);
+    if (hasActiveTpl) {
+      h += '<button type="button" class="btn-tb" onclick="app.newProjectAction(&#39;update&#39;)"><i class="fas fa-sync-alt"></i> Güncelle ve Yeni Oluştur</button>';
+    }
+    h += '<button type="button" class="btn-tb" onclick="app.newProjectAction(&#39;save&#39;)"><i class="fas fa-save"></i> ' + (hasActiveTpl ? "Farklı" : "Şablon Olarak") + ' Kaydet ve Yeni Oluştur</button>';
+    h += '<button type="button" class="btn-pri" onclick="app.newProjectAction(&#39;discard&#39;)">Kaydetmeden Sil ve Yeni Oluştur</button>';
+    footer.innerHTML = h;
+    new bootstrap.Modal(document.getElementById("newProjectModal")).show();
+  }
+
+  async newProjectAction(action) {
+    const modalEl = document.getElementById("newProjectModal");
+    const modal = bootstrap.Modal.getInstance(modalEl);
+    if (action === "discard") {
+      if (modal) modal.hide();
+      this._resetToNewProject();
+      return;
+    }
+    if (action === "update") {
+      const idx = this.tpl.findIndex(t => t.id === this.curTplId);
+      if (idx === -1) { this.toast("Güncellenecek şablon bulunamadı"); return; }
+      await this._updateTplSilent(idx);
+      if (modal) modal.hide();
+      this._resetToNewProject();
+      return;
+    }
+    if (action === "save") {
+      if (modal) modal.hide();
+      // saveTplModal başarıyla kaydettikten SONRA otomatik olarak yeni projeye
+      // geçmesi için bir bayrak bırakılır (bkz. confirmSaveTemplate).
+      this._pendingNewProjectAfterSave = true;
+      this.saveTemplate();
+      return;
     }
   }
 
-  clearCanvas() {
+  _resetToNewProject() {
+    Object.values(this.tickers || {}).forEach(iv => clearInterval(iv));
+    this.els.forEach(el => { if (el.gt) clearInterval(el.gt); if (el.st) clearInterval(el.st); });
+    this.els = [];
+    document.getElementById("cContent").innerHTML = "";
+    this.sel = null;
+    this.curTplId = null;
+    this.boardName = "";
+    this.boardDesc = "";
+    this.renderPropPanel();
+    this.updLay();
+    this.save();
+    this.autoSave();
+    this.toast("Yeni proje oluşturuldu");
+  }
+
+  async clearCanvas() {
     if (this.els.length === 0) { this.toast("Pano zaten boş"); return; }
-    if (confirm("Pano üzerindeki tüm bileşenler silinecek (arka plan korunur). Emin misiniz?")) {
+    const ok = await this._showConfirm("Panoyu Temizle", "Pano üzerindeki tüm bileşenler silinecek (arka plan korunur). Emin misiniz?", { okLabel: "Temizle" });
+    if (ok) {
       Object.values(this.tickers || {}).forEach(iv => clearInterval(iv));
       this.els.forEach(el => { if (el.gt) clearInterval(el.gt); if (el.st) clearInterval(el.st); });
       this.els = [];
@@ -3201,46 +3339,84 @@ class App {
     }
   }
 
-  async saveTemplate() {
-    const name = prompt("Şablon adı:", this.boardName || "");
-    if (!name) return;
-    const trimmedName = name.trim();
-    const existingIndex = this.tpl.findIndex(t => (t.name || "").trim().toLowerCase() === trimmedName.toLowerCase());
+  // ============================================================================
+  // ŞABLON KAYDET — native prompt()+confirm() yerine kendi modalimiz (saveTplModal)
+  // kullanılır. Girilen isim mevcut bir şablonla eşleşirse (baş/son boşluk ve
+  // büyük/küçük harf farkı gözetmeden) checkSaveTplNameCollision() ile ANINDA
+  // fark edilir ve buton "Üzerine Yaz (Güncelle)" olarak değişir — böylece
+  // "aaaa" adıyla tekrar kaydedince liste "aaaa", "aaaa (2)" diye çoğalmaz,
+  // üzerinde çalıştığınız hâli (aynı id korunarak) günceller.
+  // ============================================================================
+  saveTemplate() {
+    const input = document.getElementById("saveTplName");
+    input.value = this.boardName || "";
+    this.checkSaveTplNameCollision();
+    new bootstrap.Modal(document.getElementById("saveTplModal")).show();
+    setTimeout(() => { input.focus(); input.select(); }, 300);
+  }
 
-    if (existingIndex !== -1) {
-      if (!confirm('"' + trimmedName + '" adında bir şablon zaten kayıtlı. Üzerine yazılsın mı?')) return;
-      const existing = this.tpl[existingIndex];
-      const tpl = {
-        id: existing.id || ("tpl_" + Date.now()),
-        name: trimmedName,
+  checkSaveTplNameCollision() {
+    const name = document.getElementById("saveTplName").value.trim();
+    const warn = document.getElementById("saveTplWarning");
+    const warnText = document.getElementById("saveTplWarningText");
+    const btn = document.getElementById("saveTplConfirmBtn");
+    const existingIdx = this.tpl.findIndex(t => (t.name || "").trim().toLowerCase() === name.toLowerCase());
+    if (name && existingIdx !== -1) {
+      warn.style.display = "block";
+      warnText.textContent = '"' + this.tpl[existingIdx].name + '" adında bir şablon zaten var. Kaydet\'e basarsanız o şablonun ÜZERİNE YAZILIR (güncellenir).';
+      btn.innerHTML = '<i class="fas fa-sync-alt"></i> Üzerine Yaz (Güncelle)';
+    } else {
+      warn.style.display = "none";
+      btn.textContent = "Kaydet";
+    }
+  }
+
+  async confirmSaveTemplate() {
+    const nameInput = document.getElementById("saveTplName");
+    const name = nameInput.value.trim();
+    if (!name) { nameInput.focus(); this.toast("Lütfen bir şablon adı girin"); return; }
+    const existingIdx = this.tpl.findIndex(t => (t.name || "").trim().toLowerCase() === name.toLowerCase());
+    if (existingIdx !== -1) {
+      const existing = this.tpl[existingIdx];
+      this.tpl[existingIdx] = {
+        id: existing.id, // aynı id korunur (referans/sıra bozulmasın diye)
+        name: name,
         date: new Date().toLocaleString("tr-TR"),
         elements: JSON.parse(JSON.stringify(this.els)),
         bg: this.getBgState(),
         canvasW: this.canvasW,
         canvasH: this.canvasH,
-        boardName: this.boardName || trimmedName,
+        boardName: this.boardName || name,
         boardDesc: this.boardDesc || ""
       };
-      this.tpl[existingIndex] = tpl;
+      this.curTplId = existing.id;
       await this.persistTplList();
-      this.toast("Şablon güncellendi: " + trimmedName);
-      return;
+      this.toast("Şablon güncellendi: " + name);
+    } else {
+      const tpl = {
+        id: "tpl_" + Date.now(),
+        name: name,
+        date: new Date().toLocaleString("tr-TR"),
+        elements: JSON.parse(JSON.stringify(this.els)),
+        bg: this.getBgState(),
+        canvasW: this.canvasW,
+        canvasH: this.canvasH,
+        boardName: this.boardName || name,
+        boardDesc: this.boardDesc || ""
+      };
+      this.tpl.push(tpl);
+      this.curTplId = tpl.id;
+      await this.persistTplList();
+      this.toast("Şablon kaydedildi: " + name);
     }
-
-    const tpl = {
-      id: "tpl_" + Date.now(),
-      name: trimmedName,
-      date: new Date().toLocaleString("tr-TR"),
-      elements: JSON.parse(JSON.stringify(this.els)),
-      bg: this.getBgState(),
-      canvasW: this.canvasW,
-      canvasH: this.canvasH,
-      boardName: this.boardName || trimmedName,
-      boardDesc: this.boardDesc || ""
-    };
-    this.tpl.push(tpl);
-    await this.persistTplList();
-    this.toast("Şablon kaydedildi: " + trimmedName);
+    const modal = bootstrap.Modal.getInstance(document.getElementById("saveTplModal"));
+    if (modal) modal.hide();
+    // "+ Yeni" akışından "Kaydet ve Yeni Oluştur" ile buraya gelindiyse, kayıt
+    // başarıyla bittiğine göre şimdi otomatik olarak yeni/boş projeye geçilir.
+    if (this._pendingNewProjectAfterSave) {
+      this._pendingNewProjectAfterSave = false;
+      this._resetToNewProject();
+    }
   }
 
   loadTemplate() {
@@ -3249,11 +3425,13 @@ class App {
     if (this.tpl.length === 0) { h = '<div style="text-align:center;color:#8892b0;padding:20px">Kayıtlı şablon yok</div>'; }
     else {
       this.tpl.forEach((t, i) => {
-        h += '<div class="tpc">';
-        h += '<h6>' + t.name + '</h6>';
+        const active = t.id === this.curTplId;
+        h += '<div class="tpc"' + (active ? ' style="border-color:var(--hl)"' : '') + '>';
+        h += '<h6>' + t.name + (active ? ' <span style="font-size:.7rem;color:var(--hl);font-weight:normal">(şu an açık)</span>' : '') + '</h6>';
         h += '<small>' + t.date + ' - ' + t.elements.length + ' öğe</small>';
         h += '<div class="mt-2">';
         h += '<button class="btn-tb" style="margin-right:5px" onclick="app.applyTpl(' + i + ')">Yükle</button>';
+        h += '<button class="btn-tb" style="margin-right:5px" onclick="app.updateTpl(' + i + ')" title="Şu anki pano içeriğini bu şablonun üzerine kaydeder"><i class="fas fa-sync-alt"></i> Güncelle</button>';
         h += '<button class="btn-tb" onclick="app.delTpl(' + i + ')">Sil</button>';
         h += '</div></div>';
       });
@@ -3275,6 +3453,7 @@ class App {
     }
     this.boardName = t.boardName || t.name || "";
     this.boardDesc = t.boardDesc || "";
+    this.curTplId = t.id; // bu şablon artık "açık/aktif" — "+ Yeni" ve "Güncelle" bunu bilir
     this.applyBgState(t.bg);
     this.refresh();
     this.updScale();
@@ -3285,11 +3464,49 @@ class App {
   }
 
   async delTpl(i) {
-    if (confirm("Şablon silinsin mi?")) {
+    const t = this.tpl[i];
+    if (!t) return;
+    const ok = await this._showConfirm("Şablonu Sil", '"' + t.name + '" silinsin mi? Bu işlem geri alınamaz.', { okLabel: "Sil" });
+    if (ok) {
       this.tpl.splice(i, 1);
+      if (this.curTplId === t.id) this.curTplId = null;
       await this.persistTplList();
       this.loadTemplate();
     }
+  }
+
+  // Asıl güncelleme mantığı — hem "🔄 Güncelle" butonu (kendi onayıyla) hem de
+  // "+ Yeni" akışındaki "Güncelle ve Yeni Oluştur" (zaten o modalde onaylandığı
+  // için burada AYRICA sormaz) tarafından paylaşılır.
+  async _updateTplSilent(i) {
+    const t = this.tpl[i];
+    if (!t) return;
+    this.tpl[i] = {
+      id: t.id,
+      name: t.name,
+      date: new Date().toLocaleString("tr-TR"),
+      elements: JSON.parse(JSON.stringify(this.els)),
+      bg: this.getBgState(),
+      canvasW: this.canvasW,
+      canvasH: this.canvasH,
+      boardName: this.boardName || t.name,
+      boardDesc: this.boardDesc || ""
+    };
+    this.curTplId = t.id;
+    await this.persistTplList();
+    this.toast("Şablon güncellendi: " + t.name);
+  }
+
+  // Şablon listesindeki "🔄 Güncelle" butonu: isim tekrar sormadan, o an
+  // ÜZERİNDE ÇALIŞTIĞINIZ pano tasarımını doğrudan seçili şablonun üzerine
+  // kaydeder (id ve isim korunur, sadece içerik + tarih güncellenir).
+  async updateTpl(i) {
+    const t = this.tpl[i];
+    if (!t) return;
+    const ok = await this._showConfirm("Şablonu Güncelle", '"' + t.name + '" şablonu, ŞU ANKİ pano içeriğinizle güncellensin mi? (Eski hâli geri alınamaz.)', { okLabel: "Güncelle" });
+    if (!ok) return;
+    await this._updateTplSilent(i);
+    this.loadTemplate();
   }
 
   _buildPreviewCanvas() {

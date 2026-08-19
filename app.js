@@ -1402,6 +1402,17 @@
                     const localVersion = appConfig.__syncVersion || 0;
                     lastSyncedVersion = cloudVersion;
                     if (cloudVersion > localVersion) {
+                        // ÖNEMLİ: Sayfa yeni açılır açılmaz (window.onload içinde) tetiklenen bu tek
+                        // seferlik kontrol, Supabase yanıtı gecikirse kullanıcının bu sırada PIN girip
+                        // Yönetim Paneli'ni AÇMIŞ olma ihtimaliyle YARIŞ DURUMUNA (race condition)
+                        // girebiliyordu: yanıt geldiğinde panel zaten açıksa location.reload() paneli
+                        // anında kapatıp kullanıcıyı düzenleme ekranından atıyordu. Bu yüzden aşağıdaki
+                        // setInterval tabanlı yoklama döngüsüyle (cloudSyncStartListening) AYNI korumayı
+                        // burada da uyguluyoruz: panel açıksa yenilemeye DOKUNMA — panel kapanınca zaten
+                        // normal 20sn'lik yoklama döngüsü güncel veriyi fark edip bildirim gösterecektir.
+                        const adminPanel = document.getElementById('admin-panel');
+                        const isAdminOpen = adminPanel && !adminPanel.classList.contains('hidden');
+                        if (isAdminOpen) return;
                         localStorage.setItem('okulPanoDataV8', JSON.stringify(data.data));
                         location.reload();
                     }

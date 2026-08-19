@@ -1064,7 +1064,19 @@ class App {
     // (?duzenle=1 ile) gelindiyse, doğrudan DÜZENLEME arayüzü gösterilir — yayın
     // önizlemesi atlanır. Böylece iki ayrı pano dosyası olsa da, düzenleme AYNI
     // yönetim akışından tek tıkla açılabilir.
-    if (!dpForceEditor) this.previewFullscreen();
+    if (!dpForceEditor) {
+      this.previewFullscreen();
+    } else if (this._isFullscreen()) {
+      // ÖNEMLİ: pano49'daki "Pano99'u Düzenle" kısayolu, BU sayfaya geçmeden HEMEN
+      // ÖNCE (aynı sekmede/origin'de) gerçek tam ekranı isteyebiliyor; bazı tarayıcılar
+      // (Chrome/Edge) bu gerçek tam ekran durumunu sayfa geçişinde KORUYOR. Bu durumda
+      // previewFullscreen() hiç çağrılmadığı için (yukarıdaki dal) fare hareketinde
+      // beliren "✕" (fsc) düğmesi de HİÇ KURULMUYORDU — kullanıcı düzenleme ekranına
+      // tam ekran halde düşüp çıkış için hiçbir görünür yol bulamıyordu. Editör her
+      // zaman PENCERELİ görünümde çalışması gerektiğinden (bkz. closeFS() içindeki AYNI
+      // mantık), burada da tutarlılık için gerçek tam ekrandan doğrudan çıkılır.
+      this._exitRealFullscreen();
+    }
     // Güvenlik perdesi (bkz. body başındaki #bootGate açıklaması) SADECE buraya
     // ulaşıldıysa, yani gerçek pano içeriği başarıyla yayın görünümüne (ya da
     // düzenleme kısayoluyla geldiyse doğrudan editöre) yüklendiyse kaldırılır.

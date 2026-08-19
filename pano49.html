@@ -238,6 +238,15 @@
         </div>
     </div>
 
+    <!-- BULUT GÜNCELLEME BİLDİRİMİ (küçük, tıklanabilir, engellemeyen) — Yönetim
+         Paneli açıkken başka bir cihazdan "Yayınla" yapılırsa burada görünür;
+         metni admin tarafından "Yenileme Bildirim Mesajı" alanından değiştirilir. -->
+    <div id="cloud-update-toast" class="fixed hidden items-center gap-2 bg-cyan-900 text-white text-xs font-bold px-4 py-2.5 rounded-lg shadow-2xl shadow-black/40 cursor-pointer z-[25000]" style="bottom:20px; left:50%; transform:translateX(-50%);" onclick="location.reload()">
+        <i class="fa-solid fa-cloud-arrow-down"></i>
+        <span id="cloud-update-toast-text">Panoda güncelleme yayınlandı — yenilemek için tıklayın</span>
+    </div>
+
+
     <!-- ÖZEL ONAY MODALI -->
     <div class="fixed inset-0 bg-black/85 z-[20000] hidden flex items-center justify-center" id="custom-confirm-overlay">
         <div class="bg-slate-900 border-2 border-red-500 rounded-2xl p-6 w-[450px] text-center shadow-2xl shadow-red-500/15">
@@ -322,8 +331,11 @@
                 <button class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-lg text-sm flex items-center gap-2" onclick="closeAdminPanelWithoutSaving()">
                     <i class="fa-solid fa-arrow-left"></i> Vazgeç / Kapat
                 </button>
-                <button class="px-5 py-2 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-lg text-sm flex items-center gap-2 shadow-lg shadow-emerald-500/20" onclick="saveAdminChanges()">
+                <button class="px-5 py-2 bg-slate-700 hover:bg-slate-600 text-white font-bold rounded-lg text-sm flex items-center gap-2" onclick="saveAdminChanges()" title="Kaydeder; bulut yazımı ~1.5sn içinde arka planda gerçekleşir">
                     <i class="fa-solid fa-floppy-disk"></i> Değişiklikleri Kaydet
+                </button>
+                <button class="px-5 py-2 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-lg text-sm flex items-center gap-2 shadow-lg shadow-emerald-500/20" onclick="publishPanoNow()" title="Kaydeder ve buluta HEMEN (beklemeden) yazar — diğer cihazlar en kısa sürede güncellemeyi görür">
+                    <i class="fa-solid fa-tower-broadcast"></i> Yayınla
                 </button>
             </div>
         </div>
@@ -472,6 +484,11 @@
                             <div class="bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-400 flex items-center gap-2">
                                 <i class="fa-solid fa-circle-info text-cyan-400"></i>
                                 Günün Özlü Sözü artık soldaki menüden <b class="text-cyan-400">"Günün Sözü"</b> sekmesinde yönetilir.
+                            </div>
+                            <div class="form-group">
+                                <label class="text-xs text-slate-400 block mb-1">Yenileme Bildirim Mesajı</label>
+                                <input type="text" id="input-refresh-message" placeholder="Panoda güncelleme yayınlandı — yenilemek için tıklayın" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-white text-xs">
+                                <p class="text-[10px] text-slate-500 mt-1.5 leading-relaxed">Panoyu başka bir tarayıcı/cihazda (Yönetim Paneli açık şekilde) görüntüleyen biri varken siz üstteki <b class="text-cyan-400">"Yayınla"</b> ile bir değişikliği yayınladığınızda, o kişiye ekranın altında bu metinle küçük bir bildirim çıkar. Panonun kendisi (TV/kiosk ekranı) bu bildirimi beklemeden otomatik yenilenir.</p>
                             </div>
                         </div>
                         <div class="space-y-4 bg-slate-950 border border-slate-800 p-4 rounded-xl flex flex-col justify-between">

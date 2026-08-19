@@ -29,12 +29,16 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--cb);color:v
 .ce{position:absolute;cursor:move;user-select:none;border:2px solid transparent;transition:border-color .15s}
 .ce:hover{border-color:rgba(233,69,96,.5)}
 .ce.sel{border-color:var(--hl);box-shadow:0 0 0 2px rgba(233,69,96,.3);z-index:9999!important}
+.ce.selm{border-color:#4dabf7;box-shadow:0 0 0 2px rgba(77,171,247,.35);z-index:9998!important}
 .ce .rh{position:absolute;width:10px;height:10px;background:var(--hl);border-radius:50%;display:none;z-index:10000}
 .ce.sel .rh{display:block}
 .rh.nw{top:-5px;left:-5px;cursor:nw-resize}
 .rh.ne{top:-5px;right:-5px;cursor:ne-resize}
 .rh.sw{bottom:-5px;left:-5px;cursor:sw-resize}
 .rh.se{bottom:-5px;right:-5px;cursor:se-resize}
+.marq{position:absolute;border:1.5px dashed #4dabf7;background:rgba(77,171,247,.12);z-index:9997;pointer-events:none;display:none}
+.cmi.dis{opacity:.4;pointer-events:none}
+.cm-hdr{padding:6px 14px 4px;font-size:.68rem;letter-spacing:.04em;text-transform:uppercase;color:#8892b0}
 .cbg{position:absolute;top:0;left:0;right:0;bottom:0;z-index:0;background-size:cover;background-position:center}
 .sr{width:var(--pw);background:var(--pb);border-left:1px solid var(--bc);overflow-y:auto}
 .pt{display:flex;border-bottom:1px solid var(--bc)}
@@ -343,6 +347,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--cb);color:v
     <div class="cw" id="cWrap">
       <div class="cbg" id="cBg"></div>
       <div id="cContent" style="position:relative;width:100%;height:100%;z-index:1"></div>
+      <div class="marq" id="marq"></div>
     </div>
     <div class="zt">
       <button class="zbtn" onclick="app.zoomOut()" title="Uzaklaştır"><i class="fas fa-minus"></i></button>
@@ -371,16 +376,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--cb);color:v
   </div>
 </div>
 
-<div class="cm" id="cm">
-  <div class="cmi" onclick="app.bringFront()"><i class="fas fa-arrow-up"></i>Öne Getir</div>
-  <div class="cmi" onclick="app.sendBack()"><i class="fas fa-arrow-down"></i>Arkaya Gönder</div>
-  <div class="cmd"></div>
-  <div class="cmi" onclick="app.dupEl()"><i class="fas fa-copy"></i>Çoğalt</div>
-  <div class="cmi" onclick="app.lockEl()"><i class="fas fa-lock"></i>Kilitle</div>
-  <div class="cmi" onclick="app.hideEl()"><i class="fas fa-eye-slash"></i>Gizle</div>
-  <div class="cmd"></div>
-  <div class="cmi" onclick="app.delEl()" style="color:var(--hl)"><i class="fas fa-trash"></i>Sil</div>
-</div>
+<div class="cm" id="cm"></div>
 
 <div class="fs" id="fsPreview"></div>
 <button class="fsc" id="fsc" onclick="app.toggleRealFullscreen()"><i class="fas fa-times"></i></button>
@@ -661,10 +657,8 @@ const SUPABASE_CONFIG = {
   anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx2cndwb25meXZkeHZ5cGVld253Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUxNjM1MDUsImV4cCI6MjEwMDczOTUwNX0.AqsnWHE3nPF_dQ8cxuqBGK_IIyqrK21gLFXgoGrGtls",
   table: "duyuru_panosu_config",
   rowId: 1,
-  // pano49 (app.js) ile AYNI Storage bucket'ı — aynı Supabase projesini
-  // paylaştıkları için burada oluşturulmuş bir bucket varsa ek kuruluma
-  // gerek yoktur. Yoksa Supabase panelinden "pano-images" adında, PUBLIC
-  // (herkese açık okuma) bir bucket oluşturmanız yeterli.
+  // pano49/app.js ile AYNI bucket — supabase-kurulum.sql'de zaten oluşturulmuş
+  // ve herkese açık okuma/yazma politikaları tanımlanmış durumda.
   imagesBucket: "pano-images"
 };
 
@@ -712,7 +706,7 @@ const DP_LOCAL_KEY = "duyuruPanoLocalV1";
 
 function dpLocalSave() {
   try { localStorage.setItem(DP_LOCAL_KEY, JSON.stringify(dpCloudState)); }
-  catch (e) { /* depolama dolu/engelli olabilir — sessizce geç, bulut yazımı yine de denenir */ }
+  catch (e) { dpNotifyStorageIssue(); /* depolama dolu/engelli olabilir — sessizce geç, bulut yazımı yine de denenir */ }
 }
 
 function dpLocalLoad() {
@@ -720,6 +714,22 @@ function dpLocalLoad() {
     const raw = localStorage.getItem(DP_LOCAL_KEY);
     return raw ? JSON.parse(raw) : null;
   } catch (e) { return null; }
+}
+
+// Yerel/bulut kaydı başarısız olduğunda kullanıcıyı görünür şekilde uyarır
+// (önceden sadece console.warn ile sessizce geçiliyordu — bu da "resim
+// yükledim ama görünmüyor/kaydolmuyor" şikayetlerinin asıl nedeniydi:
+// genelde büyük bir PNG, localStorage kotasını ya da Supabase istek boyutunu
+// aşıyor ama kullanıcıya HİÇBİR uyarı gösterilmiyordu). En fazla 8 sn'de bir
+// gösterilir ki art arda hatalarda ekranı spam etmesin.
+let _dpLastWarnAt = 0;
+function dpNotifyStorageIssue(msg) {
+  const now = Date.now();
+  if (now - _dpLastWarnAt < 8000) return;
+  _dpLastWarnAt = now;
+  if (window.app && typeof window.app.toast === "function") {
+    window.app.toast(msg || "Kayıt başarısız oldu — görsel çok büyük olabilir, daha küçük bir dosya deneyin");
+  }
 }
 
 // Yerel değişikliği (gecikmeli) buluta yazar; art arda hızlı değişikliklerde
@@ -747,9 +757,15 @@ function dpCloudPushNow() {
       updated_at: new Date().toISOString()
     })
     .then(({ error }) => {
-      if (error) console.warn("Bulut kaydı başarısız (veri yerelde kaldı, bir sonraki değişiklikte tekrar denenecek):", error);
+      if (error) {
+        console.warn("Bulut kaydı başarısız (veri yerelde kaldı, bir sonraki değişiklikte tekrar denenecek):", error);
+        dpNotifyStorageIssue("Buluta kaydedilemedi — görsel çok büyük olabilir, daha küçük bir dosya deneyin");
+      }
     })
-    .catch(e => console.warn("Bulut kaydı başarısız — ağ hatası (veri yerelde güvende, internet gelince tekrar denenecek):", e));
+    .catch(e => {
+      console.warn("Bulut kaydı başarısız — ağ hatası (veri yerelde güvende, internet gelince tekrar denenecek):", e);
+      dpNotifyStorageIssue("Buluta kaydedilemedi — bağlantı sorunu, veri yerelde tutuluyor");
+    });
 }
 
 // Başka bir cihazdan güncelleme geldiğinde kullanıcının çalışmasını yarıda
@@ -768,7 +784,13 @@ function dpShowUpdateToast() {
 function dpCloudStartPolling() {
   if (!supabaseClient) return;
   if (dpCloudPollTimer) clearInterval(dpCloudPollTimer);
-  const checkForUpdate = async () => {
+  // "?ekran=1" ile açılan gerçek TV/kiosk ekranlarında kimse "yenile" bildirimine
+  // TIKLAYAMAZ — bu yüzden orada değişiklik algılanır algılanmaz OTOMATİK olarak
+  // sayfa yenilenir, ve daha SIK (5 sn) yoklanır. Düzenleme yapan kişinin kendi
+  // tarayıcısında ise (editör), çalışmasını yarıda kesmemek için hâlâ tıklanabilir
+  // bir bildirim gösterilir (biraz daha sık: 8 sn).
+  const intervalMs = dpIsDisplayScreen ? 5000 : 8000;
+  dpCloudPollTimer = setInterval(async () => {
     try {
       const { data, error } = await supabaseClient
         .from(SUPABASE_CONFIG.table)
@@ -778,33 +800,11 @@ function dpCloudStartPolling() {
       if (error || !data) return;
       const cloudVersion = data.sync_version || 0;
       if (cloudVersion > dpLastSyncedVersion) {
-        if (dpIsDisplayScreen) {
-          // TV/EKRAN modunda tıklayacak kimse yok — bildirim göstermek yerine
-          // OTOMATİK olarak yenilenir, böylece ekran her zaman en güncel yayını
-          // gösterir. (Bu, "eski bir versiyon ekranda takılı kalıyor" hatasının
-          // ASIL kaynağıydı: ekran, güncelleme geldiğinde sadece tıklanabilir
-          // bir bildirim gösteriyordu ama TV başında tıklayacak kimse olmadığı
-          // için hiçbir zaman gerçekten yenilenmiyordu — çevrimdışı kaldığında
-          // da doğal olarak elindeki en son ESKİ hâli göstermeye devam ediyordu.)
-          location.reload();
-        } else {
-          // Düzenleme (editör) ekranında ise, kullanıcının çalışmasını yarıda
-          // kesmemek için hâlâ sadece tıklanabilir bir bildirim gösterilir.
-          dpShowUpdateToast();
-        }
+        if (dpIsDisplayScreen) location.reload();
+        else dpShowUpdateToast();
       }
     } catch (e) { /* sessiz geç, bir sonraki yoklamada tekrar denenecek */ }
-  };
-  // EKRAN (TV) modunda daha sık (10 sn), düzenleme ekranında daha seyrek (20 sn)
-  // yoklanır — TV'de kimse tıklamadığı için gecikmenin doğrudan yayın gecikmesi
-  // anlamına gelmesi nedeniyle daha kısa aralık tercih edilir.
-  dpCloudPollTimer = setInterval(checkForUpdate, dpIsDisplayScreen ? 10000 : 20000);
-  // Bağlantı çevrimdışı olduktan sonra tekrar geldiği ANDA (10 sn'lik bir sonraki
-  // yoklamayı beklemeden) EKRAN modunda hemen kontrol edilir — böylece TV,
-  // internet geri gelir gelmez mümkün olan en kısa sürede güncel yayına geçer.
-  if (dpIsDisplayScreen) {
-    window.addEventListener("online", () => { checkForUpdate(); });
-  }
+  }, intervalMs);
 }
 // ============================================================================
 
@@ -960,6 +960,7 @@ class App {
   constructor() {
     this.els = [];
     this.sel = null;
+    this.selArr = [];
     this.hist = [];
     this.hi = -1;
     this.maxH = 50;
@@ -1183,19 +1184,19 @@ class App {
     this.updBg();
   }
 
-  /* ---- Arka plan fotoğrafını bilgisayardan yükle (önce buluta, olmazsa base64) ---- */
-  async uploadBgImage(inputEl) {
+  /* ---- Arka plan fotoğrafını bilgisayardan yükle (base64) ---- */
+  uploadBgImage(inputEl) {
     const file = inputEl.files && inputEl.files[0];
     if (!file) return;
-    this.toast("Fotoğraf yükleniyor...");
-    const url = await this._uploadOrFallbackBase64(file, "duyuru/arkaplan");
-    document.getElementById("bgImg").value = url;
-    document.getElementById("bgPosX").value = 50;
-    document.getElementById("bgPosY").value = 50;
-    document.getElementById("bgZoom").value = 100;
-    this.updBg();
-    this.save();
-    this.toast("Arka plan fotoğrafı yüklendi");
+    this._readFileAsDataURL(file, dataUrl => {
+      document.getElementById("bgImg").value = dataUrl;
+      document.getElementById("bgPosX").value = 50;
+      document.getElementById("bgPosY").value = 50;
+      document.getElementById("bgZoom").value = 100;
+      this.updBg();
+      this.save();
+      this.toast("Arka plan fotoğrafı yüklendi");
+    });
   }
 
   async autoSave() {
@@ -1956,20 +1957,32 @@ class App {
     }
     const el = this.els.find(x => x.id === id);
     if (!el || el.locked) return;
-    this.selectEl(id);
+    const additive = e.shiftKey || e.ctrlKey || e.metaKey;
+    if (additive) {
+      this.selectEl(id, true);
+      if (!this.selArr.includes(id)) return; // bu tıkla seçimden çıkarıldı, sürükleme yok
+    } else if (!(this.selArr.length > 1 && this.selArr.includes(id))) {
+      // zaten çoklu seçimin bir parçasıysa seçimi TEK öğeye daraltma — grup
+      // olarak sürüklenebilsin diye mevcut çoklu seçim korunur.
+      this.selectEl(id);
+    }
+    const ids = this.selArr.length ? this.selArr : [id];
+    const moving = ids.map(mid => this.els.find(x => x.id === mid))
+      .filter(mel => mel && !mel.locked)
+      .map(mel => ({ id: mel.id, el: mel, sx: mel.x, sy: mel.y }));
     this.drag = true;
-    this.doff = {x: e.offsetX, y: e.offsetY};
+    const startClientX = e.clientX, startClientY = e.clientY;
     const mv = ev => {
       if (!this.drag) return;
       const sc = this.getScale();
-      const r = document.getElementById("cWrap").getBoundingClientRect();
-      const nx = (ev.clientX - r.left) / sc - this.doff.x;
-      const ny = (ev.clientY - r.top) / sc - this.doff.y;
-      el.x = Math.max(0, Math.min(this.canvasW - el.width, nx));
-      el.y = Math.max(0, Math.min(this.canvasH - el.height, ny));
-      const d = document.getElementById(id);
-      d.style.left = el.x + "px";
-      d.style.top = el.y + "px";
+      const dx = (ev.clientX - startClientX) / sc;
+      const dy = (ev.clientY - startClientY) / sc;
+      moving.forEach(m => {
+        m.el.x = Math.max(0, Math.min(this.canvasW - m.el.width, m.sx + dx));
+        m.el.y = Math.max(0, Math.min(this.canvasH - m.el.height, m.sy + dy));
+        const d = document.getElementById(m.id);
+        if (d) { d.style.left = m.el.x + "px"; d.style.top = m.el.y + "px"; }
+      });
       this.updPropPanel();
     };
     const up = () => {
@@ -2016,24 +2029,91 @@ class App {
     document.addEventListener("mouseup", up);
   }
 
-  selectEl(id) {
-    document.querySelectorAll(".ce").forEach(e => e.classList.remove("sel"));
-    const d = document.getElementById(id);
-    if (d) d.classList.add("sel");
-    this.sel = id;
+  // additive=true: shift/ctrl+tık — mevcut çoklu seçime ekler/çıkarır.
+  // Bir öğe bir gruba aitse (groupId), normal (additive olmayan) tıklama
+  // o grubun TAMAMINI seçer — grup davranışı böyle sağlanır.
+  selectEl(id, additive) {
+    const el = this.els.find(x => x.id === id);
+    if (additive) {
+      const set = new Set(this.selArr.length ? this.selArr : (this.sel ? [this.sel] : []));
+      if (set.has(id)) { set.delete(id); this.setSelection(Array.from(set), Array.from(set).pop() || null); }
+      else { set.add(id); this.setSelection(Array.from(set), id); }
+      return;
+    }
+    if (el && el.groupId) {
+      const members = this.els.filter(x => x.groupId === el.groupId).map(x => x.id);
+      this.setSelection(members, id);
+      return;
+    }
+    this.setSelection([id], id);
+  }
+
+  // Tek kaynaktan seçim durumunu (selArr + sel) günceller ve DOM/paneli senkronlar.
+  setSelection(ids, primaryId) {
+    this.selArr = ids.slice();
+    this.sel = primaryId && ids.includes(primaryId) ? primaryId : (ids[ids.length - 1] || null);
+    document.querySelectorAll(".ce").forEach(e => e.classList.remove("sel", "selm"));
+    this.selArr.forEach(id => {
+      const d = document.getElementById(id);
+      if (d) d.classList.add(id === this.sel ? "sel" : "selm");
+    });
     this.renderPropPanel();
     this.updLay();
   }
 
   deselect() {
-    document.querySelectorAll(".ce").forEach(e => e.classList.remove("sel"));
-    this.sel = null;
-    this.renderPropPanel();
+    this.setSelection([], null);
   }
 
+  deselectAll() { this.deselect(); }
+
   setupCE() {
-    document.getElementById("cContent").addEventListener("mousedown", e => {
-      if (e.target.id === "cContent") this.deselect();
+    const cc = document.getElementById("cContent");
+    cc.addEventListener("mousedown", e => {
+      if (e.target.id !== "cContent") return;
+      const additive = e.shiftKey || e.ctrlKey || e.metaKey;
+      const sc = this.getScale();
+      const r = document.getElementById("cWrap").getBoundingClientRect();
+      const sx = (e.clientX - r.left) / sc;
+      const sy = (e.clientY - r.top) / sc;
+      const marq = document.getElementById("marq");
+      let moved = false;
+      const mv = ev => {
+        const cx = (ev.clientX - r.left) / sc;
+        const cy = (ev.clientY - r.top) / sc;
+        if (Math.abs(cx - sx) > 3 || Math.abs(cy - sy) > 3) moved = true;
+        const x = Math.min(sx, cx), y = Math.min(sy, cy);
+        const w = Math.abs(cx - sx), h = Math.abs(cy - sy);
+        marq.style.display = "block";
+        marq.style.left = x + "px"; marq.style.top = y + "px";
+        marq.style.width = w + "px"; marq.style.height = h + "px";
+      };
+      const up = ev => {
+        document.removeEventListener("mousemove", mv);
+        document.removeEventListener("mouseup", up);
+        marq.style.display = "none";
+        if (!moved) {
+          if (!additive) this.deselect();
+          return;
+        }
+        const cx = (ev.clientX - r.left) / sc;
+        const cy = (ev.clientY - r.top) / sc;
+        const bx1 = Math.min(sx, cx), bx2 = Math.max(sx, cx);
+        const by1 = Math.min(sy, cy), by2 = Math.max(sy, cy);
+        const hit = this.els.filter(el => el.visible !== false &&
+          el.x < bx2 && el.x + el.width > bx1 && el.y < by2 && el.y + el.height > by1
+        ).map(el => el.id);
+        if (!hit.length) { if (!additive) this.deselect(); return; }
+        if (additive) {
+          const set = new Set(this.selArr);
+          hit.forEach(id => set.add(id));
+          this.setSelection(Array.from(set), hit[hit.length - 1]);
+        } else {
+          this.setSelection(hit, hit[hit.length - 1]);
+        }
+      };
+      document.addEventListener("mousemove", mv);
+      document.addEventListener("mouseup", up);
     });
   }
 
@@ -2772,119 +2852,120 @@ class App {
       .replace(/\n/g, "<br>");
   }
 
-  /* ---- Bilgisayardan dosya yükleme (resim/video -> base64) ---- */
+  /* ---- Bilgisayardan dosya yükleme (resim/video) ----
+     KÖK NEDEN (PNG "yüklenmiyor/görünmüyor" ve senkron gecikmesi şikayetleri):
+     önceden TÜM dosyalar base64 olarak doğrudan tasarım JSON'una (dpCloudState)
+     gömülüyordu. Büyük bir PNG kolayca 10-20MB base64'e çıkabiliyor; bu da
+     localStorage kotasını (~5-10MB) doldurup "Yerel depolama dolu" hatasına,
+     ve/veya Supabase'e giden tek satırlık upsert isteğini çok büyütüp senkronu
+     yavaşlatmaya/başarısız kılmaya yol açıyordu.
+     ÇÖZÜM: dosya önce (resimse) canvas ile en uzun kenarı MAX_IMG_DIM'e
+     küçültülür, SONRA Supabase varsa "pano-images" bucket'ına YÜKLENİR ve
+     tasarıma sadece KÜÇÜK bir public URL metni kaydedilir (pano49/app.js'teki
+     ile aynı yöntem). Bulut yoksa ya da yükleme başarısız olursa, ESKİ
+     davranışa (base64'ü öğeye göm) sessizce geri düşülür — hiçbir şey kırılmaz,
+     sadece cihazlar arası anlık senkron ve depolama avantajı kaybolur. ---- */
+  MAX_IMG_DIM = 1920;
+
   _readFileAsDataURL(file, cb) {
+    const isImage = file.type && file.type.startsWith("image/");
+    if (!isImage) { this._uploadOrEmbed(file, null, cb); return; }
     const reader = new FileReader();
-    reader.onload = e => cb(e.target.result);
     reader.onerror = () => this.toast("Dosya okunamadı");
+    reader.onload = e => {
+      const img = new Image();
+      img.onerror = () => this._uploadOrEmbed(file, e.target.result, cb);
+      img.onload = () => {
+        try {
+          const scale = Math.min(1, this.MAX_IMG_DIM / Math.max(img.width, img.height));
+          const w = Math.max(1, Math.round(img.width * scale));
+          const h = Math.max(1, Math.round(img.height * scale));
+          if (scale === 1 && file.size < 2 * 1024 * 1024) {
+            // Zaten küçük/makul boyutlu — yeniden kodlamaya gerek yok.
+            this._uploadOrEmbed(file, e.target.result, cb);
+            return;
+          }
+          const canvas = document.createElement("canvas");
+          canvas.width = w; canvas.height = h;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, w, h);
+          const isPng = file.type === "image/png";
+          const out = isPng ? canvas.toDataURL("image/png") : canvas.toDataURL("image/jpeg", 0.85);
+          // Sıkıştırma büyütmüşse (bazı basit/az renkli PNG'lerde olabilir) orijinali kullan.
+          const finalUrl = (out.length < e.target.result.length) ? out : e.target.result;
+          this._uploadOrEmbed(file, finalUrl, cb);
+        } catch (err) {
+          // Canvas erişimi (ör. CORS/tarayıcı kısıtı) başarısız olursa ham veriye düş.
+          this._uploadOrEmbed(file, e.target.result, cb);
+        }
+      };
+      img.src = e.target.result;
+    };
     reader.readAsDataURL(file);
   }
 
-  // ============================================================================
-  // FOTOĞRAF YÜKLEME (Supabase Storage) — pano49 (app.js) İLE AYNI YAKLAŞIM:
-  // görsel önce tarayıcıda (canvas ile) küçültülüp sıkıştırılır, sonra
-  // "pano-images" bucket'ına yüklenir; tasarımın içinde SADECE görselin küçük,
-  // herkese açık linki (birkaç yüz byte'lık bir metin) saklanır. Böylece her
-  // fotoğraf artık 500 MB'lık veritabanı sınırının ve bulut bant genişliğinin
-  // İÇİNDEN değil, Storage'ın AYRI 1 GB'lık kotasından harcanır — çok sayıda
-  // veya büyük fotoğraf eklense bile veritabanı şişmez.
-  // Supabase bağlantısı yoksa, bucket henüz oluşturulmamışsa ya da yükleme
-  // başarısız olursa (örn. çevrimdışı çalışılıyorsa) sorunsuz şekilde ESKİSİ
-  // GİBİ base64'e (sadece bu cihazda saklanan) geri döner — hiçbir şey kırılmaz.
-  // ============================================================================
-  _resizeImageFile(file, maxDim, quality) {
-    return new Promise((resolve, reject) => {
+  // dataUrl (küçültülmüş base64) hazır olduğunda ÖNCE buluta (Supabase Storage)
+  // yüklemeyi dener; başarılıysa cb'ye küçük bir genel URL verir. Supabase
+  // bağlı değilse ya da yükleme başarısız olursa (ağ hatası, bucket yok vb.)
+  // cb'ye base64'ü verir — davranış eskisiyle tam uyumlu kalır.
+  // dataUrl null ise (video/diğer dosyalar) dosya ham okunur.
+  _uploadOrEmbed(file, dataUrl, cb) {
+    const embedFallback = () => {
+      if (dataUrl) { cb(dataUrl); return; }
       const reader = new FileReader();
-      reader.onerror = () => reject(new Error("Dosya okunamadı"));
-      reader.onload = () => {
-        const img = new Image();
-        img.onerror = () => reject(new Error("Görsel yüklenemedi"));
-        img.onload = () => {
-          let width = img.width, height = img.height;
-          if (width > maxDim || height > maxDim) {
-            const scale = maxDim / Math.max(width, height);
-            width = Math.round(width * scale);
-            height = Math.round(height * scale);
-          }
-          const canvas = document.createElement("canvas");
-          canvas.width = width; canvas.height = height;
-          const ctx = canvas.getContext("2d");
-          ctx.drawImage(img, 0, 0, width, height);
-          const mime = file.type === "image/png" ? "image/png" : "image/jpeg";
-          resolve(canvas.toDataURL(mime, quality));
-        };
-        img.src = reader.result;
-      };
+      reader.onload = e => cb(e.target.result);
+      reader.onerror = () => this.toast("Dosya okunamadı");
       reader.readAsDataURL(file);
+    };
+    if (!supabaseClient || !SUPABASE_CONFIG.imagesBucket) { embedFallback(); return; }
+    const toBlobPromise = dataUrl ? fetch(dataUrl).then(r => r.blob()) : Promise.resolve(file);
+    toBlobPromise.then(blob => {
+      const ext = (file.type && file.type.indexOf("png") !== -1) ? "png"
+        : (file.type && file.type.indexOf("video") !== -1) ? ((file.name && file.name.split(".").pop()) || "mp4")
+        : (file.type && file.type.startsWith("image/")) ? "jpg"
+        : ((file.name && file.name.split(".").pop()) || "dat");
+      const safeName = (file.name || "dosya").replace(/\.[^.]+$/, "").replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 60);
+      const path = "pano99/" + Date.now() + "_" + Math.random().toString(36).slice(2, 8) + "_" + safeName + "." + ext;
+      return supabaseClient.storage
+        .from(SUPABASE_CONFIG.imagesBucket)
+        .upload(path, blob, { contentType: blob.type || file.type, upsert: true, cacheControl: "3600" })
+        .then(({ error }) => {
+          if (error) throw error;
+          const { data: pub } = supabaseClient.storage.from(SUPABASE_CONFIG.imagesBucket).getPublicUrl(path);
+          if (pub && pub.publicUrl) cb(pub.publicUrl);
+          else embedFallback();
+        });
+    }).catch(err => {
+      console.warn("Dosya buluta yüklenemedi, sadece bu cihazda (base64) saklanacak:", err);
+      embedFallback();
     });
   }
 
-  async _uploadImageFileToCloud(file, folderHint) {
-    if (!file || !supabaseClient) return null;
-    try {
-      const dataUrl = await this._resizeImageFile(file, 1600, 0.82);
-      const ext = file.type && file.type.indexOf("png") !== -1 ? "png" : "jpg";
-      const safeName = (file.name || "gorsel").replace(/\.[^.]+$/, "").replace(/[^a-zA-Z0-9._-]/g, "_");
-      const path = folderHint + "/" + Date.now() + "_" + Math.random().toString(36).slice(2, 8) + "_" + safeName + "." + ext;
-      const blob = await (await fetch(dataUrl)).blob();
-      const { error } = await supabaseClient.storage
-        .from(SUPABASE_CONFIG.imagesBucket)
-        .upload(path, blob, { contentType: blob.type, upsert: true, cacheControl: "3600" });
-      if (error) throw error;
-      const { data: pub } = supabaseClient.storage.from(SUPABASE_CONFIG.imagesBucket).getPublicUrl(path);
-      return pub && pub.publicUrl ? pub.publicUrl : null;
-    } catch (e) {
-      console.warn("Görsel buluta yüklenemedi, bu cihazda (base64) saklanacak:", e);
-      return null;
-    }
-  }
-
-  // Dosyayı ÖNCE buluta (Storage) yüklemeyi dener (başarılıysa küçük bir link
-  // döner); başarısız olursa (Supabase yok, bucket yok, çevrimdışı, hata vb.)
-  // sorunsuz şekilde base64'e geri döner — çağıran taraf her durumda kullanıma
-  // hazır bir URL/veri alır.
-  async _uploadOrFallbackBase64(file, folderHint) {
-    const cloudUrl = await this._uploadImageFileToCloud(file, folderHint);
-    if (cloudUrl) return cloudUrl;
-    return new Promise(resolve => this._readFileAsDataURL(file, resolve));
-  }
-
-  async uploadImageProp(inputEl, prop) {
+  uploadImageProp(inputEl, prop) {
     const file = inputEl.files && inputEl.files[0];
     if (!file) return;
-    this.toast("Fotoğraf yükleniyor...");
-    const url = await this._uploadOrFallbackBase64(file, "duyuru/eleman");
-    this.updProp(prop, url);
-    this.renderPropPanel();
+    this._readFileAsDataURL(file, dataUrl => {
+      this.updProp(prop, dataUrl);
+      this.renderPropPanel();
+    });
   }
 
-  async uploadSlideFile(idx, inputEl) {
+  uploadSlideFile(idx, inputEl) {
     const file = inputEl.files && inputEl.files[0];
     if (!file) return;
-    const isImage = file.type && file.type.indexOf("image") === 0;
-    let url;
-    if (isImage) {
-      this.toast("Fotoğraf yükleniyor...");
-      url = await this._uploadOrFallbackBase64(file, "duyuru/slayt");
-    } else {
-      // Videolar (canvas ile) küçültülüp sıkıştırılamadığından ve genelde çok
-      // daha büyük olduklarından, buluta yükleme burada denenmez; doğrudan bu
-      // cihazda (base64) tutulur. Kısa/az sayıda video kullanmanızı öneririz —
-      // aksi halde veritabanı boyutunu hızla büyütebilir.
-      this.toast("Video hazırlanıyor...");
-      url = await new Promise(resolve => this._readFileAsDataURL(file, resolve));
-    }
-    this.updSlideProp(idx, "content", url);
-    this.renderPropPanel();
+    this._readFileAsDataURL(file, dataUrl => {
+      this.updSlideProp(idx, "content", dataUrl);
+      this.renderPropPanel();
+    });
   }
 
-  async uploadSlideBg(idx, inputEl) {
+  uploadSlideBg(idx, inputEl) {
     const file = inputEl.files && inputEl.files[0];
     if (!file) return;
-    this.toast("Fotoğraf yükleniyor...");
-    const url = await this._uploadOrFallbackBase64(file, "duyuru/slayt-arkaplan");
-    this.updSlideProp(idx, "bgImage", url);
-    this.renderPropPanel();
+    this._readFileAsDataURL(file, dataUrl => {
+      this.updSlideProp(idx, "bgImage", dataUrl);
+      this.renderPropPanel();
+    });
   }
 
   /* ---- Galeri: manuel resim ekleme / düzenleme ---- */
@@ -2901,23 +2982,23 @@ class App {
     this.save();
   }
 
-  async addGalleryImgFiles(inputEl) {
+  addGalleryImgFiles(inputEl) {
     const el = this.els.find(x => x.id === this.sel);
     const files = Array.from((inputEl && inputEl.files) || []);
     if (!el || !files.length) return;
     el.properties.images = el.properties.images || [];
-    this.toast(files.length > 1 ? "Fotoğraflar yükleniyor..." : "Fotoğraf yükleniyor...");
-    // Sırayla (paralel değil) yüklenir — çok sayıda büyük dosya aynı anda
-    // yüklenmeye çalışılırsa tarayıcı/ağ tıkanabilir; sıralı yükleme daha
-    // güvenilir ve yükleme sırası da böylece korunmuş olur.
-    for (const f of files) {
-      const url = await this._uploadOrFallbackBase64(f, "duyuru/galeri");
-      el.properties.images.push(url);
-    }
-    this.renderEl(el);
-    this.renderPropPanel();
-    this.save();
-    this.toast("Galeri güncellendi");
+    let remaining = files.length;
+    files.forEach(f => {
+      this._readFileAsDataURL(f, dataUrl => {
+        el.properties.images.push(dataUrl);
+        remaining--;
+        if (remaining === 0) {
+          this.renderEl(el);
+          this.renderPropPanel();
+          this.save();
+        }
+      });
+    });
   }
 
   updGalleryImg(idx, val) {
@@ -2974,8 +3055,8 @@ class App {
     const sorted = [...this.els].sort((a, b) => b.zIndex - a.zIndex);
     const icons = {heading:"fa-heading",subheading:"fa-font",text:"fa-align-left",image:"fa-image",gallery:"fa-images",video:"fa-video",slide:"fa-sliders-h",logo:"fa-school",date:"fa-calendar-alt",clock:"fa-clock",qr:"fa-qrcode",icon:"fa-icons",line:"fa-minus",box:"fa-square",banner:"fa-flag",shape:"fa-shapes",ticker:"fa-closed-captioning"};
     sorted.forEach(el => {
-      const act = el.id === this.sel;
-      h += '<div class="li ' + (act ? "a" : "") + '" onclick="app.selectEl(&#39;' + el.id + '&#39;)">';
+      const act = this.selArr && this.selArr.includes(el.id);
+      h += '<div class="li ' + (act ? "a" : "") + '" onclick="app.selectEl(&#39;' + el.id + '&#39;, event.shiftKey||event.ctrlKey||event.metaKey)">';
       h += '<div><i class="fas ' + (icons[el.type] || "fa-cube") + '"></i> ' + this.getLbl(el.type) + ' <small>#' + el.zIndex + '</small></div>';
       h += '<div><i class="fas fa-eye' + (el.visible ? "" : "-slash") + '" onclick="event.stopPropagation();app.togVis(&#39;' + el.id + '&#39;)"></i> <i class="fas fa-lock' + (el.locked ? "" : "-open") + '" onclick="event.stopPropagation();app.togLock(&#39;' + el.id + '&#39;)"></i></div>';
       h += '</div>';
@@ -3003,6 +3084,14 @@ class App {
     this.save();
   }
 
+  // Şu an "aktif" sayılan seçim kümesi — çoklu seçim varsa onu, yoksa tekli
+  // seçimi (this.sel) döndürür. Tüm sağ-tık menüsü aksiyonları bunun üzerinden
+  // çalışır, böylece tek ya da çoklu seçimde aynı kod yolu kullanılır.
+  getSelIds() {
+    if (this.selArr && this.selArr.length) return this.selArr.slice();
+    return this.sel ? [this.sel] : [];
+  }
+
   setupCM() {
     const m = document.getElementById("cm");
     document.addEventListener("click", () => { m.style.display = "none"; });
@@ -3010,70 +3099,257 @@ class App {
 
   onCM(e, id) {
     e.preventDefault();
-    this.selectEl(id);
+    // Sağ tıklanan öğe zaten mevcut çoklu seçimin bir parçasıysa seçimi
+    // BOZMA — menü tüm gruba uygulanabilsin. Değilse o öğeyi tek başına seç.
+    if (!(this.selArr.length > 1 && this.selArr.includes(id))) this.selectEl(id);
+    this.renderCM();
     const m = document.getElementById("cm");
     m.style.display = "block";
-    m.style.left = e.clientX + "px";
-    m.style.top = e.clientY + "px";
+    const mw = 210, mh = m.offsetHeight || 320;
+    let left = e.clientX, top = e.clientY;
+    if (left + mw > window.innerWidth) left = window.innerWidth - mw - 8;
+    if (top + mh > window.innerHeight) top = Math.max(8, window.innerHeight - mh - 8);
+    m.style.left = left + "px";
+    m.style.top = top + "px";
+  }
+
+  // Menü içeriğini seçim durumuna göre (tekli/çoklu, kilitli/gizli, gruplu/grupsuz) dinamik kurar.
+  renderCM() {
+    const ids = this.getSelIds();
+    const m = document.getElementById("cm");
+    if (!ids.length) { m.innerHTML = ""; return; }
+    const els = ids.map(id => this.els.find(x => x.id === id)).filter(Boolean);
+    const multi = ids.length > 1;
+    const anyLocked = els.some(x => x.locked);
+    const anyHidden = els.some(x => !x.visible);
+    const anyGrouped = els.some(x => x.groupId);
+    const sameGroup = multi && els.every(x => x.groupId && x.groupId === els[0].groupId);
+    let h = "";
+    if (multi) h += '<div class="cm-hdr">' + ids.length + ' öğe seçili</div>';
+    h += '<div class="cmi" onclick="app.bringFront()"><i class="fas fa-arrow-up"></i>Öne Getir</div>';
+    h += '<div class="cmi" onclick="app.sendBack()"><i class="fas fa-arrow-down"></i>Arkaya Gönder</div>';
+    h += '<div class="cmd"></div>';
+    if (multi) {
+      h += '<div class="cm-hdr">Hizala</div>';
+      h += '<div class="cmi" onclick="app.alignSel(&#39;left&#39;)"><i class="fas fa-align-left"></i>Sola Yasla</div>';
+      h += '<div class="cmi" onclick="app.alignSel(&#39;centerX&#39;)"><i class="fas fa-align-center"></i>Yatayda Ortala</div>';
+      h += '<div class="cmi" onclick="app.alignSel(&#39;right&#39;)"><i class="fas fa-align-right"></i>Sağa Yasla</div>';
+      h += '<div class="cmi" onclick="app.alignSel(&#39;top&#39;)"><i class="fas fa-align-left fa-rotate-90"></i>Üste Yasla</div>';
+      h += '<div class="cmi" onclick="app.alignSel(&#39;centerY&#39;)"><i class="fas fa-align-center fa-rotate-90"></i>Dikeyde Ortala</div>';
+      h += '<div class="cmi" onclick="app.alignSel(&#39;bottom&#39;)"><i class="fas fa-align-right fa-rotate-90"></i>Alta Yasla</div>';
+      if (ids.length > 2) {
+        h += '<div class="cmi" onclick="app.distributeSel(&#39;x&#39;)"><i class="fas fa-arrows-alt-h"></i>Yatayda Dağıt</div>';
+        h += '<div class="cmi" onclick="app.distributeSel(&#39;y&#39;)"><i class="fas fa-arrows-alt-v"></i>Dikeyde Dağıt</div>';
+      }
+      h += '<div class="cmd"></div>';
+      if (sameGroup) h += '<div class="cmi" onclick="app.ungroupSel()"><i class="fas fa-object-ungroup"></i>Grubu Çöz</div>';
+      else h += '<div class="cmi" onclick="app.groupSel()"><i class="fas fa-object-group"></i>Grupla</div>';
+      if (anyGrouped && !sameGroup) h += '<div class="cmi" onclick="app.ungroupSel()"><i class="fas fa-object-ungroup"></i>Grubu Çöz</div>';
+      h += '<div class="cmd"></div>';
+    } else if (anyGrouped) {
+      h += '<div class="cmi" onclick="app.ungroupSel()"><i class="fas fa-object-ungroup"></i>Grubu Çöz</div>';
+      h += '<div class="cmd"></div>';
+    }
+    h += '<div class="cmi" onclick="app.dupEl()"><i class="fas fa-copy"></i>Çoğalt</div>';
+    h += '<div class="cmi" onclick="app.lockEl()"><i class="fas fa-lock' + (anyLocked ? "-open" : "") + '"></i>' + (anyLocked ? "Kilidi Aç" : "Kilitle") + '</div>';
+    h += '<div class="cmi" onclick="app.hideEl()"><i class="fas fa-eye' + (anyHidden ? "" : "-slash") + '"></i>' + (anyHidden ? "Göster" : "Gizle") + '</div>';
+    h += '<div class="cmd"></div>';
+    h += '<div class="cmi" onclick="app.delEl()" style="color:var(--hl)"><i class="fas fa-trash"></i>Sil</div>';
+    m.innerHTML = h;
   }
 
   bringFront() {
-    if (!this.sel) return;
-    const el = this.els.find(x => x.id === this.sel);
-    if (!el) return;
-    const mz = Math.max(...this.els.map(x => x.zIndex), 0);
-    el.zIndex = mz + 1;
-    const d = document.getElementById(el.id);
-    if (d) d.style.zIndex = el.zIndex;
+    const ids = this.getSelIds();
+    if (!ids.length) return;
+    let mz = Math.max(...this.els.map(x => x.zIndex), 0);
+    ids.forEach(id => {
+      const el = this.els.find(x => x.id === id);
+      if (!el) return;
+      el.zIndex = ++mz;
+      const d = document.getElementById(id);
+      if (d) d.style.zIndex = el.zIndex;
+    });
     this.updLay();
     this.save();
   }
 
   sendBack() {
-    if (!this.sel) return;
-    const el = this.els.find(x => x.id === this.sel);
-    if (!el) return;
-    const mz = Math.min(...this.els.map(x => x.zIndex), 9999);
-    el.zIndex = mz - 1;
-    const d = document.getElementById(el.id);
-    if (d) d.style.zIndex = el.zIndex;
+    const ids = this.getSelIds();
+    if (!ids.length) return;
+    let mz = Math.min(...this.els.map(x => x.zIndex), 9999);
+    ids.slice().reverse().forEach(id => {
+      const el = this.els.find(x => x.id === id);
+      if (!el) return;
+      el.zIndex = --mz;
+      const d = document.getElementById(id);
+      if (d) d.style.zIndex = el.zIndex;
+    });
     this.updLay();
     this.save();
   }
 
   dupEl() {
-    if (!this.sel) return;
-    const el = this.els.find(x => x.id === this.sel);
-    if (!el) return;
-    const ne = JSON.parse(JSON.stringify(el));
-    ne.id = this.gid();
-    ne.x = el.x + 20;
-    ne.y = el.y + 20;
-    ne.zIndex = Math.max(...this.els.map(x => x.zIndex), 0) + 1;
-    this.els.push(ne);
-    this.renderEl(ne);
-    this.selectEl(ne.id);
+    const ids = this.getSelIds();
+    if (!ids.length) return;
+    const idMap = {};
+    let mz = Math.max(...this.els.map(x => x.zIndex), 0);
+    const newIds = [];
+    ids.forEach(id => {
+      const el = this.els.find(x => x.id === id);
+      if (!el) return;
+      const ne = JSON.parse(JSON.stringify(el));
+      ne.id = this.gid();
+      ne.x = el.x + 20;
+      ne.y = el.y + 20;
+      ne.zIndex = ++mz;
+      idMap[id] = ne.id;
+      this.els.push(ne);
+      this.renderEl(ne);
+      newIds.push(ne.id);
+    });
+    // Grup ilişkisini de çoğaltılan öğeler arasında korur (yeni ortak groupId).
+    if (ids.length > 1) {
+      const groups = {};
+      ids.forEach(id => {
+        const el = this.els.find(x => x.id === idMap[id]);
+        if (el && el.groupId) { groups[el.groupId] = groups[el.groupId] || this.gid(); el.groupId = groups[el.groupId]; }
+      });
+    }
+    this.setSelection(newIds, newIds[newIds.length - 1]);
     this.save();
     this.updLay();
-    this.toast("Öğe çoğaltıldı");
+    this.toast(newIds.length > 1 ? "Öğeler çoğaltıldı" : "Öğe çoğaltıldı");
   }
 
-  lockEl() { if (this.sel) this.togLock(this.sel); }
-  hideEl() { if (this.sel) this.togVis(this.sel); }
+  lockEl() {
+    const ids = this.getSelIds();
+    if (!ids.length) return;
+    const anyLocked = ids.some(id => { const el = this.els.find(x => x.id === id); return el && el.locked; });
+    ids.forEach(id => {
+      const el = this.els.find(x => x.id === id);
+      if (!el) return;
+      el.locked = !anyLocked;
+      const d = document.getElementById(id);
+      if (d) d.style.cursor = el.locked ? "default" : "move";
+    });
+    this.updLay();
+    this.save();
+  }
+
+  hideEl() {
+    const ids = this.getSelIds();
+    if (!ids.length) return;
+    const anyHidden = ids.some(id => { const el = this.els.find(x => x.id === id); return el && !el.visible; });
+    ids.forEach(id => {
+      const el = this.els.find(x => x.id === id);
+      if (!el) return;
+      el.visible = anyHidden;
+      const d = document.getElementById(id);
+      if (d) d.style.display = el.visible ? "block" : "none";
+    });
+    this.updLay();
+    this.save();
+  }
 
   delEl() {
-    if (!this.sel) return;
-    const idx = this.els.findIndex(x => x.id === this.sel);
-    if (idx > -1) {
-      const d = document.getElementById(this.sel);
-      if (d) d.remove();
-      this.els.splice(idx, 1);
-      this.sel = null;
-      this.renderPropPanel();
-      this.updLay();
-      this.save();
-      this.toast("Öğe silindi");
+    const ids = this.getSelIds();
+    if (!ids.length) return;
+    ids.forEach(id => {
+      const idx = this.els.findIndex(x => x.id === id);
+      if (idx > -1) {
+        const d = document.getElementById(id);
+        if (d) d.remove();
+        this.els.splice(idx, 1);
+      }
+    });
+    this.deselect();
+    this.updLay();
+    this.save();
+    this.toast(ids.length > 1 ? "Öğeler silindi" : "Öğe silindi");
+  }
+
+  // ---- Hizalama: seçili öğelerin ortak sınır kutusuna (bounding box) göre hizalar ----
+  alignSel(mode) {
+    const ids = this.getSelIds();
+    const els = ids.map(id => this.els.find(x => x.id === id)).filter(Boolean);
+    if (els.length < 2) return;
+    const minX = Math.min(...els.map(e => e.x));
+    const maxX = Math.max(...els.map(e => e.x + e.width));
+    const minY = Math.min(...els.map(e => e.y));
+    const maxY = Math.max(...els.map(e => e.y + e.height));
+    const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
+    els.forEach(el => {
+      if (mode === "left") el.x = minX;
+      else if (mode === "right") el.x = maxX - el.width;
+      else if (mode === "centerX") el.x = cx - el.width / 2;
+      else if (mode === "top") el.y = minY;
+      else if (mode === "bottom") el.y = maxY - el.height;
+      else if (mode === "centerY") el.y = cy - el.height / 2;
+      const d = document.getElementById(el.id);
+      if (d) { d.style.left = el.x + "px"; d.style.top = el.y + "px"; }
+    });
+    this.updPropPanel();
+    this.save();
+    this.toast("Hizalandı");
+  }
+
+  // ---- Dağıtma: uç öğeler sabit kalır, aradakiler eşit aralıklarla yerleştirilir ----
+  distributeSel(axis) {
+    const ids = this.getSelIds();
+    let els = ids.map(id => this.els.find(x => x.id === id)).filter(Boolean);
+    if (els.length < 3) return;
+    if (axis === "x") {
+      els = els.slice().sort((a, b) => a.x - b.x);
+      const first = els[0], last = els[els.length - 1];
+      const totalW = els.reduce((s, e) => s + e.width, 0);
+      const span = (last.x + last.width) - first.x - totalW;
+      const gap = span / (els.length - 1);
+      let cursor = first.x;
+      els.forEach(el => {
+        el.x = Math.max(0, cursor);
+        cursor += el.width + gap;
+        const d = document.getElementById(el.id);
+        if (d) d.style.left = el.x + "px";
+      });
+    } else {
+      els = els.slice().sort((a, b) => a.y - b.y);
+      const first = els[0], last = els[els.length - 1];
+      const totalH = els.reduce((s, e) => s + e.height, 0);
+      const span = (last.y + last.height) - first.y - totalH;
+      const gap = span / (els.length - 1);
+      let cursor = first.y;
+      els.forEach(el => {
+        el.y = Math.max(0, cursor);
+        cursor += el.height + gap;
+        const d = document.getElementById(el.id);
+        if (d) d.style.top = el.y + "px";
+      });
     }
+    this.updPropPanel();
+    this.save();
+    this.toast("Dağıtıldı");
+  }
+
+  // ---- Gruplama: seçili öğelere ortak bir groupId atar; sonrasında herhangi
+  // birine tıklamak grubun tamamını seçer (bkz. selectEl). Taşıma zaten
+  // this.selArr üzerinden çalıştığından ayrı bir "kilit" gerekmez. ----
+  groupSel() {
+    const ids = this.getSelIds();
+    if (ids.length < 2) return;
+    const gidv = this.gid();
+    ids.forEach(id => { const el = this.els.find(x => x.id === id); if (el) el.groupId = gidv; });
+    this.setSelection(ids, this.sel);
+    this.save();
+    this.toast("Öğeler gruplandı");
+  }
+
+  ungroupSel() {
+    const ids = this.getSelIds();
+    if (!ids.length) return;
+    ids.forEach(id => { const el = this.els.find(x => x.id === id); if (el) delete el.groupId; });
+    this.setSelection(ids, this.sel);
+    this.save();
+    this.toast("Grup çözüldü");
   }
 
   setupKB() {
@@ -3082,7 +3358,19 @@ class App {
       if (e.ctrlKey && e.key === "y") { e.preventDefault(); this.redo(); }
       if (e.key === "Delete" || e.key === "Backspace") {
         const a = document.activeElement;
-        if (a.tagName !== "INPUT" && a.tagName !== "TEXTAREA" && a.tagName !== "SELECT") this.delEl();
+        if (a.tagName !== "INPUT" && a.tagName !== "TEXTAREA" && a.tagName !== "SELECT" && !a.isContentEditable) this.delEl();
+      }
+      if (e.key === "Escape") {
+        const a = document.activeElement;
+        if (a.tagName !== "INPUT" && a.tagName !== "TEXTAREA" && a.tagName !== "SELECT" && !a.isContentEditable) this.deselect();
+      }
+      if (e.ctrlKey && e.key === "a") {
+        const a = document.activeElement;
+        if (a.tagName !== "INPUT" && a.tagName !== "TEXTAREA" && a.tagName !== "SELECT" && !a.isContentEditable) {
+          e.preventDefault();
+          const all = this.els.map(x => x.id);
+          if (all.length) this.setSelection(all, all[all.length - 1]);
+        }
       }
     });
   }

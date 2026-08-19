@@ -494,13 +494,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--cb);color:v
         <div id="setPano">
           <div class="mb-3"><label class="pl">Pano Adı</label><input type="text" class="pi" id="setBoardName" placeholder="ör. Okul Kayıt Panosu"></div>
           <div class="mb-3"><label class="pl">Açıklama</label><textarea class="pta" id="setBoardDesc" rows="3" placeholder="Bu panonun ne için kullanıldığına dair kısa not"></textarea></div>
-          <div class="mb-3">
-            <label class="pl">Yenileme Bildirim Mesajı</label>
-            <input type="text" class="pi" id="setRefreshMessage" placeholder="Başka bir cihazdan güncelleme yapıldı — yenilemek için tıklayın">
-            <div style="font-size:.72rem;color:#8892b0;margin-top:4px;line-height:1.4">
-              Bu panoyu başka bir tarayıcı/cihazda açık tutan biri varken siz burada bir değişikliği <b>Yayınla</b>dığınızda, o kişiye ekranın altında bu metinle küçük bir bildirim çıkar (tıklayınca sayfası yenilenir). Gerçek TV/kiosk ekranları (?ekran=1) bu bildirimi beklemeden otomatik yenilenir.
-            </div>
-          </div>
+          <div class="mb-3"><label class="pl">Yenileme Mesajı <span class="text-white-50" style="font-weight:400">(başka bir cihazdan güncelleme geldiğinde ekranda gösterilir)</span></label><input type="text" class="pi" id="setRefreshMessage" maxlength="120" placeholder="Başka bir cihazdan güncelleme yapıldı — yenilemek için tıklayın"></div>
           <div class="help-note">Bu bilgiler şablon kaydederken varsayılan ad olarak önerilir.</div>
         </div>
         <div id="setEkran" style="display:none">
@@ -669,10 +663,6 @@ const SUPABASE_CONFIG = {
   imagesBucket: "pano-images"
 };
 
-// Yönetici Ayarlar panelinden değiştirilene kadar kullanılacak varsayılan
-// "yenileme bildirimi" metni (bkz. dpShowUpdateToast).
-const DP_DEFAULT_REFRESH_MSG = "Başka bir cihazdan güncelleme yapıldı — yenilemek için tıklayın";
-
 const CLOUD_SYNC_ENABLED = !!(SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey);
 let supabaseClient = null;
 if (CLOUD_SYNC_ENABLED) {
@@ -701,7 +691,11 @@ async function dpCloudLoad() {
   }
 }
 
-let dpCloudState = { autosave: null, templates: [], editorTheme: null };
+// refreshMessage: başka bir cihazdan güncelleme geldiğinde ekranda gösterilecek
+// mesaj. Ayarlar panelinden değiştirilebilir (bkz. openSettings/saveSettings)
+// ve dpCloudState ile birlikte buluta kaydedilip diğer cihazlarla senkronlanır.
+const DP_DEFAULT_REFRESH_MESSAGE = "Başka bir cihazdan güncelleme yapıldı — yenilemek için tıklayın";
+let dpCloudState = { autosave: null, templates: [], editorTheme: null, refreshMessage: DP_DEFAULT_REFRESH_MESSAGE };
 let dpLastSyncedVersion = 0;
 let dpSyncVersion = 0;
 let dpCloudWriteTimer = null;
@@ -754,37 +748,6 @@ function dpCloudPushDebounced() {
   dpCloudWriteTimer = setTimeout(dpCloudPushNow, 1000);
 }
 
-// "Yayınla" butonu tarafından çağrılır: bekleyen (debounce edilmiş) bir kayıt
-// varsa onu iptal edip HEMEN buluta yazar — diğer cihazların "yenile"
-// bildirimini olabildiğince hızlı görmesi/kiosk ekranların olabildiğince
-// hızlı tazelenmesi için 1sn'lik gecikmeyi beklemez. Başarılıysa true, ağ/
-// bulut hatası varsa false döner (arayan taraf kullanıcıya bilgi verir).
-async function dpCloudPublishNow() {
-  clearTimeout(dpCloudWriteTimer);
-  dpLocalSave();
-  if (!supabaseClient) return false;
-  dpSyncVersion++;
-  dpLastSyncedVersion = dpSyncVersion;
-  try {
-    const { error } = await supabaseClient
-      .from(SUPABASE_CONFIG.table)
-      .upsert({
-        id: SUPABASE_CONFIG.rowId,
-        data: dpCloudState,
-        sync_version: dpSyncVersion,
-        updated_at: new Date().toISOString()
-      });
-    if (error) {
-      console.warn("Yayınlama başarısız:", error);
-      return false;
-    }
-    return true;
-  } catch (e) {
-    console.warn("Yayınlama başarısız — ağ hatası:", e);
-    return false;
-  }
-}
-
 function dpCloudPushNow() {
   dpLocalSave();
   if (!supabaseClient) return;
@@ -813,13 +776,14 @@ function dpCloudPushNow() {
 // Başka bir cihazdan güncelleme geldiğinde kullanıcının çalışmasını yarıda
 // kesmemek için sayfayı otomatik yenilemek yerine küçük bir "Yenile" bildirimi
 // gösterir; kullanıcı isterse tıklayıp güncel veriyi yükler.
-function dpShowUpdateToast(message) {
-  const existing = document.getElementById("dp-cloud-update-toast");
-  if (existing) existing.remove();
+function dpShowUpdateToast() {
+  if (document.getElementById("dp-cloud-update-toast")) return;
+  const msg = (dpCloudState && dpCloudState.refreshMessage) ? dpCloudState.refreshMessage : DP_DEFAULT_REFRESH_MESSAGE;
   const el = document.createElement("div");
   el.id = "dp-cloud-update-toast";
   el.style.cssText = "position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#0f3460;color:#fff;padding:10px 16px;border-radius:8px;font-size:.82rem;z-index:100000;box-shadow:0 6px 20px rgba(0,0,0,.4);cursor:pointer;display:flex;align-items:center;gap:8px";
-  el.innerHTML = '<i class="fas fa-cloud-arrow-down"></i> ' + (message || DP_DEFAULT_REFRESH_MSG);
+  el.innerHTML = '<i class="fas fa-cloud-arrow-down"></i> <span></span>';
+  el.querySelector("span").textContent = msg;
   el.onclick = () => location.reload();
   document.body.appendChild(el);
 }
@@ -835,20 +799,26 @@ function dpCloudStartPolling() {
   const intervalMs = dpIsDisplayScreen ? 5000 : 8000;
   dpCloudPollTimer = setInterval(async () => {
     try {
-      // NOT: sadece sync_version değil "data" da çekilir — böylece yayınlayan
-      // cihazın Ayarlar panelinden belirlediği GÜNCEL yenileme mesajı, sayfa
-      // henüz yenilenmeden önce bile bildirimde doğru şekilde gösterilebilir.
       const { data, error } = await supabaseClient
         .from(SUPABASE_CONFIG.table)
-        .select("data, sync_version")
+        .select("sync_version")
         .eq("id", SUPABASE_CONFIG.rowId)
         .maybeSingle();
       if (error || !data) return;
       const cloudVersion = data.sync_version || 0;
       if (cloudVersion > dpLastSyncedVersion) {
-        const msg = (data.data && data.data.autosave && data.data.autosave.refreshMessage) || DP_DEFAULT_REFRESH_MSG;
-        if (dpIsDisplayScreen) location.reload();
-        else dpShowUpdateToast(msg);
+        if (dpIsDisplayScreen) {
+          const msg = (dpCloudState && dpCloudState.refreshMessage) ? dpCloudState.refreshMessage : DP_DEFAULT_REFRESH_MESSAGE;
+          const el = document.createElement("div");
+          el.id = "dp-cloud-update-toast";
+          el.style.cssText = "position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#0f3460;color:#fff;padding:10px 16px;border-radius:8px;font-size:.82rem;z-index:100000;box-shadow:0 6px 20px rgba(0,0,0,.4);display:flex;align-items:center;gap:8px";
+          el.innerHTML = '<i class="fas fa-cloud-arrow-down"></i> <span></span>';
+          el.querySelector("span").textContent = msg;
+          document.body.appendChild(el);
+          setTimeout(() => location.reload(), 900);
+        } else {
+          dpShowUpdateToast();
+        }
       }
     } catch (e) { /* sessiz geç, bir sonraki yoklamada tekrar denenecek */ }
   }, intervalMs);
@@ -1019,10 +989,6 @@ class App {
     this.canvasH = 1080;
     this.boardName = "";
     this.boardDesc = "";
-    // Bir cihazdan yayın yapıldığında diğer açık cihazlarda gösterilecek olan
-    // "yenile" bildirim metni — Ayarlar panelinden yönetici tarafından
-    // değiştirilebilir, buluta kaydedilir ve tüm cihazlarla senkronize olur.
-    this.refreshMessage = DP_DEFAULT_REFRESH_MSG;
     this.tpl = [];
     // Şu an ekranda AÇIK OLAN şablonun id'si (varsa). "Şablonlar" listesinden
     // bir şablon yüklendiğinde set edilir; "+ Yeni" ile boş projeye geçildiğinde
@@ -1254,8 +1220,7 @@ class App {
     dpCloudState.autosave = {
       els: this.els, bg: this.getBgState(),
       canvasW: this.canvasW, canvasH: this.canvasH,
-      boardName: this.boardName, boardDesc: this.boardDesc,
-      refreshMessage: this.refreshMessage
+      boardName: this.boardName, boardDesc: this.boardDesc
     };
     dpCloudPushDebounced();
   }
@@ -1273,7 +1238,6 @@ class App {
       }
       this.boardName = data.boardName || "";
       this.boardDesc = data.boardDesc || "";
-      this.refreshMessage = data.refreshMessage || DP_DEFAULT_REFRESH_MSG;
       this.refresh();
       if (data.bg) this.applyBgState(data.bg);
       return true;
@@ -4213,27 +4177,29 @@ class App {
     document.getElementById("pubEndBox").style.display = (t === "int") ? "block" : "none";
   }
 
-  async confirmPub() {
+  // NOT: "Hedef Ekran / Zamanlanmış / Tarih Aralığı / Öncelik" alanları şu an
+  // sadece bilgi amaçlıdır (gerçek zamanlanmış yayın altyapısı yoktur) — bu
+  // buton artık GERÇEKTEN çalışır: mevcut pano durumunu KAYDEDER ve normal
+  // ~1sn'lik bekleme olmadan HEMEN buluta gönderir, böylece diğer tüm
+  // cihazlar/tarayıcılar en fazla birkaç saniye içinde günceli görür.
+  confirmPub() {
     const scr = document.getElementById("pubScreen").value || "Tüm Ekranlar";
-    const btn = document.querySelector('#pubModal .btn-pri');
-    const oldLabel = btn ? btn.innerHTML : "";
-    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Yayınlanıyor...'; }
-
-    // Ekrandaki en güncel tasarımı dpCloudState'e yazıp HEMEN (debounce
-    // beklemeden) buluta gönderir — bu sayede diğer cihazlar/kiosk ekranlar
-    // "Ayarlar > Yenileme Bildirim Mesajı" alanına girilen metinle bildirim
-    // alır ya da (kiosk ise) otomatik olarak yenilenir.
-    this.autoSave();
-    const ok = await dpCloudPublishNow();
-
-    if (btn) { btn.disabled = false; btn.innerHTML = oldLabel; }
     bootstrap.Modal.getInstance(document.getElementById("pubModal")).hide();
+    this.publishNow(scr);
+  }
 
-    if (ok) {
-      this.toast(scr + " için yayınlandı! Diğer cihazlar güncellemeyi görecek.");
-    } else {
-      this.toast("Yayınlanamadı — bağlantı sorunu olabilir, tekrar deneyin.");
+  // "Şimdi Yayınla" — mevcut tasarımı kaydeder ve hemen (beklemeden) buluta
+  // gönderir. pano49'daki "Yayınla" butonuyla aynı mantık.
+  publishNow(screenLabel) {
+    this.save();
+    clearTimeout(this._asDebounce);
+    clearTimeout(dpCloudWriteTimer);
+    dpCloudPushNow();
+    if (!supabaseClient) {
+      this.toast("Bulut bağlantısı yok — değişiklik sadece bu cihazda kaydedildi.");
+      return;
     }
+    this.toast((screenLabel ? screenLabel + " için " : "") + "yayınlandı! Tüm cihazlara gönderildi.");
   }
 
   /* ---- Ayarlar: Pano / Ekran ---- */
@@ -4242,7 +4208,7 @@ class App {
   openSettings() {
     document.getElementById("setBoardName").value = this.boardName || "";
     document.getElementById("setBoardDesc").value = this.boardDesc || "";
-    document.getElementById("setRefreshMessage").value = this.refreshMessage || DP_DEFAULT_REFRESH_MSG;
+    document.getElementById("setRefreshMessage").value = (dpCloudState && dpCloudState.refreshMessage) ? dpCloudState.refreshMessage : DP_DEFAULT_REFRESH_MESSAGE;
     const key = this.canvasW + "x" + this.canvasH;
     document.getElementById("setResPreset").value = App.RES_PRESETS.includes(key) ? key : "custom";
     document.getElementById("setCustomW").value = this.canvasW;
@@ -4345,7 +4311,7 @@ class App {
   applySettings() {
     this.boardName = document.getElementById("setBoardName").value;
     this.boardDesc = document.getElementById("setBoardDesc").value;
-    this.refreshMessage = document.getElementById("setRefreshMessage").value.trim() || DP_DEFAULT_REFRESH_MSG;
+    dpCloudState.refreshMessage = document.getElementById("setRefreshMessage").value.trim() || DP_DEFAULT_REFRESH_MESSAGE;
     const preset = document.getElementById("setResPreset").value;
     let w, h;
     if (preset === "custom") {

@@ -15,11 +15,6 @@
         ];
 
         const defaultAppConfig = {
-            // Bu panoda "Yayınla" ile bir değişiklik yayınlandığında, panoyu o an
-            // başka bir tarayıcı/cihazda açık tutan biri varsa (Yönetim Paneli
-            // açıkken) ekranın altında gösterilecek küçük "yenile" bildiriminin
-            // metni. Kimlik & Güvenlik sekmesinden değiştirilebilir.
-            refreshMessage: "Panoda güncelleme yayınlandı — yenilemek için tıklayın",
             schoolName: "2071 MELİKŞAH İLKOKULU",
             quote: "Akıllı kimsenin lisanı kalbindedir. Düşünerek söyler.",
             quoteAuthor: "Hz. Ali (r.a.)",
@@ -30,6 +25,11 @@
             weatherLat: "38.73",
             weatherLng: "41.49",
             adminPin: "",
+            // Başka bir cihazda/tarayıcıda yapılan güncelleme bu ekrana ulaştığında
+            // gösterilecek mesaj. Yönetim Paneli > Bulut Bağlantısı bölümünden
+            // değiştirilebilir; hem Pano49 hem Pano99 (Duyuru Panosu) için ayrı
+            // ayrı ayarlanır (Pano99 kendi appConfig/dpCloudState'inde tutar).
+            refreshMessage: "Panoda güncelleme var, yenileniyor...",
             // Günlük Zil Saatleri kartının görünüm ayarları (satır/sütun boşluğu, teneffüs gösterimi, aktif ders vurgusu, başlık biçimi)
             bellHoursSettings: {
                 rowGap: 4,                 // Satır (dikey) boşluk - px (mutlak değer, varsayılan tasarımla aynı)
@@ -1416,6 +1416,28 @@
         // değişiklik geldiyse ve Yönetim Paneli o an açık DEĞİLSE, panoyu otomatik tazeler.
         // Panel açıksa aktif düzenlemeyi bozmamak için dokunulmaz; localStorage zaten
         // güncellenmiştir, panel kapatılınca doğal akışta yeni veriyle devam eder.
+        // Başka bir cihazdan/tarayıcıdan yapılan güncelleme algılandığında ekranda
+        // kısa süreli bir bildirim gösterir. Mesaj metni appConfig.refreshMessage'dan
+        // (Yönetim Paneli > Bulut Bağlantısı bölümünden ayarlanabilir) okunur.
+        // - Yönetim Paneli KAPALIYSA (ekran/kiosk modu): mesaj kısaca gösterilir,
+        //   ardından sayfa otomatik yenilenir.
+        // - Yönetim Paneli AÇIKSA: aktif düzenlemeyi bozmamak için otomatik
+        //   yenilenmez; tıklanabilir bir bildirim gösterilir, kullanıcı isterse
+        //   tıklayıp güncel veriyi yükler.
+        function panoShowUpdateNotice(autoReload) {
+            const msg = (appConfig && appConfig.refreshMessage) ? appConfig.refreshMessage : 'Panoda güncelleme var, yenileniyor...';
+            const existing = document.getElementById('pano-cloud-update-toast');
+            if (existing) existing.remove();
+            const el = document.createElement('div');
+            el.id = 'pano-cloud-update-toast';
+            el.style.cssText = 'position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#0f3460;color:#fff;padding:10px 18px;border-radius:8px;font-size:.85rem;z-index:100000;box-shadow:0 6px 20px rgba(0,0,0,.4);display:flex;align-items:center;gap:8px;font-family:inherit;' + (autoReload ? '' : 'cursor:pointer;');
+            el.innerHTML = '<i class="fa-solid fa-cloud-arrow-down"></i> <span></span>';
+            el.querySelector('span').textContent = msg + (autoReload ? '' : ' — yenilemek için tıklayın');
+            if (!autoReload) el.onclick = () => location.reload();
+            document.body.appendChild(el);
+            if (autoReload) setTimeout(() => location.reload(), 1200);
+        }
+
         function cloudSyncStartListening() {
             if (!supabaseClient) return;
             if (cloudPollTimer) clearInterval(cloudPollTimer);
@@ -1433,14 +1455,7 @@
                         localStorage.setItem('okulPanoDataV8', JSON.stringify(data.data));
                         const adminPanel = document.getElementById('admin-panel');
                         const isAdminOpen = adminPanel && !adminPanel.classList.contains('hidden');
-                        if (!isAdminOpen) {
-                            location.reload();
-                        } else {
-                            // Panel açıkken sayfayı otomatik yenileyip aktif düzenlemeyi bozmak
-                            // yerine, admin'in kendi belirlediği metinle küçük bir bildirim
-                            // gösterilir; tıklanınca yenilenir.
-                            showCloudUpdateToast(data.data.refreshMessage);
-                        }
+                        panoShowUpdateNotice(!isAdminOpen);
                     })
                     .catch(err => {
                         console.warn('Bulut yoklaması hata verdi:', err);
@@ -1459,11 +1474,13 @@
 
         // Buluta YAZAR (Supabase upsert). GitHub sürümündeki sha/409-çakışma mantığına
         // gerek yoktur; Supabase tarafında id=1 satırı tek bir "upsert" ile güncellenir.
-        function cloudPushNow() {
+        // "onDone" verilirse (ör. Yayınla butonu) işlem bitince (error, error) ile çağrılır.
+        function cloudPushNow(onDone) {
             if (!cloudWriteEnabled()) {
                 if (CLOUD_SYNC_ENABLED && typeof writeCMSLog === 'function') {
                     writeCMSLog('⚠ Bulut kaydı yapılamadı: Supabase bağlantısı kurulamadı. Veri sadece bu cihazda kaydedildi.');
                 }
+                if (typeof onDone === 'function') onDone('Supabase bağlantısı kurulamadı');
                 return;
             }
             const versionToSend = appConfig.__syncVersion || 0;
@@ -1483,9 +1500,41 @@
                             writeCMSLog('⚠ Bulut senkronizasyonu başarısız: ' + error.message + ' — veri sadece bu cihazda kaydedildi.');
                         }
                     }
+                    if (typeof onDone === 'function') onDone(error ? (error.message || 'Bilinmeyen hata') : null);
                 });
         }
         // ============================================================================
+
+        // "Şimdi Yayınla" — Yönetim Paneli'ndeki formdaki tüm değişiklikleri kaydeder
+        // ve (1.5sn'lik normal gecikmeyi BEKLEMEDEN) hemen buluta gönderir; böylece
+        // diğer tüm cihazlar/tarayıcılar en fazla ~20sn içinde (kendi yoklama
+        // döngülerinde) değişikliği görür. İşlem bitince yönetici ekranında açık
+        // bir onay (toast) gösterilir.
+        function publishNow() {
+            saveAdminChanges();
+            clearTimeout(cloudWriteTimer);
+            cloudPushNow((errMsg) => {
+                if (errMsg) {
+                    if (typeof writeCMSLog === 'function') writeCMSLog('⚠ Yayınlama başarısız: ' + errMsg);
+                    alert('Yayınlama başarısız oldu: ' + errMsg + '\nVeri bu cihazda kaydedildi, bir sonraki denemede tekrar gönderilecek.');
+                } else {
+                    if (typeof writeCMSLog === 'function') writeCMSLog('✔ Yayınlandı — değişiklikler buluta gönderildi.');
+                    if (typeof panoShowPublishConfirmation === 'function') panoShowPublishConfirmation();
+                }
+            });
+        }
+
+        // Yönetici ekranında kısa süreli "Yayınlandı!" onayı gösterir.
+        function panoShowPublishConfirmation() {
+            const existing = document.getElementById('pano-publish-confirm-toast');
+            if (existing) existing.remove();
+            const el = document.createElement('div');
+            el.id = 'pano-publish-confirm-toast';
+            el.style.cssText = 'position:fixed;top:16px;left:50%;transform:translateX(-50%);background:#059669;color:#fff;padding:10px 18px;border-radius:8px;font-size:.85rem;z-index:100000;box-shadow:0 6px 20px rgba(0,0,0,.4);display:flex;align-items:center;gap:8px;font-family:inherit;';
+            el.innerHTML = '<i class="fa-solid fa-circle-check"></i> Yayınlandı! Tüm cihazlara gönderildi.';
+            document.body.appendChild(el);
+            setTimeout(() => el.remove(), 3000);
+        }
 
 
         // Yerel (localStorage) kalıcı kayıt + (varsa) bulut senkronizasyonu.
@@ -2370,62 +2419,6 @@
 
         function closeCustomAlert() {
             document.getElementById('custom-alert-overlay').style.display = 'none';
-        }
-
-        // Yönetim Paneli açıkken başka bir cihazdan yayın yapıldığında gösterilen
-        // küçük, tıklanabilir, ENGELLEMEYEN bildirim (showCustomNotification'ın
-        // aksine bu, aktif düzenlemeyi kesintiye uğratmaz). Metni appConfig.refreshMessage
-        // alanından (Kimlik & Güvenlik sekmesinden ayarlanır) okur.
-        let _cloudToastHideTimer = null;
-        function showCloudUpdateToast(message) {
-            const el = document.getElementById('cloud-update-toast');
-            if (!el) return;
-            document.getElementById('cloud-update-toast-text').textContent =
-                message || (defaultAppConfig && defaultAppConfig.refreshMessage) || 'Panoda güncelleme yayınlandı — yenilemek için tıklayın';
-            el.classList.remove('hidden');
-            el.classList.add('flex');
-            clearTimeout(_cloudToastHideTimer);
-            _cloudToastHideTimer = setTimeout(() => {
-                el.classList.add('hidden');
-                el.classList.remove('flex');
-            }, 15000);
-        }
-
-        // "Yayınla" butonu tarafından çağrılır: bekleyen (debounce edilmiş) buluta
-        // yazımı varsa iptal edip HEMEN (1.5sn beklemeden) buluta gönderir. Ayrıca
-        // önce tüm form alanlarını appConfig'e işler (saveAdminChanges ile aynı
-        // toplama mantığı) böylece "Yayınla" tek başına da güvenle kullanılabilir.
-        function publishPanoNow() {
-            saveAdminChangesInternal();
-            appConfig.__syncVersion = (appConfig.__syncVersion || 0) + 1;
-            localStorage.setItem('okulPanoDataV8', JSON.stringify(appConfig));
-            clearTimeout(cloudWriteTimer);
-            if (!cloudWriteEnabled()) {
-                showCustomNotification('Bulut Bağlı Değil', 'Yayınlamak için Supabase bağlantısı gerekli. Değişiklik sadece bu cihazda kaydedildi.');
-                return;
-            }
-            const versionToSend = appConfig.__syncVersion || 0;
-            lastSyncedVersion = versionToSend;
-            supabaseClient
-                .from(SUPABASE_CONFIG.table)
-                .upsert({
-                    id: SUPABASE_CONFIG.rowId,
-                    data: appConfig,
-                    sync_version: versionToSend,
-                    updated_at: new Date().toISOString()
-                })
-                .then(({ error }) => {
-                    if (error) {
-                        console.warn('Yayınlama başarısız oldu:', error);
-                        showCustomNotification('Yayınlanamadı', 'Buluta yazılamadı: ' + error.message + ' — değişiklik sadece bu cihazda kaydedildi, tekrar deneyin.');
-                        if (typeof writeCMSLog === 'function') writeCMSLog('⚠ Yayınlama başarısız: ' + error.message);
-                        return;
-                    }
-                    document.getElementById('admin-panel').classList.add('hidden');
-                    if (supabaseClient) supabaseClient.auth.signOut();
-                    showCustomNotification('Yayınlandı', 'Değişiklikler yayınlandı. Diğer tarayıcı/cihazlar en geç birkaç saniye içinde güncellemeyi görecek.');
-                    if (typeof writeCMSLog === 'function') writeCMSLog('📡 Pano yayınlandı (buluta anında yazıldı).');
-                });
         }
 
         function askCustomConfirmation(title, message, onConfirm) {
@@ -5749,10 +5742,11 @@
             const panel = document.getElementById('admin-panel');
             
             document.getElementById('input-school-name').value = appConfig.schoolName;
+            const refreshMsgInputInit = document.getElementById('input-refresh-message');
+            if (refreshMsgInputInit) refreshMsgInputInit.value = appConfig.refreshMessage || defaultAppConfig.refreshMessage;
             document.getElementById('input-brand-sub').value = appConfig.brandSubText || defaultAppConfig.brandSubText;
             document.getElementById('input-brand-sub-visible').checked = appConfig.brandSubVisible !== false;
             document.getElementById('input-admin-pin').value = "";
-            document.getElementById('input-refresh-message').value = appConfig.refreshMessage || defaultAppConfig.refreshMessage;
 
             tempSchoolLogo = appConfig.schoolLogo || "";
             document.getElementById('input-logo-size').value = appConfig.logoSize || 54;
@@ -5946,12 +5940,16 @@
             }
         }
 
-        function saveAdminChangesInternal() {
+        function saveAdminChanges() {
             saveWeeklyScheduleMatrix();
             saveWeeklyDutiesTable();
             nobetAyiKaydet(); // Aylık nöbet verilerini kaydet
 
-            appConfig.refreshMessage = document.getElementById('input-refresh-message').value.trim() || defaultAppConfig.refreshMessage;
+            const refreshMsgInput = document.getElementById('input-refresh-message');
+            if (refreshMsgInput) {
+                appConfig.refreshMessage = refreshMsgInput.value.trim() || defaultAppConfig.refreshMessage;
+            }
+
             appConfig.schoolName = document.getElementById('input-school-name').value.trim() || defaultAppConfig.schoolName;
             appConfig.brandSubText = document.getElementById('input-brand-sub').value.trim() || defaultAppConfig.brandSubText;
             appConfig.brandSubVisible = document.getElementById('input-brand-sub-visible').checked;
@@ -6063,17 +6061,12 @@
             appConfig.dutyPositions = cleanedDutyPositions.length > 0 ? cleanedDutyPositions : JSON.parse(JSON.stringify(defaultAppConfig.dutyPositions));
             appConfig.dutyStyle = tempDutyStyle || appConfig.dutyStyle;
 
+            panoPersist();
             renderPanoData();
             applyModuleSettingsToDashboard();
             startCyclingModuleIntervals();
             fetchLiveWeather();
-        }
 
-        // Normal "Değişiklikleri Kaydet": yerel + gecikmeli (debounce, ~1.5sn) bulut
-        // yazımı. Panel kapanır; buluta yazım arka planda tamamlanır.
-        function saveAdminChanges() {
-            saveAdminChangesInternal();
-            panoPersist();
             document.getElementById('admin-panel').classList.add('hidden');
             if (supabaseClient) supabaseClient.auth.signOut();
             showCustomNotification("Başarılı", "Tüm sistem değişiklikleri başarıyla kaydedildi ve pano güncellendi.");

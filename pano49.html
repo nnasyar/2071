@@ -2925,23 +2925,17 @@
                     <div class="mt-3 pt-3 border-t border-slate-800">
                         <label class="text-[11px] text-slate-400 mb-1 block">Yenileme Mesajı <span class="text-slate-600">(başka bir cihazdan güncelleme geldiğinde ekranda gösterilir)</span></label>
                         <input type="text" id="input-refresh-message" maxlength="120" placeholder="Panoda güncelleme var, yenileniyor..." class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white">
-                        <p class="text-[10px] text-slate-500 mt-1.5">Bu mesaj, "Değişiklikleri Kaydet" ile birlikte kaydedilir. Anında (beklemeden) yayınlamak için aşağıdaki butonu kullanın.</p>
-
-                        <label class="text-[11px] text-slate-400 mb-1 mt-3 block">Bulut Kontrol Sıklığı (saniye) <span class="text-slate-600">(cihazların buluttaki güncellemeyi ne sıklıkla kontrol edeceği)</span></label>
-                        <input type="number" id="input-cloud-poll-interval" min="5" max="300" step="1" placeholder="20" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white">
-                        <p class="text-[10px] text-slate-500 mt-1.5">Düşük değer (ör. 5-10 sn) güncellemelerin diğer cihazlara daha hızlı yansımasını sağlar ama Supabase istek/bant genişliği kotasını daha hızlı tüketir. Yüksek değer (ör. 30-60 sn) kotayı korur ama güncellemeler biraz gecikmeli görünür. En az 5 saniyedir.</p>
-
-                        <label class="text-[11px] text-slate-400 mb-1 mt-3 block">Ekran Geçişi Kontrol Sıklığı (saniye) <span class="text-slate-600">(TV'nin "Duyuru Panosuna Geç" komutunu ne sıklıkla kontrol edeceği)</span></label>
-                        <input type="number" id="input-display-control-poll-interval" min="3" max="120" step="1" placeholder="5" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white">
-                        <p class="text-[10px] text-slate-500 mt-1.5">Yönetim Paneli'ndeki "Pano99'a Geç" düğmesine bastığınızda TV'nin bunu ne kadar hızlı fark edeceğini belirler. Düşük değer daha hızlı geçiş sağlar ama daha sık kontrol eder. En az 3 saniyedir.</p>
-
+                        <label class="text-[11px] text-slate-400 mb-1 block mt-2">Veri Kontrol Sıklığı (saniye) <span class="text-slate-600">(cihazlar buluta bu sıklıkta bakar; düşürürseniz değişiklikler daha hızlı yansır)</span></label>
+                        <input type="number" id="input-poll-interval" min="5" max="300" step="1" placeholder="15" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white">
+                        <label class="text-[11px] text-slate-400 mb-1 block mt-2">Ekran Geçişi Kontrol Sıklığı (saniye) <span class="text-slate-600">(Pano49 ↔ Pano99 arası uzaktan ekran değiştirme kontrolü)</span></label>
+                        <input type="number" id="input-display-switch-poll" min="3" max="300" step="1" placeholder="5" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white">
+                        <p class="text-[10px] text-slate-500 mt-1.5">Bu ayarlar "Değişiklikleri Kaydet" ile birlikte kaydedilir. Anında (beklemeden) yayınlamak için aşağıdaki butonu kullanın.</p>
                         <button class="w-full mt-2 px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white font-bold rounded-lg text-xs flex items-center justify-center gap-2" onclick="publishNow()">
                             <i class="fa-solid fa-broadcast-tower"></i> Şimdi Yayınla (Tüm Cihazlara Gönder)
                         </button>
-                        <button class="w-full mt-2 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white font-bold rounded-lg text-xs flex items-center justify-center gap-2" onclick="manualRefreshDisplayScreens()">
-                            <i class="fa-solid fa-rotate"></i> TV'yi Şimdi Yenile
+                        <button class="w-full mt-2 px-4 py-2 bg-teal-700 hover:bg-teal-800 text-white font-bold rounded-lg text-xs flex items-center justify-center gap-2" onclick="forceRefreshDisplays()" title="İçerikte değişiklik olmasa bile TV/kiosk ekranlarını uzaktan yeniler">
+                            <i class="fa-solid fa-arrows-rotate"></i> Ekranları Şimdi Yenile
                         </button>
-                        <p class="text-[10px] text-slate-500 mt-1.5">Bu düğme kaydetme yapmaz, sadece açık olan TV/ekranları anında yeniler (yayınla ile buluta ZATEN gönderilmiş bir değişikliği hemen göstermek için, ya da bir ekranın takılı kalması durumunda kullanışlıdır). Yönetim Paneli'ni açık tutan cihazları etkilemez.</p>
                     </div>
                 </div>
 

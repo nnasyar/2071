@@ -30,16 +30,16 @@
             // değiştirilebilir; hem Pano49 hem Pano99 (Duyuru Panosu) için ayrı
             // ayrı ayarlanır (Pano99 kendi appConfig/dpCloudState'inde tutar).
             refreshMessage: "Panoda güncelleme var, yenileniyor...",
-            // Bulut verisinin ne sıklıkla (saniye cinsinden) yoklanacağı. Yönetim
-            // Paneli > Bulut Bağlantısı bölümünden değiştirilebilir. Çok düşük
-            // değerler Supabase istek/bant genişliği kotasını daha hızlı tüketir;
-            // makul bir alt sınır (5 sn) arayüzde uygulanır.
-            cloudPollIntervalSec: 20,
-            // Ekran Geçişi (Pano49 ↔ Duyuru Panosu) komutunun ne sıklıkla (saniye
-            // cinsinden) yoklanacağı — TV'de "Duyuru Panosuna Geç" komutu ne kadar
-            // hızlı fark edilsin istiyorsanız düşük, kotayı korumak istiyorsanız
-            // yüksek tutun. Yönetim Paneli > Bulut Bağlantısı bölümünden değiştirilebilir.
-            displayControlPollIntervalSec: 5,
+            // Bulut senkronizasyon yoklama sıklığı (saniye). Her ekran/cihaz bu süre
+            // aralığıyla "yeni bir değişiklik var mı?" diye buluta bakar. Düşük değer =
+            // değişiklikler ekranlara daha hızlı yansır ama bulut isteği sayısı artar.
+            // Yönetim Paneli > Bulut Bağlantısı bölümünden ayarlanabilir; Pano99'da da
+            // aynı isimli/işlevli bir alan vardır (dpCloudState.pollIntervalSeconds).
+            pollIntervalSeconds: 15,
+            // Ekran geçişi (Pano49 ↔ Pano99) kontrol sıklığı (saniye) — "display_control"
+            // tablosuna bakıp başka bir cihazdan ekran değiştirilip değiştirilmediğini
+            // kontrol eder. Veri kontrolünden AYRI bir zamanlayıcıdır.
+            displaySwitchPollSeconds: 5,
             // Günlük Zil Saatleri kartının görünüm ayarları (satır/sütun boşluğu, teneffüs gösterimi, aktif ders vurgusu, başlık biçimi)
             bellHoursSettings: {
                 rowGap: 4,                 // Satır (dikey) boşluk - px (mutlak değer, varsayılan tasarımla aynı)
@@ -792,7 +792,9 @@
             if (!supabaseClient) return;
             if (displayControlPollTimer) clearInterval(displayControlPollTimer);
             displayControlCheckOnce();
-            const intervalSec = Math.max(3, parseInt(appConfig.displayControlPollIntervalSec, 10) || 5);
+            let intervalSec = parseInt(appConfig && appConfig.displaySwitchPollSeconds, 10);
+            if (!intervalSec || isNaN(intervalSec)) intervalSec = 5;
+            intervalSec = Math.min(300, Math.max(3, intervalSec));
             displayControlPollTimer = setInterval(displayControlCheckOnce, intervalSec * 1000);
         }
         // ============================================================================
@@ -1413,22 +1415,6 @@
                     const localVersion = appConfig.__syncVersion || 0;
                     lastSyncedVersion = cloudVersion;
                     if (cloudVersion > localVersion) {
-                        // DÜZELTME: Bu istek ağ gecikmesi yüzünden geç dönebilir — kullanıcı
-                        // sayfa yeni açılırken bu bekleme sırasında Yönetim Paneli'ni açıp
-                        // düzenlemeye BAŞLAMIŞ olabilir. Eskiden buradaki reload KOŞULSUZDU
-                        // (periyodik dinleyicideki "panel açıksa dokunma" korumasına sahip
-                        // DEĞİLDİ) — bu da kullanıcının, tam düzenlemeye başladığı anda
-                        // sayfanın aniden yenilenip onu düzenleme ekranından atmasına yol
-                        // açıyordu. Artık aynı koruma burada da uygulanıyor.
-                        const adminPanelEl = document.getElementById('admin-panel');
-                        const isAdminOpenNow = adminPanelEl && !adminPanelEl.classList.contains('hidden');
-                        const isLayoutEditActive = document.body.classList.contains('pano-edit-mode');
-                        if (isAdminOpenNow || isLayoutEditActive) {
-                            // Düzenleme sürüyor: sayfayı yenileme, veriyi ez me. Yerelde daha
-                            // güncel bir veri bulunduğunda (panel kapanınca) normal akışla
-                            // (periyodik dinleyici) zaten senkronize olunacak.
-                            return;
-                        }
                         localStorage.setItem('okulPanoDataV8', JSON.stringify(data.data));
                         location.reload();
                     }
@@ -1468,7 +1454,11 @@
         function cloudSyncStartListening() {
             if (!supabaseClient) return;
             if (cloudPollTimer) clearInterval(cloudPollTimer);
-            const intervalSec = Math.max(5, parseInt(appConfig.cloudPollIntervalSec, 10) || 20);
+            // Süre appConfig.pollIntervalSeconds'tan okunur (Yönetim Paneli'nden
+            // ayarlanabilir); 5-300sn aralığında sınırlanır, güvenlik için.
+            let intervalSec = parseInt(appConfig && appConfig.pollIntervalSeconds, 10);
+            if (!intervalSec || isNaN(intervalSec)) intervalSec = 15;
+            intervalSec = Math.min(300, Math.max(5, intervalSec));
             cloudPollTimer = setInterval(() => {
                 supabaseClient
                     .from(SUPABASE_CONFIG.table)
@@ -1483,68 +1473,19 @@
                         localStorage.setItem('okulPanoDataV8', JSON.stringify(data.data));
                         const adminPanel = document.getElementById('admin-panel');
                         const isAdminOpen = adminPanel && !adminPanel.classList.contains('hidden');
-                        panoShowUpdateNotice(!isAdminOpen);
+                        // "Canlı Düzenle" (modül sürükle/boyutlandır) modu admin-panel'i KAPATIP
+                        // doğrudan tuvalin üzerinde çalışır — bu yüzden sadece admin-panel'in
+                        // görünürlüğüne bakmak yetmez; panoEditActive true iken de OTOMATİK
+                        // yenileme YAPILMAMALI, yoksa kullanıcı modül sürüklerken ekran birden
+                        // yenilenip onu düzenleme ekranından atar.
+                        const isEditingNow = isAdminOpen || (typeof panoEditActive !== 'undefined' && panoEditActive);
+                        panoShowUpdateNotice(!isEditingNow);
                     })
                     .catch(err => {
                         console.warn('Bulut yoklaması hata verdi:', err);
                     });
             }, intervalSec * 1000);
         }
-
-        // ============================================================================
-        // ANLIK YENİLEME (Supabase Realtime broadcast) — YENİ ÖZELLİK
-        // ----------------------------------------------------------------------------
-        // Normal bulut yoklaması (cloudPollTimer) belirli aralıklarla (varsayılan
-        // 20sn, Yönetim Paneli'nden ayarlanabilir) veritabanını kontrol eder. Bu,
-        // güvenilir bir "yedek" yöntemdir ama anlık değildir. Realtime broadcast ise
-        // WebSocket üzerinden ÇALIŞIR; veritabanına ekstra bir okuma isteği (kota)
-        // OLUŞTURMADAN, ekranlara neredeyse anında "yenile" sinyali gönderir.
-        // - Her başarılı "buluta yazma" (cloudPushNow) işleminden sonra OTOMATİK
-        //   olarak bir sinyal yayınlanır (böylece güncelleme yapınca TV/diğer
-        //   ekranlar birkaç saniye içinde kendiliğinden yenilenir).
-        // - Yönetim Paneli'ndeki "TV'yi Şimdi Yenile" düğmesi de aynı sinyali,
-        //   forced:true ile gönderir (bkz. manualRefreshDisplayScreens()).
-        // GÜVENLİK: Sinyali alan bir ekranda Yönetim Paneli veya modül yerleşim
-        // düzenleyici AÇIKSA, hangi sebeple gelirse gelsin (otomatik ya da elle
-        // tetiklenmiş) o ekran ASLA anında yenilenmez — sadece tıklanabilir bir
-        // bildirim gösterilir. Böylece bir düzenleme yarıda kesilmez.
-        let panoRealtimeChannel = null;
-        function panoRealtimeInit() {
-            if (!supabaseClient || panoRealtimeChannel) return;
-            try {
-                panoRealtimeChannel = supabaseClient.channel('pano49-refresh');
-                panoRealtimeChannel.on('broadcast', { event: 'refresh' }, () => {
-                    const adminPanel = document.getElementById('admin-panel');
-                    const isAdminOpenNow = adminPanel && !adminPanel.classList.contains('hidden');
-                    const isLayoutEditActive = document.body.classList.contains('pano-edit-mode');
-                    if (isAdminOpenNow || isLayoutEditActive) {
-                        panoShowUpdateNotice(false);
-                        return;
-                    }
-                    location.reload();
-                }).subscribe();
-            } catch (e) {
-                console.warn('Realtime kanalı kurulamadı (anlık yenileme devre dışı, normal yoklama ile devam edilecek):', e);
-            }
-        }
-        function panoRealtimeBroadcastRefresh() {
-            if (!panoRealtimeChannel) return;
-            try {
-                panoRealtimeChannel.send({ type: 'broadcast', event: 'refresh', payload: { ts: Date.now() } });
-            } catch (e) {
-                console.warn('Anlık yenileme sinyali gönderilemedi (ekranlar normal yoklama sıklığında güncellenecek):', e);
-            }
-        }
-        // Yönetim Paneli'ndeki "TV'yi Şimdi Yenile" düğmesine bağlıdır — kullanıcının
-        // kendi isteğiyle, poll aralığını beklemeden TV/diğer ekranları yeniler.
-        function manualRefreshDisplayScreens() {
-            panoRealtimeBroadcastRefresh();
-            if (typeof showCustomNotification === 'function') {
-                showCustomNotification('Gönderildi', 'Ekranlara yenileme sinyali gönderildi. Yönetim Paneli açık olan cihazlar etkilenmez.');
-            }
-            if (typeof writeCMSLog === 'function') writeCMSLog('↻ "TV\'yi Şimdi Yenile" tetiklendi.');
-        }
-        // ============================================================================
 
         // Yerel bir kayıt (panoPersist) yapıldığında bulut kopyasını gecikmeli (debounce)
         // olarak günceller; art arda hızlı değişikliklerde (ör. renk seçici sürüklenirken)
@@ -1582,8 +1523,6 @@
                         if (typeof writeCMSLog === 'function') {
                             writeCMSLog('⚠ Bulut senkronizasyonu başarısız: ' + error.message + ' — veri sadece bu cihazda kaydedildi.');
                         }
-                    } else {
-                        panoRealtimeBroadcastRefresh(); // başarılı yazımdan sonra ekranlara anlık sinyal
                     }
                     if (typeof onDone === 'function') onDone(error ? (error.message || 'Bilinmeyen hata') : null);
                 });
@@ -1619,6 +1558,31 @@
             el.innerHTML = '<i class="fa-solid fa-circle-check"></i> Yayınlandı! Tüm cihazlara gönderildi.';
             document.body.appendChild(el);
             setTimeout(() => el.remove(), 3000);
+        }
+
+        // "Ekranları Şimdi Yenile" — içerikte bir değişiklik olmasa bile, TV/kiosk
+        // ekranlarını buradan uzaktan yenilemek için kullanılır (ör. ekran takıldıysa,
+        // ya da sadece emin olmak için). Kaydedilmiş mevcut veriyi değiştirmeden
+        // sadece sürüm sayacını artırıp anında buluta gönderir; bu da diğer tüm
+        // cihazların bir sonraki yoklamasında (pollIntervalSeconds) sayfayı
+        // yenilemesini tetikler.
+        function forceRefreshDisplays() {
+            panoPersist();
+            clearTimeout(cloudWriteTimer);
+            cloudPushNow((errMsg) => {
+                if (errMsg) {
+                    alert('Ekranları yenileme sinyali gönderilemedi: ' + errMsg);
+                } else {
+                    const existing = document.getElementById('pano-refresh-confirm-toast');
+                    if (existing) existing.remove();
+                    const el = document.createElement('div');
+                    el.id = 'pano-refresh-confirm-toast';
+                    el.style.cssText = 'position:fixed;top:16px;left:50%;transform:translateX(-50%);background:#0891b2;color:#fff;padding:10px 18px;border-radius:8px;font-size:.85rem;z-index:100000;box-shadow:0 6px 20px rgba(0,0,0,.4);display:flex;align-items:center;gap:8px;font-family:inherit;';
+                    el.innerHTML = '<i class="fa-solid fa-arrows-rotate"></i> Sinyal gönderildi — ekranlar en geç ' + (appConfig.pollIntervalSeconds || 15) + ' sn içinde yenilenecek.';
+                    document.body.appendChild(el);
+                    setTimeout(() => el.remove(), 3500);
+                }
+            });
         }
 
 
@@ -2419,22 +2383,6 @@
         }
         function armFullscreenPersistent() {
             const handler = () => {
-                // DÜZELTME: Bu "ısrarcı tam ekran" mantığı sadece canlı YAYIN ekranı
-                // (kiosk/TV) için düşünülmüştü — TV kumandasıyla yanlışlıkla basılan
-                // bir tuşun tam ekrandan çıkmasını engellemek amacıyla. Ancak dinleyici
-                // TÜM tıklama/tuş olaylarında (belge genelinde) çalıştığı için Yönetim
-                // Paneli ya da modül yerleşim düzenleyicisi AÇIKKEN de devreye giriyordu:
-                // kullanıcı tam ekrandan çıkar çıkmaz (Esc ya da tarayıcının üstte
-                // beliren "X" kontrolüyle), düzenleme ekranında yaptığı BİR SONRAKİ
-                // tıklama/tuş anında sistem tam ekranı ANINDA yeniden zorluyordu. Bu
-                // yüzden tarayıcının çıkış kontrolü "tutmuyormuş" gibi görünüyordu.
-                // Artık düzenleme ekranları (Yönetim Paneli / yerleşim düzenleyici)
-                // açıkken zorlama devre dışı bırakılıyor; sadece canlı yayın ekranında
-                // uygulanıyor.
-                const adminPanelEl = document.getElementById('admin-panel');
-                const isAdminOpenNow = adminPanelEl && !adminPanelEl.classList.contains('hidden');
-                const isLayoutEditActive = document.body.classList.contains('pano-edit-mode');
-                if (isAdminOpenNow || isLayoutEditActive) return;
                 if (fsAutoEnforce && !isRealFullscreen()) requestRealFullscreen();
             };
             // {once:true} KULLANILMIYOR — manuel çıkış olana kadar her etkileşimde
@@ -2473,7 +2421,6 @@
                 cloudSyncPullOnce();
                 cloudSyncStartListening();
                 displayControlStartPolling();
-                panoRealtimeInit();
             }
 
             document.addEventListener('keydown', function(e) {
@@ -5846,10 +5793,10 @@
             document.getElementById('input-school-name').value = appConfig.schoolName;
             const refreshMsgInputInit = document.getElementById('input-refresh-message');
             if (refreshMsgInputInit) refreshMsgInputInit.value = appConfig.refreshMessage || defaultAppConfig.refreshMessage;
-            const pollIntervalInputInit = document.getElementById('input-cloud-poll-interval');
-            if (pollIntervalInputInit) pollIntervalInputInit.value = appConfig.cloudPollIntervalSec || defaultAppConfig.cloudPollIntervalSec;
-            const displayPollIntervalInputInit = document.getElementById('input-display-control-poll-interval');
-            if (displayPollIntervalInputInit) displayPollIntervalInputInit.value = appConfig.displayControlPollIntervalSec || defaultAppConfig.displayControlPollIntervalSec;
+            const pollIntervalInputInit = document.getElementById('input-poll-interval');
+            if (pollIntervalInputInit) pollIntervalInputInit.value = appConfig.pollIntervalSeconds || defaultAppConfig.pollIntervalSeconds;
+            const displaySwitchPollInputInit = document.getElementById('input-display-switch-poll');
+            if (displaySwitchPollInputInit) displaySwitchPollInputInit.value = appConfig.displaySwitchPollSeconds || defaultAppConfig.displaySwitchPollSeconds;
             document.getElementById('input-brand-sub').value = appConfig.brandSubText || defaultAppConfig.brandSubText;
             document.getElementById('input-brand-sub-visible').checked = appConfig.brandSubVisible !== false;
             document.getElementById('input-admin-pin').value = "";
@@ -6055,22 +6002,17 @@
             if (refreshMsgInput) {
                 appConfig.refreshMessage = refreshMsgInput.value.trim() || defaultAppConfig.refreshMessage;
             }
-
-            const pollIntervalInput = document.getElementById('input-cloud-poll-interval');
+            const pollIntervalInput = document.getElementById('input-poll-interval');
             if (pollIntervalInput) {
-                const parsed = parseInt(pollIntervalInput.value, 10);
-                appConfig.cloudPollIntervalSec = Math.max(5, isNaN(parsed) ? defaultAppConfig.cloudPollIntervalSec : parsed);
-                // Değer değiştiyse yoklama zamanlayıcısını yeni sıklıkla hemen yeniden başlat
-                // (aksi halde eski sıklık sayfa bir sonraki yeniden yüklenene kadar sürerdi).
-                if (typeof cloudSyncStartListening === 'function') cloudSyncStartListening();
+                let v = parseInt(pollIntervalInput.value, 10);
+                if (!v || isNaN(v)) v = defaultAppConfig.pollIntervalSeconds;
+                appConfig.pollIntervalSeconds = Math.min(300, Math.max(5, v));
             }
-
-            const displayPollIntervalInput = document.getElementById('input-display-control-poll-interval');
-            if (displayPollIntervalInput) {
-                const parsedDp = parseInt(displayPollIntervalInput.value, 10);
-                appConfig.displayControlPollIntervalSec = Math.max(3, isNaN(parsedDp) ? defaultAppConfig.displayControlPollIntervalSec : parsedDp);
-                // Aynı şekilde ekran geçişi yoklamasını da yeni sıklıkla hemen yeniden başlat.
-                if (typeof displayControlStartPolling === 'function') displayControlStartPolling();
+            const displaySwitchPollInput = document.getElementById('input-display-switch-poll');
+            if (displaySwitchPollInput) {
+                let v2 = parseInt(displaySwitchPollInput.value, 10);
+                if (!v2 || isNaN(v2)) v2 = defaultAppConfig.displaySwitchPollSeconds;
+                appConfig.displaySwitchPollSeconds = Math.min(300, Math.max(3, v2));
             }
 
             appConfig.schoolName = document.getElementById('input-school-name').value.trim() || defaultAppConfig.schoolName;
@@ -6188,6 +6130,8 @@
             renderPanoData();
             applyModuleSettingsToDashboard();
             startCyclingModuleIntervals();
+            cloudSyncStartListening(); // yeni "pollIntervalSeconds" değeri varsa yoklama sıklığını hemen uygular
+            if (typeof displayControlStartPolling === 'function') displayControlStartPolling(); // yeni "displaySwitchPollSeconds" değerini hemen uygula
             fetchLiveWeather();
 
             document.getElementById('admin-panel').classList.add('hidden');
@@ -8937,9 +8881,14 @@
                 appConfig.__syncVersion = (appConfig.__syncVersion || 0) + 1;
                 localStorage.setItem('okulPanoDataV8', JSON.stringify(appConfig));
                 writeCMSLog('Yedekten geri yükleme yapıldı: ' + file.name);
-                cloudPushNow();
-                showCustomNotification('Tamam', 'Yedek geri yüklendi. Sayfa yenileniyor...');
-                setTimeout(() => location.reload(), 1200);
+                showCustomNotification('Yükleniyor', 'Yedek buluta yazılıyor, lütfen bekleyin...');
+                // ÖNEMLİ: Sayfa, buluta yazma işi GERÇEKTEN bitmeden yenilenmemeli — aksi
+                // halde yavaş bağlantıda sayfa açılışın buluttan çektiği ESKİ veri (henüz
+                // güncellenmemiş) yedeği sessizce geri alabilir.
+                cloudPushNow((errMsg) => {
+                    showCustomNotification('Tamam', 'Yedek geri yüklendi. Sayfa yenileniyor...');
+                    setTimeout(() => location.reload(), 400);
+                });
             };
             reader.readAsText(file);
         }

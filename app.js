@@ -36,10 +36,20 @@
             // Yönetim Paneli > Bulut Bağlantısı bölümünden ayarlanabilir; Pano99'da da
             // aynı isimli/işlevli bir alan vardır (dpCloudState.pollIntervalSeconds).
             pollIntervalSeconds: 15,
+            // Veri Kontrol Sıklığı için süreli (periyodik) kontrolün açık/kapalı olduğunu
+            // belirler. true (varsayılan) = yukarıdaki saniyeye göre otomatik/periyodik
+            // kontrol edilir. false = otomatik yoklama YAPILMAZ; güncellemeler yalnızca
+            // sayfa manuel olarak yenilendiğinde (F5 / kiosk yeniden yüklendiğinde) görülür.
+            pollIntervalEnabled: true,
             // Ekran geçişi (Pano49 ↔ Pano99) kontrol sıklığı (saniye) — "display_control"
             // tablosuna bakıp başka bir cihazdan ekran değiştirilip değiştirilmediğini
             // kontrol eder. Veri kontrolünden AYRI bir zamanlayıcıdır.
             displaySwitchPollSeconds: 5,
+            // Ekran Geçişi Kontrol Sıklığı için süreli (periyodik) kontrolün açık/kapalı
+            // olduğunu belirler. true (varsayılan) = periyodik kontrol edilir. false =
+            // otomatik yoklama YAPILMAZ; ekran geçişi yalnızca sayfa manuel yenilendiğinde
+            // (açılışta bir kez) kontrol edilir.
+            displaySwitchPollEnabled: true,
             // Günlük Zil Saatleri kartının görünüm ayarları (satır/sütun boşluğu, teneffüs gösterimi, aktif ders vurgusu, başlık biçimi)
             bellHoursSettings: {
                 rowGap: 4,                 // Satır (dikey) boşluk - px (mutlak değer, varsayılan tasarımla aynı)
@@ -792,6 +802,11 @@
             if (!supabaseClient) return;
             if (displayControlPollTimer) clearInterval(displayControlPollTimer);
             displayControlCheckOnce();
+            // "Ekran Geçişi Kontrol Sıklığı" pasif ise süreli (periyodik) kontrol
+            // KURULMAZ; yalnızca yukarıdaki tek seferlik (sayfa açılışı/yenilemesi
+            // anındaki) kontrol yapılır — bir sonraki kontrol için sayfanın manuel
+            // yenilenmesi (F5) gerekir.
+            if (appConfig && appConfig.displaySwitchPollEnabled === false) return;
             let intervalSec = parseInt(appConfig && appConfig.displaySwitchPollSeconds, 10);
             if (!intervalSec || isNaN(intervalSec)) intervalSec = 5;
             intervalSec = Math.min(300, Math.max(3, intervalSec));
@@ -1454,6 +1469,10 @@
         function cloudSyncStartListening() {
             if (!supabaseClient) return;
             if (cloudPollTimer) clearInterval(cloudPollTimer);
+            // "Veri Kontrol Sıklığı" pasif ise süreli (periyodik) bulut yoklaması hiç
+            // KURULMAZ; güncellemeler yalnızca sayfa manuel yenilendiğinde (F5 / kiosk
+            // yeniden başlatıldığında, açılıştaki normal veri yüklemesiyle) görülür.
+            if (appConfig && appConfig.pollIntervalEnabled === false) return;
             // Süre appConfig.pollIntervalSeconds'tan okunur (Yönetim Paneli'nden
             // ayarlanabilir); 5-300sn aralığında sınırlanır, güvenlik için.
             let intervalSec = parseInt(appConfig && appConfig.pollIntervalSeconds, 10);
@@ -5795,8 +5814,18 @@
             if (refreshMsgInputInit) refreshMsgInputInit.value = appConfig.refreshMessage || defaultAppConfig.refreshMessage;
             const pollIntervalInputInit = document.getElementById('input-poll-interval');
             if (pollIntervalInputInit) pollIntervalInputInit.value = appConfig.pollIntervalSeconds || defaultAppConfig.pollIntervalSeconds;
+            const pollIntervalEnabledInputInit = document.getElementById('input-poll-interval-enabled');
+            if (pollIntervalEnabledInputInit) {
+                pollIntervalEnabledInputInit.checked = appConfig.pollIntervalEnabled !== false;
+                if (pollIntervalInputInit) pollIntervalInputInit.disabled = !pollIntervalEnabledInputInit.checked;
+            }
             const displaySwitchPollInputInit = document.getElementById('input-display-switch-poll');
             if (displaySwitchPollInputInit) displaySwitchPollInputInit.value = appConfig.displaySwitchPollSeconds || defaultAppConfig.displaySwitchPollSeconds;
+            const displaySwitchPollEnabledInputInit = document.getElementById('input-display-switch-poll-enabled');
+            if (displaySwitchPollEnabledInputInit) {
+                displaySwitchPollEnabledInputInit.checked = appConfig.displaySwitchPollEnabled !== false;
+                if (displaySwitchPollInputInit) displaySwitchPollInputInit.disabled = !displaySwitchPollEnabledInputInit.checked;
+            }
             document.getElementById('input-brand-sub').value = appConfig.brandSubText || defaultAppConfig.brandSubText;
             document.getElementById('input-brand-sub-visible').checked = appConfig.brandSubVisible !== false;
             document.getElementById('input-admin-pin').value = "";
@@ -6002,12 +6031,16 @@
             if (refreshMsgInput) {
                 appConfig.refreshMessage = refreshMsgInput.value.trim() || defaultAppConfig.refreshMessage;
             }
+            const pollIntervalEnabledInput = document.getElementById('input-poll-interval-enabled');
+            if (pollIntervalEnabledInput) appConfig.pollIntervalEnabled = pollIntervalEnabledInput.checked;
             const pollIntervalInput = document.getElementById('input-poll-interval');
             if (pollIntervalInput) {
                 let v = parseInt(pollIntervalInput.value, 10);
                 if (!v || isNaN(v)) v = defaultAppConfig.pollIntervalSeconds;
                 appConfig.pollIntervalSeconds = Math.min(300, Math.max(5, v));
             }
+            const displaySwitchPollEnabledInput = document.getElementById('input-display-switch-poll-enabled');
+            if (displaySwitchPollEnabledInput) appConfig.displaySwitchPollEnabled = displaySwitchPollEnabledInput.checked;
             const displaySwitchPollInput = document.getElementById('input-display-switch-poll');
             if (displaySwitchPollInput) {
                 let v2 = parseInt(displaySwitchPollInput.value, 10);

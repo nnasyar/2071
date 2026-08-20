@@ -506,8 +506,28 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--cb);color:v
           <div class="mb-3"><label class="pl">Pano Adı</label><input type="text" class="pi" id="setBoardName" placeholder="ör. Okul Kayıt Panosu"></div>
           <div class="mb-3"><label class="pl">Açıklama</label><textarea class="pta" id="setBoardDesc" rows="3" placeholder="Bu panonun ne için kullanıldığına dair kısa not"></textarea></div>
           <div class="mb-3"><label class="pl">Yenileme Mesajı <span class="text-white-50" style="font-weight:400">(başka bir cihazdan güncelleme geldiğinde ekranda gösterilir)</span></label><input type="text" class="pi" id="setRefreshMessage" maxlength="120" placeholder="Başka bir cihazdan güncelleme yapıldı — yenilemek için tıklayın"></div>
-          <div class="mb-3"><label class="pl">Yenileme Kontrol Sıklığı (saniye) <span class="text-white-50" style="font-weight:400">(cihazlar buluta bu sıklıkta bakar; pano49 ile aynı ayardır)</span></label><input type="number" class="pi" id="setPollInterval" min="5" max="300" step="1" placeholder="15"></div>
-          <div class="mb-3"><label class="pl">Ekran Geçişi Kontrol Sıklığı (saniye) <span class="text-white-50" style="font-weight:400">(Pano49 ↔ Pano99 arası uzaktan ekran değiştirme kontrolü; pano49 ile aynı ayardır)</span></label><input type="number" class="pi" id="setDisplaySwitchPoll" min="3" max="300" step="1" placeholder="5"></div>
+          <div class="mb-3">
+            <label class="pl d-flex align-items-center justify-content-between">
+              <span>Yenileme Kontrol Sıklığı (saniye) <span class="text-white-50" style="font-weight:400">(cihazlar buluta bu sıklıkta bakar; pano49 ile aynı ayardır)</span></span>
+              <span class="form-check form-switch ms-2 mb-0" style="white-space:nowrap">
+                <input class="form-check-input" type="checkbox" role="switch" id="setPollIntervalEnabled" checked onchange="document.getElementById('setPollInterval').disabled = !this.checked">
+                <label class="form-check-label small text-white-50" for="setPollIntervalEnabled">Aktif</label>
+              </span>
+            </label>
+            <input type="number" class="pi" id="setPollInterval" min="5" max="300" step="1" placeholder="15">
+            <div class="help-note mt-1">Pasif ise otomatik kontrol yapılmaz; değişiklikler yalnızca sayfa manuel yenilendiğinde görünür.</div>
+          </div>
+          <div class="mb-3">
+            <label class="pl d-flex align-items-center justify-content-between">
+              <span>Ekran Geçişi Kontrol Sıklığı (saniye) <span class="text-white-50" style="font-weight:400">(Pano49 ↔ Pano99 arası uzaktan ekran değiştirme kontrolü; pano49 ile aynı ayardır)</span></span>
+              <span class="form-check form-switch ms-2 mb-0" style="white-space:nowrap">
+                <input class="form-check-input" type="checkbox" role="switch" id="setDisplaySwitchPollEnabled" checked onchange="document.getElementById('setDisplaySwitchPoll').disabled = !this.checked">
+                <label class="form-check-label small text-white-50" for="setDisplaySwitchPollEnabled">Aktif</label>
+              </span>
+            </label>
+            <input type="number" class="pi" id="setDisplaySwitchPoll" min="3" max="300" step="1" placeholder="5">
+            <div class="help-note mt-1">Pasif ise ekran geçişi yalnızca sayfa açılışında/yenilendiğinde bir kez kontrol edilir.</div>
+          </div>
           <div class="mb-3">
             <button type="button" class="btn btn-sm btn-outline-info w-100" onclick="app.forceRefreshDisplays()" title="İçerikte değişiklik olmasa bile TV/kiosk ekranlarını uzaktan yeniler">
               <i class="fas fa-sync"></i> Ekranları Şimdi Yenile
@@ -713,7 +733,7 @@ async function dpCloudLoad() {
 // mesaj. Ayarlar panelinden değiştirilebilir (bkz. openSettings/saveSettings)
 // ve dpCloudState ile birlikte buluta kaydedilip diğer cihazlarla senkronlanır.
 const DP_DEFAULT_REFRESH_MESSAGE = "Başka bir cihazdan güncelleme yapıldı — yenilemek için tıklayın";
-let dpCloudState = { autosave: null, templates: [], editorTheme: null, refreshMessage: DP_DEFAULT_REFRESH_MESSAGE, pollIntervalSeconds: 15, displaySwitchPollSeconds: 5 };
+let dpCloudState = { autosave: null, templates: [], editorTheme: null, refreshMessage: DP_DEFAULT_REFRESH_MESSAGE, pollIntervalSeconds: 15, pollIntervalEnabled: true, displaySwitchPollSeconds: 5, displaySwitchPollEnabled: true };
 let dpLastSyncedVersion = 0;
 let dpSyncVersion = 0;
 let dpCloudWriteTimer = null;
@@ -814,6 +834,9 @@ function dpShowUpdateToast() {
 function dpCloudStartPolling() {
   if (!supabaseClient) return;
   if (dpCloudPollTimer) clearInterval(dpCloudPollTimer);
+  // "Yenileme Kontrol Sıklığı" pasif ise süreli (periyodik) bulut yoklaması hiç
+  // KURULMAZ; güncellemeler yalnızca sayfa manuel yenilendiğinde görülür.
+  if (dpCloudState && dpCloudState.pollIntervalEnabled === false) return;
   // "?ekran=1" ile açılan gerçek TV/kiosk ekranlarında kimse "yenile" bildirimine
   // TIKLAYAMAZ — bu yüzden orada değişiklik algılanır algılanmaz OTOMATİK olarak
   // sayfa yenilenir. Düzenleme yapan kişinin kendi tarayıcısında ise (editör),
@@ -950,6 +973,10 @@ function displayControlStartPolling() {
   if (!supabaseClient) return;
   if (displayControlPollTimer) clearInterval(displayControlPollTimer);
   displayControlCheckOnce();
+  // "Ekran Geçişi Kontrol Sıklığı" pasif ise süreli (periyodik) kontrol KURULMAZ;
+  // yalnızca yukarıdaki tek seferlik (sayfa açılışı/yenilemesi anındaki) kontrol
+  // yapılır — bir sonraki kontrol için sayfanın manuel yenilenmesi gerekir.
+  if (dpCloudState && dpCloudState.displaySwitchPollEnabled === false) return;
   let intervalSec = parseInt(dpCloudState && dpCloudState.displaySwitchPollSeconds, 10);
   if (!intervalSec || isNaN(intervalSec)) intervalSec = 5;
   intervalSec = Math.min(300, Math.max(3, intervalSec));
@@ -1396,7 +1423,9 @@ class App {
           editorTheme: restored.editorTheme || null,
           refreshMessage: restored.refreshMessage || dpCloudState.refreshMessage || DP_DEFAULT_REFRESH_MESSAGE,
           pollIntervalSeconds: restored.pollIntervalSeconds || dpCloudState.pollIntervalSeconds || 15,
-          displaySwitchPollSeconds: restored.displaySwitchPollSeconds || dpCloudState.displaySwitchPollSeconds || 5
+          pollIntervalEnabled: restored.pollIntervalEnabled !== undefined ? restored.pollIntervalEnabled : (dpCloudState.pollIntervalEnabled !== undefined ? dpCloudState.pollIntervalEnabled : true),
+          displaySwitchPollSeconds: restored.displaySwitchPollSeconds || dpCloudState.displaySwitchPollSeconds || 5,
+          displaySwitchPollEnabled: restored.displaySwitchPollEnabled !== undefined ? restored.displaySwitchPollEnabled : (dpCloudState.displaySwitchPollEnabled !== undefined ? dpCloudState.displaySwitchPollEnabled : true)
         };
         clearTimeout(dpCloudWriteTimer);
         this.toast("Yedek yükleniyor, lütfen bekleyin...");
@@ -4335,7 +4364,17 @@ class App {
     document.getElementById("setBoardDesc").value = this.boardDesc || "";
     document.getElementById("setRefreshMessage").value = (dpCloudState && dpCloudState.refreshMessage) ? dpCloudState.refreshMessage : DP_DEFAULT_REFRESH_MESSAGE;
     document.getElementById("setPollInterval").value = (dpCloudState && dpCloudState.pollIntervalSeconds) ? dpCloudState.pollIntervalSeconds : 15;
+    const pollEnabledChk = document.getElementById("setPollIntervalEnabled");
+    if (pollEnabledChk) {
+      pollEnabledChk.checked = !(dpCloudState && dpCloudState.pollIntervalEnabled === false);
+      document.getElementById("setPollInterval").disabled = !pollEnabledChk.checked;
+    }
     document.getElementById("setDisplaySwitchPoll").value = (dpCloudState && dpCloudState.displaySwitchPollSeconds) ? dpCloudState.displaySwitchPollSeconds : 5;
+    const switchPollEnabledChk = document.getElementById("setDisplaySwitchPollEnabled");
+    if (switchPollEnabledChk) {
+      switchPollEnabledChk.checked = !(dpCloudState && dpCloudState.displaySwitchPollEnabled === false);
+      document.getElementById("setDisplaySwitchPoll").disabled = !switchPollEnabledChk.checked;
+    }
     const key = this.canvasW + "x" + this.canvasH;
     document.getElementById("setResPreset").value = App.RES_PRESETS.includes(key) ? key : "custom";
     document.getElementById("setCustomW").value = this.canvasW;
@@ -4439,9 +4478,13 @@ class App {
     this.boardName = document.getElementById("setBoardName").value;
     this.boardDesc = document.getElementById("setBoardDesc").value;
     dpCloudState.refreshMessage = document.getElementById("setRefreshMessage").value.trim() || DP_DEFAULT_REFRESH_MESSAGE;
+    const pollEnabledChkApply = document.getElementById("setPollIntervalEnabled");
+    if (pollEnabledChkApply) dpCloudState.pollIntervalEnabled = pollEnabledChkApply.checked;
     let pollVal = parseInt(document.getElementById("setPollInterval").value, 10);
     if (!pollVal || isNaN(pollVal)) pollVal = 15;
     dpCloudState.pollIntervalSeconds = Math.min(300, Math.max(5, pollVal));
+    const switchPollEnabledChkApply = document.getElementById("setDisplaySwitchPollEnabled");
+    if (switchPollEnabledChkApply) dpCloudState.displaySwitchPollEnabled = switchPollEnabledChkApply.checked;
     let switchPollVal = parseInt(document.getElementById("setDisplaySwitchPoll").value, 10);
     if (!switchPollVal || isNaN(switchPollVal)) switchPollVal = 5;
     dpCloudState.displaySwitchPollSeconds = Math.min(300, Math.max(3, switchPollVal));

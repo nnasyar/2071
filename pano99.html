@@ -495,6 +495,9 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--cb);color:v
           <div class="mb-3"><label class="pl">Pano Adı</label><input type="text" class="pi" id="setBoardName" placeholder="ör. Okul Kayıt Panosu"></div>
           <div class="mb-3"><label class="pl">Açıklama</label><textarea class="pta" id="setBoardDesc" rows="3" placeholder="Bu panonun ne için kullanıldığına dair kısa not"></textarea></div>
           <div class="mb-3"><label class="pl">Yenileme Mesajı <span class="text-white-50" style="font-weight:400">(başka bir cihazdan güncelleme geldiğinde ekranda gösterilir)</span></label><input type="text" class="pi" id="setRefreshMessage" maxlength="120" placeholder="Başka bir cihazdan güncelleme yapıldı — yenilemek için tıklayın"></div>
+          <div class="mb-3"><label class="pl">Bulut Kontrol Sıklığı (saniye) <span class="text-white-50" style="font-weight:400">(cihazların buluttaki güncellemeyi ne sıklıkla kontrol edeceği, en az 5 sn)</span></label><input type="number" class="pi" id="setCloudPollInterval" min="5" max="300" step="1" placeholder="20"></div>
+          <div class="mb-3"><label class="pl">Ekran Geçişi Kontrol Sıklığı (saniye) <span class="text-white-50" style="font-weight:400">(pano49'dan "Duyuru Panosuna Geç" komutunun TV'de ne sıklıkla kontrol edileceği, en az 3 sn)</span></label><input type="number" class="pi" id="setDisplayControlPollInterval" min="3" max="120" step="1" placeholder="5"></div>
+          <div class="mb-3"><button type="button" class="btn btn-secondary btn-sm" onclick="dpManualRefreshDisplayScreens()"><i class="fas fa-rotate"></i> TV'yi Şimdi Yenile</button> <span class="text-white-50" style="font-weight:400;font-size:.8rem">— açık olan TV/ekranları, kontrol sıklığını beklemeden anında yeniler.</span></div>
           <div class="help-note">Bu bilgiler şablon kaydederken varsayılan ad olarak önerilir.</div>
         </div>
         <div id="setEkran" style="display:none">
@@ -765,6 +768,8 @@ function dpCloudPushNow() {
       if (error) {
         console.warn("Bulut kaydı başarısız (veri yerelde kaldı, bir sonraki değişiklikte tekrar denenecek):", error);
         dpNotifyStorageIssue("Buluta kaydedilemedi — görsel çok büyük olabilir, daha küçük bir dosya deneyin");
+      } else {
+        dpRealtimeBroadcastRefresh(); // başarılı yazımdan sonra ekranlara anlık sinyal
       }
     })
     .catch(e => {
@@ -788,15 +793,65 @@ function dpShowUpdateToast() {
   document.body.appendChild(el);
 }
 
+// ============================================================================
+// ANLIK YENİLEME (Supabase Realtime broadcast) — YENİ ÖZELLİK
+// ----------------------------------------------------------------------------
+// pano49/app.js'teki aynı mekanizmanın Duyuru Panosu (pano99) karşılığı.
+// Normal bulut yoklaması (dpCloudPollTimer) belirli aralıklarla veritabanını
+// kontrol eder; bu güvenilir bir "yedek" yöntemdir ama anlık değildir.
+// Realtime broadcast WebSocket üzerinden çalışır, ekstra veritabanı okuma
+// isteği (kota) oluşturmadan ekranlara neredeyse anında sinyal gönderir.
+// - Her başarılı buluta yazma (dpCloudPushNow) sonrası otomatik yayınlanır.
+// - Yönetim Paneli'ndeki "TV'yi Şimdi Yenile" düğmesi de aynı sinyali gönderir.
+// GÜVENLİK: Düzenleme ekranı (dpForceEditor / editör) açıkken bu sinyal asla
+// otomatik yenileme yapmaz — sadece tıklanabilir bildirim gösterir.
+let dpRealtimeChannel = null;
+function dpRealtimeInit() {
+  if (!supabaseClient || dpRealtimeChannel) return;
+  try {
+    dpRealtimeChannel = supabaseClient.channel("pano99-refresh");
+    dpRealtimeChannel.on("broadcast", { event: "refresh" }, () => {
+      if (dpIsDisplayScreen) {
+        location.reload();
+      } else {
+        dpShowUpdateToast();
+      }
+    }).subscribe();
+  } catch (e) {
+    console.warn("Realtime kanalı kurulamadı (anlık yenileme devre dışı, normal yoklama ile devam edilecek):", e);
+  }
+}
+function dpRealtimeBroadcastRefresh() {
+  if (!dpRealtimeChannel) return;
+  try {
+    dpRealtimeChannel.send({ type: "broadcast", event: "refresh", payload: { ts: Date.now() } });
+  } catch (e) {
+    console.warn("Anlık yenileme sinyali gönderilemedi (ekranlar normal yoklama sıklığında güncellenecek):", e);
+  }
+}
+// Yönetim Paneli / editördeki "TV'yi Şimdi Yenile" düğmesine bağlıdır.
+function dpManualRefreshDisplayScreens() {
+  dpRealtimeBroadcastRefresh();
+  if (typeof showCustomNotification === "function") {
+    showCustomNotification("Gönderildi", "Ekranlara yenileme sinyali gönderildi.");
+  } else {
+    alert("Ekranlara yenileme sinyali gönderildi.");
+  }
+}
+// ============================================================================
+
 function dpCloudStartPolling() {
   if (!supabaseClient) return;
   if (dpCloudPollTimer) clearInterval(dpCloudPollTimer);
   // "?ekran=1" ile açılan gerçek TV/kiosk ekranlarında kimse "yenile" bildirimine
   // TIKLAYAMAZ — bu yüzden orada değişiklik algılanır algılanmaz OTOMATİK olarak
-  // sayfa yenilenir, ve daha SIK (5 sn) yoklanır. Düzenleme yapan kişinin kendi
-  // tarayıcısında ise (editör), çalışmasını yarıda kesmemek için hâlâ tıklanabilir
-  // bir bildirim gösterilir (biraz daha sık: 8 sn).
-  const intervalMs = dpIsDisplayScreen ? 5000 : 8000;
+  // sayfa yenilenir. Düzenleme yapan kişinin kendi tarayıcısında ise (editör),
+  // çalışmasını yarıda kesmemek için hâlâ tıklanabilir bir bildirim gösterilir.
+  // Sıklık, Yönetim Paneli > Ayarlar > "Bulut Kontrol Sıklığı" alanından
+  // (dpCloudState.cloudPollIntervalSec) ayarlanabilir; varsayılan 20 sn, en az
+  // 5 sn'dir. NOT: Bu değer öncesinde sabitti (ekranda 5 sn / editörde 8 sn) —
+  // artık ikisi de AYNI, kullanıcının belirlediği sıklığı kullanıyor.
+  const intervalMs = Math.max(5, parseInt(dpCloudState && dpCloudState.cloudPollIntervalSec, 10) || 20) * 1000;
   dpCloudPollTimer = setInterval(async () => {
     try {
       const { data, error } = await supabaseClient
@@ -923,7 +978,8 @@ function displayControlStartPolling() {
   if (!supabaseClient) return;
   if (displayControlPollTimer) clearInterval(displayControlPollTimer);
   displayControlCheckOnce();
-  displayControlPollTimer = setInterval(displayControlCheckOnce, 5000);
+  const intervalSec = Math.max(3, parseInt(dpCloudState && dpCloudState.displayControlPollIntervalSec, 10) || 5);
+  displayControlPollTimer = setInterval(displayControlCheckOnce, intervalSec * 1000);
 }
 if (supabaseClient && dpIsDisplayScreen) displayControlStartPolling();
 // ============================================================================
@@ -1048,7 +1104,15 @@ class App {
     this.updLay();
     this.startClock();
     setInterval(() => this.autoSave(), 20000);
-    if (supabaseClient) dpCloudStartPolling();
+    // Bulut verisi yüklendikten SONRA "Ekran Geçişi Kontrol Sıklığı" ayarı da
+    // gelmiş olur (dpCloudState içinde) — bu yüzden yoklama zamanlayıcısı,
+    // en güncel kullanıcı ayarını uygulamak için burada bir kez daha başlatılır
+    // (satır ~982'deki ilk çağrı henüz bulut verisi gelmeden, varsayılan 5 sn
+    // ile başlamış olabilir).
+    if (supabaseClient && dpIsDisplayScreen && typeof displayControlStartPolling === "function") {
+      displayControlStartPolling();
+    }
+    if (supabaseClient) { dpCloudStartPolling(); dpRealtimeInit(); }
     this.updScale();
     window.addEventListener("resize", () => this.updScale());
     this.setupPhotoEditor();
@@ -1064,19 +1128,16 @@ class App {
     // (?duzenle=1 ile) gelindiyse, doğrudan DÜZENLEME arayüzü gösterilir — yayın
     // önizlemesi atlanır. Böylece iki ayrı pano dosyası olsa da, düzenleme AYNI
     // yönetim akışından tek tıkla açılabilir.
-    if (!dpForceEditor) {
-      this.previewFullscreen();
-    } else if (this._isFullscreen()) {
-      // ÖNEMLİ: pano49'daki "Pano99'u Düzenle" kısayolu, BU sayfaya geçmeden HEMEN
-      // ÖNCE (aynı sekmede/origin'de) gerçek tam ekranı isteyebiliyor; bazı tarayıcılar
-      // (Chrome/Edge) bu gerçek tam ekran durumunu sayfa geçişinde KORUYOR. Bu durumda
-      // previewFullscreen() hiç çağrılmadığı için (yukarıdaki dal) fare hareketinde
-      // beliren "✕" (fsc) düğmesi de HİÇ KURULMUYORDU — kullanıcı düzenleme ekranına
-      // tam ekran halde düşüp çıkış için hiçbir görünür yol bulamıyordu. Editör her
-      // zaman PENCERELİ görünümde çalışması gerektiğinden (bkz. closeFS() içindeki AYNI
-      // mantık), burada da tutarlılık için gerçek tam ekrandan doğrudan çıkılır.
-      this._exitRealFullscreen();
-    }
+    // DÜZELTME: "Pano99'u Düzenle" kısayolundan (?duzenle=1) gelindiğinde
+    // previewFullscreen() hiç çağrılmıyordu — bu yüzden "✕" (tam ekrandan çıkış)
+    // düğmesi KURULMUYOR ve fare yukarı hareket ettirilse bile hiç görünmüyordu.
+    // pano49 tarafında gerçek (OS düzeyinde) tam ekran zaten istenip bu sayfaya
+    // taşınmış olabileceğinden, kullanıcının tam ekrandan çıkacak HİÇBİR arayüz
+    // kontrolü kalmıyordu (sadece tarayıcının Esc tuşu işe yarardı, o da her
+    // tarayıcı/kiosk modunda görünür değildir). Artık düzenleme arayüzünde de
+    // aynı "fare üstte gezdirilince beliren X" davranışı kuruluyor.
+    if (!dpForceEditor) this.previewFullscreen();
+    else this._armEditorFullscreenExit();
     // Güvenlik perdesi (bkz. body başındaki #bootGate açıklaması) SADECE buraya
     // ulaşıldıysa, yani gerçek pano içeriği başarıyla yayın görünümüne (ya da
     // düzenleme kısayoluyla geldiyse doğrudan editöre) yüklendiyse kaldırılır.
@@ -4079,6 +4140,23 @@ class App {
     this._revealFSC();
   }
 
+  // DÜZELTME: previewFullscreen()'in aksine burada "fsPreview" adlı bir alt
+  // element yok (düzenleme arayüzünün kendisi gösteriliyor) — bu yüzden "X"
+  // düğmesinin fare hareketini TÜM belge (document) üzerinden dinlemesi
+  // gerekir, tek bir alt kapsayıcı üzerinden değil. Düğme daima en üstte
+  // (z-index:100000) kaldığı için düzenleme arayüzünün üzerine biner ama
+  // "show" sınıfı olmadığında (opacity:0, pointer-events:none) tamamen
+  // görünmez ve tıklamaları engellemez.
+  _armEditorFullscreenExit() {
+    const btn = document.getElementById("fsc");
+    if (btn) btn.style.display = "flex";
+    if (this._editorFsExitArmed) return;
+    this._editorFsExitArmed = true;
+    document.addEventListener("mousemove", () => this._revealFSC());
+    document.addEventListener("touchstart", () => this._revealFSC());
+    this._revealFSC();
+  }
+
   _revealFSC() {
     const btn = document.getElementById("fsc");
     if (!btn) return;
@@ -4221,6 +4299,8 @@ class App {
     document.getElementById("setBoardName").value = this.boardName || "";
     document.getElementById("setBoardDesc").value = this.boardDesc || "";
     document.getElementById("setRefreshMessage").value = (dpCloudState && dpCloudState.refreshMessage) ? dpCloudState.refreshMessage : DP_DEFAULT_REFRESH_MESSAGE;
+    document.getElementById("setCloudPollInterval").value = (dpCloudState && dpCloudState.cloudPollIntervalSec) ? dpCloudState.cloudPollIntervalSec : 20;
+    document.getElementById("setDisplayControlPollInterval").value = (dpCloudState && dpCloudState.displayControlPollIntervalSec) ? dpCloudState.displayControlPollIntervalSec : 5;
     const key = this.canvasW + "x" + this.canvasH;
     document.getElementById("setResPreset").value = App.RES_PRESETS.includes(key) ? key : "custom";
     document.getElementById("setCustomW").value = this.canvasW;
@@ -4324,6 +4404,20 @@ class App {
     this.boardName = document.getElementById("setBoardName").value;
     this.boardDesc = document.getElementById("setBoardDesc").value;
     dpCloudState.refreshMessage = document.getElementById("setRefreshMessage").value.trim() || DP_DEFAULT_REFRESH_MESSAGE;
+    {
+      const parsed = parseInt(document.getElementById("setCloudPollInterval").value, 10);
+      dpCloudState.cloudPollIntervalSec = Math.max(5, isNaN(parsed) ? 20 : parsed);
+      // Değer değiştiyse yoklama zamanlayıcısını yeni sıklıkla hemen yeniden başlat.
+      if (typeof dpCloudStartPolling === "function") dpCloudStartPolling();
+    }
+    {
+      const parsedDp = parseInt(document.getElementById("setDisplayControlPollInterval").value, 10);
+      dpCloudState.displayControlPollIntervalSec = Math.max(3, isNaN(parsedDp) ? 5 : parsedDp);
+      // Bu ayar sadece gerçek TV/kiosk ekranında (?ekran=1) etkilidir; editörde
+      // çalışan bir zamanlayıcı olmadığı için burada yeniden başlatmaya gerek yok
+      // — TV, bir sonraki senkronizasyonda (dpCloudPushNow ile) yeni değeri alıp
+      // kendi displayControlStartPolling()'ini otomatik günceller.
+    }
     const preset = document.getElementById("setResPreset").value;
     let w, h;
     if (preset === "custom") {
